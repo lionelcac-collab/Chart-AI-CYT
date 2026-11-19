@@ -45,5 +45,8 @@ describe('official bulletins', () => {
     expect(bvmacBocUrlFromIndex(html, '2026-11-18')).toContain('BOC-20261118.pdf');
     expect(bvmacBocUrlFromIndex(html, '2020-08-07')).toBe('https://www.bvm-ac.org/wp-content/uploads/2020/08/BOC-BVMAC-07-08-2020.pdf');
     expect(bvmacBocUrlFromIndex(html, '2020-08-08')).toBeNull();
+    const html2 = '<a href="https://www.bvm-ac.org/wp-content/uploads/2023/01/BOC-automatise-20230111-vf.pdf">z</a>';
+    expect(bvmacBocUrlFromIndex(html2, '2023-01-11')).toContain('BOC-automatise-20230111-vf.pdf');
+    expect(bvmacBocUrlFromIndex(html2, '2023-01-12')).toBeNull();
   });
 });

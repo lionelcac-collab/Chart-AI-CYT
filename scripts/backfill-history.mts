@@ -5,7 +5,8 @@
 // Output per market: CSV (date,ticker,name,isin,prev_close,open,close,change_pct,volume,value,source_url)
 // and <MARKET>.log.csv (date,status,detail) for absent / unreadable sessions.
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { businessDays } from '../packages/data/src/bulletinConnector.ts';
 import {
@@ -19,8 +20,8 @@ const OUT = arg('out', 'data/history');
 const MARKETS = arg('markets', 'BRVM,BVMAC,NGX').split(',');
 const PAUSE_MS = Number(arg('pause', '1000'));
 mkdirSync(OUT, { recursive: true });
-const TMP = join(OUT, '.tmp');
-mkdirSync(TMP, { recursive: true });
+// Private temp dir per process (several backfills may share the same output folder).
+const TMP = mkdtempSync(join(tmpdir(), 'nyota-backfill-'));
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const UA = { 'User-Agent': 'NyotaHistoryBackfill/1.0 (official bulletins, polite crawl)' };

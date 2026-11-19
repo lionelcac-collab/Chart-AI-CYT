@@ -59,7 +59,7 @@ export function parseBrvmBoc(text: string): OfficialRow[] {
 /** Canonical BVMAC tickers by ISIN (aligned with Mansa's codes). */
 export const BVMAC_TICKERS: Record<string, string> = {
   CM0000010009: 'SEMC', CM0000010017: 'SAFACAM', CM0000010025: 'SOCAPALM', CM0000010041: 'REGIONALE',
-  GQ0000010050: 'BANGE', GA0000010066: 'SCGRE', GA0000010074: 'BGFIHC',
+  GQ0000010050: 'BANGE', GA0000010066: 'SCGRE', GA0000010074: 'BGFIHC', GA0000010033: 'SIAT',
 };
 
 /**
@@ -92,6 +92,19 @@ export function parseBvmacBoc(text: string): OfficialRow[] {
       changePct: prev ? Math.round(((close - prev) / prev) * 1e6) / 1e4 : null,
       volume: frNum(m[6]), value: frNum(m[7]),
     });
+  }
+  if (out.length) return out;
+  // 2022 layout: "SHORT NAME  ISIN  close of the day  [change]" — closing price only.
+  const old = new RegExp(String.raw`\b([A-Z]{2})((?:\d){10})\s{2,}(${FR})(?:\s|$)`);
+  for (const line of text.split(/\r?\n/)) {
+    const m = line.match(old);
+    if (!m || m[2]![5] !== '1') continue;
+    const isin = `${m[1]}${m[2]}`;
+    const ticker = BVMAC_TICKERS[isin];
+    const close = frNum(m[3]);
+    if (!ticker || seen.has(ticker) || close == null || close <= 0) continue;
+    seen.add(ticker);
+    out.push({ ticker, isin, name: ticker, previousClose: null, open: null, close, changePct: null, volume: null, value: null });
   }
   return out;
 }
@@ -142,5 +155,7 @@ export function bvmacBocUrlFromIndex(indexHtml: string, date: string): string | 
     const hit = links.find((l) => l.toUpperCase().includes(p.toUpperCase()));
     if (hit) return hit;
   }
-  return null;
+  // Other names seen in the archive: BOC-automatise-20221207.pdf, BOC-20231004-1.pdf, BOC-20240614_compressed.pdf…
+  const generic = new RegExp(`/BOC[^/]*?(?:${y}${m}${d}|${d}-${m}-${y})[^/]*\\.pdf$`, 'i');
+  return links.find((l) => generic.test(l)) ?? null;
 }
