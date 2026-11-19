@@ -50,5 +50,7 @@ curl -X POST "$SUPABASE_URL/functions/v1/ingest-market" -H "Authorization: Beare
 
 Puis, dans l'éditeur SQL : `select vault.create_secret('<url>', 'project_url'); select vault.create_secret('<service_role_key>', 'service_role_key');`
 
-## Web (Vercel)
-Projet Vercel pointant sur `apps/mobile` (voir `apps/mobile/vercel.json`), variables `EXPO_PUBLIC_*`.
+## Web (Vercel) — https://chart-boursafrikia.com
+- Équipe Vercel `cyt-chart-ia`, projet **chart-boursafrikia** ; `www.chart-boursafrikia.com` redirige (308) vers `chart-boursafrikia.com`.
+- Redéployer : `scripts/deploy-web.sh` (compile `apps/mobile` avec son `.env` Supabase puis publie en production).
+- DNS chez IONOS : `A @ 216.198.79.1` et `CNAME www cecc25377ed0863a.vercel-dns-017.com`.
