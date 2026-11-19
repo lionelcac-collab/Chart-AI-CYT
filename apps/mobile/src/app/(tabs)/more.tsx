@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, TextInput } from 'react-native';
+import { useState } from 'react';
 import { Pressable } from 'react-native';
 import { APP_NAME } from '@chart-boursafrikia/core';
 import { Card, Pill, Row, Screen, Txt } from '../../components/ui';
@@ -27,6 +28,18 @@ export default function More() {
   const soon = lang === 'fr' ? 'bientôt' : 'soon';
   const qc = useQueryClient();
   const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
+  const isAdmin = useQuery({
+    queryKey: ['is-admin', user.data?.id], enabled: !!user.data,
+    queryFn: async () => (supabase && user.data ? ((await supabase.rpc('is_admin', { uid: user.data.id })).data === true) : false),
+  });
+  const [newPw, setNewPw] = useState('');
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+  const changePassword = async () => {
+    if (!supabase) return;
+    const { error } = await supabase.auth.updateUser({ password: newPw });
+    setPwMsg(error ? (lang === 'fr' ? `Échec : ${error.message}` : `Failed: ${error.message}`) : (lang === 'fr' ? 'Mot de passe modifié.' : 'Password changed.'));
+    if (!error) setNewPw('');
+  };
   const signOut = async () => { await supabase?.auth.signOut(); s.setPlan('free'); qc.invalidateQueries(); };
   const deleteAccount = async () => {
     const go = async () => { await supabase?.functions.invoke('delete-account', { body: {} }); await signOut(); };
@@ -55,7 +68,12 @@ export default function More() {
         <Card title={t.more.account}>
           {user.data ? (
             <>
-              <Txt size="sm" muted>{user.data.email}</Txt>
+              <Txt size="sm" muted>{user.data.email}{isAdmin.data ? (lang === 'fr' ? ' · Super administrateur' : ' · Super admin') : ''}</Txt>
+              <TextInput value={newPw} onChangeText={setNewPw} secureTextEntry autoComplete="new-password" placeholder={lang === 'fr' ? 'Nouveau mot de passe (10 caractères min.)' : 'New password (min. 10 characters)'} placeholderTextColor={th.textMuted}
+                accessibilityLabel={lang === 'fr' ? 'Nouveau mot de passe' : 'New password'}
+                style={{ backgroundColor: th.cardAlt, color: th.text, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: th.border }} />
+              <Item label={lang === 'fr' ? 'Changer mon mot de passe' : 'Change my password'} onPress={() => (newPw.length >= 10 ? changePassword() : setPwMsg(lang === 'fr' ? '10 caractères minimum.' : 'At least 10 characters.'))} />
+              {pwMsg ? <Txt size="xs" muted>{pwMsg}</Txt> : null}
               <Item label={t.more.signOut} onPress={signOut} />
               <Item label={lang === 'fr' ? 'Supprimer mon compte' : 'Delete my account'} onPress={deleteAccount} />
             </>
