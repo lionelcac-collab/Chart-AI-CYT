@@ -78,15 +78,17 @@ export function MarketScan({ market }: { market: MarketCode }) {
     <>
       <Card title={`${t.dashboard.top} / ${t.dashboard.flop}`}>
         {periods(SCAN_PERIODS, period, setPeriod)}
-        {movers.isLoading ? <Loading /> : movers.error ? <ErrorBox message={t.common.error} onRetry={() => movers.refetch()} /> : (
+        {movers.isLoading ? <Loading /> : movers.error ? <ErrorBox message={t.common.error} onRetry={() => movers.refetch()} /> : movers.data?.unavailable ? (
+          <View><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></View>
+        ) : (
           <View style={{ gap: space.md }}>
             <View>
               <Txt weight="700">▲ {t.dashboard.top}</Txt>
-              {mv.gainers.length ? mv.gainers.map((r) => <MoverLine key={r.assetId} r={r} />) : <Txt size="sm" muted>—</Txt>}
+              {mv.gainers.length ? mv.gainers.map((r) => <MoverLine key={r.assetId} r={r} />) : <Txt size="sm" muted>{lang === 'fr' ? 'Aucun titre en hausse sur la période.' : 'No stock up over the period.'}</Txt>}
             </View>
             <View>
               <Txt weight="700">▼ {t.dashboard.flop}</Txt>
-              {mv.losers.length ? mv.losers.map((r) => <MoverLine key={r.assetId} r={r} />) : <Txt size="sm" muted>—</Txt>}
+              {mv.losers.length ? mv.losers.map((r) => <MoverLine key={r.assetId} r={r} />) : <Txt size="sm" muted>{lang === 'fr' ? 'Aucun titre en baisse sur la période.' : 'No stock down over the period.'}</Txt>}
             </View>
             {asOf(movers.data?.sessionDate)}
           </View>
@@ -98,7 +100,9 @@ export function MarketScan({ market }: { market: MarketCode }) {
         {periods(SCAN_PERIODS.filter((p) => p !== '1D'), levelPeriod, setLevelPeriod)}
         <Txt size="xs" muted>{t.dashboard.threshold}</Txt>
         <Row style={{ flexWrap: 'wrap' }}>{THRESHOLDS.map((n) => <Pill key={n} label={`≤ ${n} %`} active={near === n} onPress={() => setNear(n)} />)}</Row>
-        {levels.isLoading ? <Loading /> : levels.error ? <ErrorBox message={t.common.error} onRetry={() => levels.refetch()} /> : (
+        {levels.isLoading ? <Loading /> : levels.error ? <ErrorBox message={t.common.error} onRetry={() => levels.refetch()} /> : levels.data?.unavailable ? (
+          <View><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></View>
+        ) : (
           <View style={{ gap: space.md }}>
             <View>
               <Txt weight="700">{t.dashboard.nearSupport} ({lv.nearSupport.length})</Txt>

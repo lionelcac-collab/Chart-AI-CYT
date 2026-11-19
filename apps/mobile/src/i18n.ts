@@ -5,6 +5,8 @@ const fr = {
   common: {
     unavailable: 'Donnée indisponible', closeOf: 'Clôture du', delayed: 'Différé ~{n} min', source: 'Source',
     demoBanner: 'MODE DÉMO — données fictives à des fins de présentation, aucun cours réel.',
+    snapshotBanner: 'DONNÉES RÉELLES · instantané du {date} à {time} UTC · Source : Mansa Markets · historique non disponible (plan gratuit)',
+    historyNeeded: 'Disponible dès que l’historique des cours est chargé (plan Mansa Pro).',
     loading: 'Chargement…', retry: 'Réessayer', error: 'Une erreur est survenue', premium: 'Premium', free: 'Gratuit',
     seeAll: 'Tout voir', search: 'Rechercher un titre, un ticker, un ISIN…', cancel: 'Annuler', save: 'Enregistrer',
   },
@@ -52,6 +54,8 @@ const en: typeof fr = {
   common: {
     unavailable: 'Data unavailable', closeOf: 'Close of', delayed: 'Delayed ~{n} min', source: 'Source',
     demoBanner: 'DEMO MODE — fictional data for presentation only, no real prices.',
+    snapshotBanner: 'REAL DATA · snapshot of {date} at {time} UTC · Source: Mansa Markets · no price history (free plan)',
+    historyNeeded: 'Available once price history is loaded (Mansa Pro plan).',
     loading: 'Loading…', retry: 'Retry', error: 'Something went wrong', premium: 'Premium', free: 'Free',
     seeAll: 'See all', search: 'Search a stock, ticker, ISIN…', cancel: 'Cancel', save: 'Save',
   },

@@ -9,7 +9,7 @@ import { Button, Card, ErrorBox, Loading, Pill, ProvenanceBadge, Row, Screen, Tx
 import { useT } from '../../i18n';
 import { api } from '../../lib/api';
 import { sectorLabel } from '../../lib/demo';
-import { fmtCompact, fmtNum, fmtPct, fmtPrice, statusLabel } from '../../lib/format';
+import { asOfLabel, fmtCompact, fmtNum, fmtPct, fmtPrice } from '../../lib/format';
 import { changeColor, radius, space, useTheme } from '../../theme';
 
 export default function Dashboard() {
@@ -22,7 +22,9 @@ export default function Dashboard() {
 
   const news = useQuery({ queryKey: ['news', market], queryFn: () => api.news(market, 5) });
   const d = q.data;
-  const traded = [...(d?.movers ?? [])].sort((a, b) => (b.value ?? 0) - (a.value ?? 0)).slice(0, 5);
+  // Traded value when the source gives it, else number of shares traded (Mansa free plan: volume only).
+  const byValue = (d?.movers ?? []).some((m) => m.value != null);
+  const traded = [...(d?.movers ?? [])].filter((m) => (byValue ? m.value : m.volume) ?? 0).sort((a, b) => ((byValue ? b.value : b.volume) ?? 0) - ((byValue ? a.value : a.volume) ?? 0)).slice(0, 5);
 
   return (
     <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
@@ -50,7 +52,7 @@ export default function Dashboard() {
                 </View>
               </Row>
             )) : <Txt muted>{t.common.unavailable}</Txt>}
-            {d.indices[0] ? <ProvenanceBadge status={statusLabel({ kind: 'close', sessionDate: d.indices[0].date }, lang)} source={d.indices[0].source} /> : null}
+            {d.indices[0] ? <ProvenanceBadge status={asOfLabel(d.indices[0].date, { kind: 'close', sessionDate: d.indices[0].date.slice(0, 10) }, lang)} source={d.indices[0].source} /> : null}
           </Card>
 
           {d.report ? (
@@ -85,7 +87,7 @@ export default function Dashboard() {
             {traded.map((a) => (
               <Row key={a.id} style={{ justifyContent: 'space-between' }}>
                 <Link href={`/asset/${encodeURIComponent(a.id)}`}><Txt weight="700">{a.ticker}</Txt></Link>
-                <Txt size="sm">{fmtCompact(a.value, lang)} {a.currency === 'XOF' || a.currency === 'XAF' ? 'FCFA' : a.currency}</Txt>
+                <Txt size="sm">{byValue ? `${fmtCompact(a.value, lang)} ${a.currency === 'XOF' || a.currency === 'XAF' ? 'FCFA' : a.currency}` : `${fmtCompact(a.volume, lang)} ${lang === 'fr' ? 'titres' : 'shares'}`}</Txt>
               </Row>
             ))}
           </Card>
@@ -101,7 +103,7 @@ export default function Dashboard() {
             )) : <Txt muted>{t.common.unavailable}</Txt>}
             <Txt size="xs" muted>{lang === 'fr' ? 'Score du modèle de −100 à +100, ⚠ = titre peu liquide. Classement statistique, pas une recommandation.' : 'Model score from −100 to +100, ⚠ = illiquid. Statistical ranking, not a recommendation.'}</Txt>
           </Card>
-          {d.movers[0] ? <ProvenanceBadge status={statusLabel(d.movers[0].status, lang)} source={d.movers[0].source} /> : null}
+          {d.movers[0] ? <ProvenanceBadge status={asOfLabel(d.movers[0].asOf, d.movers[0].status, lang)} source={d.movers[0].source} /> : null}
         </>
       ) : null}
     </Screen>

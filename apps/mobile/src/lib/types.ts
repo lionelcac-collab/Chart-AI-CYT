@@ -16,6 +16,8 @@ export interface AssetSummary {
   value: number | null;
   status: DataStatus;
   source: string;
+  /** Source timestamp when known (ISO date or date-time). */
+  asOf?: string;
 }
 
 export interface MaskedConsensus {
@@ -42,7 +44,7 @@ export interface AssetSheet {
   bars: Bar[];
   ranges: RangeStat[];
   performance: PerformanceStat[];
-  liquidity: LiquidityStat;
+  liquidity: LiquidityStat | null;
   ratios: Ratios;
   fundamentals: { fiscalYear: number; revenue?: number | null; netIncome?: number | null; provenance: { source: string } }[];
   dividends: { amount: number; currency: string; ex_date: string | null; payment_date: string | null; fiscal_year: number | null; source: string }[];

@@ -4,6 +4,8 @@
  */
 import type { MarketCode, ScanPeriod, ScanRow } from '@nyota/core';
 import { DEMO_ASSETS, demoDashboard, demoNews, demoScan, demoSheet, demoSummary, demoTrackRecord } from './demo';
+import { SNAPSHOT } from './snapshot';
+import { snapDashboard, snapScan, snapSearch, snapSheet } from './snapshotApi';
 import { DEMO_MODE, supabase } from './supabase';
 import type { AiAnalysis, AssetSheet, AssetSummary, Dashboard, NewsItem, TrackRecordRow } from './types';
 
@@ -35,6 +37,7 @@ export const api = {
   demo: DEMO_MODE,
 
   async dashboard(market: MarketCode): Promise<Dashboard> {
+    if (SNAPSHOT) return snapDashboard(market);
     if (!supabase) return demoDashboard(market);
     const [idx, q, rk, rep] = await Promise.all([
       supabase.from('index_values').select('index_code, name, market, value, change_pct, session_date, source').eq('market', market).order('session_date', { ascending: false }).limit(8),
@@ -57,6 +60,11 @@ export const api = {
   },
 
   async asset(id: string, premiumHint: boolean): Promise<AssetSheet> {
+    if (SNAPSHOT) {
+      const s = snapSheet(id);
+      if (!s) throw new ApiError('NOT_FOUND');
+      return s;
+    }
     if (!supabase) {
       const s = demoSheet(id, premiumHint);
       if (!s) throw new ApiError('NOT_FOUND');
@@ -67,6 +75,7 @@ export const api = {
 
   async search(query: string, market?: MarketCode): Promise<AssetSummary[]> {
     const ql = query.trim().toLowerCase();
+    if (SNAPSHOT) return snapSearch(query, market);
     if (!supabase) {
       return DEMO_ASSETS.filter((a) => (!market || a.market === market) && (!ql || a.name.toLowerCase().includes(ql) || a.ticker.toLowerCase().includes(ql))).map(demoSummary);
     }
@@ -79,12 +88,12 @@ export const api = {
   },
 
   async analyze(assetId: string, lang: 'fr' | 'en'): Promise<{ content: AiAnalysis; cached: boolean }> {
-    if (!supabase) throw new ApiError('DEMO_NO_AI');
+    if (!supabase) throw new ApiError(SNAPSHOT ? 'NO_AI_YET' : 'DEMO_NO_AI');
     return invoke('analyze', { assetId, lang });
   },
 
   async chat(messages: { role: 'user' | 'assistant'; content: string }[], lang: 'fr' | 'en'): Promise<string> {
-    if (!supabase) throw new ApiError('DEMO_NO_AI');
+    if (!supabase) throw new ApiError(SNAPSHOT ? 'NO_AI_YET' : 'DEMO_NO_AI');
     const r = await invoke<{ reply: string }>('chat', { messages, lang });
     return r.reply;
   },
@@ -95,7 +104,8 @@ export const api = {
   },
 
   /** Movers + support/resistance distances for a period (precomputed after each session). */
-  async scan(market: MarketCode, period: ScanPeriod): Promise<{ rows: ScanRow[]; sessionDate: string | null }> {
+  async scan(market: MarketCode, period: ScanPeriod): Promise<{ rows: ScanRow[]; sessionDate: string | null; unavailable?: 'history' }> {
+    if (SNAPSHOT) return snapScan(market, period);
     if (!supabase) {
       const rows = demoScan(market, period);
       return { rows, sessionDate: rows[0]?.lastDate ?? null };
@@ -108,6 +118,7 @@ export const api = {
 
   /** Latest classified news, optionally for one market. */
   async news(market?: MarketCode, limit = 30): Promise<NewsItem[]> {
+    if (SNAPSHOT) return [];
     if (!supabase) return demoNews(market).slice(0, limit);
     let q = supabase.from('news_asset_links')
       .select('asset_id, assets!inner(market), news_articles!inner(id, title, url, source, published_at, sentiment, materiality, category, summary_fr, summary_en)')
@@ -126,7 +137,7 @@ export const api = {
   },
 
   async trackRecord(): Promise<TrackRecordRow[]> {
-    if (!supabase) return demoTrackRecord;
+    if (!supabase) return SNAPSHOT ? [] : demoTrackRecord;
     const { data } = await supabase.from('public_track_record').select('*').order('scope');
     return (data ?? []) as TrackRecordRow[];
   },

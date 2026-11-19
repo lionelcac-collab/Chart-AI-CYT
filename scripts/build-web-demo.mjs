@@ -1,10 +1,15 @@
 // Builds the web DEMO as one self-contained HTML fragment (single JS bundle inlined),
-// suitable for hosting as a single page. Usage: node scripts/build-web-demo.mjs <outDir>
+// suitable for hosting as a single page.
+// Usage: node scripts/build-web-demo.mjs <outDir> [--snapshot snapshot.json]
+//   --snapshot injects a real-data snapshot (scripts/fetch-snapshot.mts) instead of fictional demo data.
 import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const out = process.argv[2] ?? 'dist-demo';
+const snapIdx = process.argv.indexOf('--snapshot');
+const snapshot = snapIdx > 0 ? readFileSync(process.argv[snapIdx + 1], 'utf8') : null;
+if (snapshot) JSON.parse(snapshot); // fail early on a broken file
 const build = join(out, 'expo-build');
 const app = new URL('../apps/mobile', import.meta.url).pathname;
 execSync(`npx expo export --platform web --output-dir ${build}`, {
@@ -47,7 +52,7 @@ const page = `<title>Nyota Démo</title>
     }
   }, 10000);
 </script>
-<script>${js}</script>
+${snapshot ? `<script>window.__NYOTA_SNAPSHOT__ = ${snapshot.replace(/</g, '\\u003c')};</script>\n` : ''}<script>${js}</script>
 `;
 mkdirSync(out, { recursive: true });
 writeFileSync(join(out, 'nyota-demo.html'), page);

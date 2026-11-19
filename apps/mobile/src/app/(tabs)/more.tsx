@@ -5,6 +5,7 @@ import { Pressable } from 'react-native';
 import { APP_NAME } from '@nyota/core';
 import { Card, Pill, Row, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
+import { SNAPSHOT } from '../../lib/snapshot';
 import { DEMO_MODE, supabase } from '../../lib/supabase';
 import { useSettings } from '../../settings';
 import { space, useTheme } from '../../theme';
@@ -43,8 +44,10 @@ export default function More() {
         </Row>
         {DEMO_MODE ? (
           <>
-            <Txt size="xs" muted>{lang === 'fr' ? 'Mode démo : connexion et abonnements désactivés.' : 'Demo mode: sign-in and subscriptions disabled.'}</Txt>
-            <Pill label={lang === 'fr' ? 'Aperçu Premium (démo)' : 'Premium preview (demo)'} active={s.plan === 'premium'} onPress={() => s.setPlan(s.plan === 'premium' ? 'free' : 'premium')} />
+            <Txt size="xs" muted>{SNAPSHOT
+              ? (lang === 'fr' ? 'Instantané de données réelles : connexion, IA et abonnements désactivés tant que le serveur n’est pas déployé.' : 'Real-data snapshot: sign-in, AI and subscriptions disabled until the server is deployed.')
+              : (lang === 'fr' ? 'Mode démo : connexion et abonnements désactivés.' : 'Demo mode: sign-in and subscriptions disabled.')}</Txt>
+            {SNAPSHOT ? null : <Pill label={lang === 'fr' ? 'Aperçu Premium (démo)' : 'Premium preview (demo)'} active={s.plan === 'premium'} onPress={() => s.setPlan(s.plan === 'premium' ? 'free' : 'premium')} />}
           </>
         ) : null}
       </Card>

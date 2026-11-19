@@ -18,6 +18,7 @@ export function AssetSectionsAnalysis({ assetId }: { assetId: string }) {
 
   const errorText = !err ? null
     : err.code === 'QUOTA_EXCEEDED' ? (lang === 'fr' ? `Limite de ${ENTITLEMENTS.free.aiAnalysesPerDay} analyses IA par jour atteinte.` : `Daily limit of ${ENTITLEMENTS.free.aiAnalysesPerDay} AI analyses reached.`)
+    : err.code === 'NO_AI_YET' ? (lang === 'fr' ? 'Analyse IA disponible une fois le serveur et la clé Claude configurés.' : 'AI analysis available once the server and the Claude key are configured.')
     : err.code === 'DEMO_NO_AI' ? (lang === 'fr' ? 'Analyse IA indisponible en mode démo (backend non configuré).' : 'AI analysis unavailable in demo mode (no backend).')
     : err.code === 'NO_BACKEND' || err.code === 'NETWORK' ? t.common.error
     : lang === 'fr' ? 'Connectez-vous pour lancer une analyse IA.' : 'Sign in to run an AI analysis.';

@@ -10,7 +10,7 @@ import PriceChart from '../../components/PriceChart';
 import { Button, Card, ErrorBox, KV, Loading, Pill, ProvenanceBadge, Row, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { api } from '../../lib/api';
-import { fmtCompact, fmtDate, fmtNum, fmtPct, fmtPrice, statusLabel } from '../../lib/format';
+import { asOfLabel, fmtCompact, fmtDate, fmtNum, fmtPct, fmtPrice, statusLabel } from '../../lib/format';
 import { useSettings } from '../../settings';
 import { changeColor, space, useTheme } from '../../theme';
 
@@ -39,7 +39,7 @@ export default function AssetScreen() {
   if (q.error || !s) return <Screen><ErrorBox message={t.common.error} onRetry={() => q.refetch()} /></Screen>;
 
   const quote = s.quote;
-  const status = quote?.status === 'delayed'
+  const status = quote?.as_of?.includes('T') ? asOfLabel(quote.as_of, null, lang) : quote?.status === 'delayed'
     ? statusLabel({ kind: 'delayed', delayMinutes: quote.delay_minutes ?? 30 }, lang)
     : statusLabel(s.lastClose ? { kind: 'close', sessionDate: s.lastClose.date } : { kind: 'unavailable' }, lang);
   const last = quote?.last ?? s.lastClose?.price ?? null;

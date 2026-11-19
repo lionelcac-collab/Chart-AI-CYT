@@ -10,3 +10,4 @@ web-build/
 coverage/
 google-play-service-account.json
 dist/
+snapshot*.json

@@ -40,3 +40,18 @@ export function statusLabel(s: DataStatus | null | undefined, lang: Lang): strin
   if (s.kind === 'delayed') return lang === 'fr' ? `Différé ~${s.delayMinutes} min` : `Delayed ~${s.delayMinutes} min`;
   return lang === 'fr' ? 'Temps réel' : 'Real time';
 }
+
+/**
+ * Label for a datum timestamped by its source. A full timestamp (source scrape time) is shown as is,
+ * "Relevé du JJ/MM à HH:MM UTC", rather than guessing whether it is a close or a delayed price.
+ */
+export function asOfLabel(asOf: string | null | undefined, status: DataStatus | null | undefined, lang: Lang): string {
+  if (asOf && asOf.includes('T')) {
+    const d = new Date(asOf);
+    if (!Number.isNaN(d.getTime())) {
+      const hm = d.toISOString().slice(11, 16);
+      return lang === 'fr' ? `Relevé du ${fmtDate(asOf, lang, false)} à ${hm} UTC` : `Captured ${fmtDate(asOf, lang, false)} at ${hm} UTC`;
+    }
+  }
+  return statusLabel(status, lang);
+}

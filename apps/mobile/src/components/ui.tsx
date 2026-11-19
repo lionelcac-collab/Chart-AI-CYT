@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, type TextStyle, type ViewStyle, type StyleProp, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useT } from '../i18n';
+import { fmtDate } from '../lib/format';
+import { SNAPSHOT } from '../lib/snapshot';
 import { DEMO_MODE } from '../lib/supabase';
 import { font, radius, space, useTheme } from '../theme';
 
@@ -14,7 +16,18 @@ export function Txt({ children, size = 'md', weight = '400', color, muted, style
 
 export function DemoBanner() {
   const t = useTheme();
-  const { t: tr } = useT();
+  const { t: tr, lang } = useT();
+  if (SNAPSHOT) {
+    const at = new Date(SNAPSHOT.fetchedAt);
+    const hh = at.toISOString().slice(11, 16);
+    return (
+      <View accessibilityRole="alert" style={{ backgroundColor: t.info, paddingVertical: 6, paddingHorizontal: space.md }}>
+        <Text style={{ color: '#06122B', fontSize: font.xs, fontWeight: '700', textAlign: 'center' }}>
+          {tr.common.snapshotBanner.replace('{date}', fmtDate(SNAPSHOT.fetchedAt, lang)).replace('{time}', hh)}
+        </Text>
+      </View>
+    );
+  }
   if (!DEMO_MODE) return null;
   return (
     <View accessibilityRole="alert" style={{ backgroundColor: t.warn, paddingVertical: 6, paddingHorizontal: space.md }}>

@@ -18,7 +18,7 @@ export function RangeTable({ ranges, currency }: { ranges: RangeStat[]; currency
   const th = useTheme();
   const { t, lang } = useT();
   const { displayCurrency } = useSettings();
-  if (!ranges.length) return <Card title={t.asset.ranges}><Txt muted>{t.common.unavailable}</Txt></Card>;
+  if (!ranges.length) return <Card title={t.asset.ranges}><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></Card>;
   return (
     <Card title={t.asset.ranges}>
       {ranges.map((r) => (
@@ -51,6 +51,7 @@ export function RangeTable({ ranges, currency }: { ranges: RangeStat[]; currency
 export function PerformanceGrid({ perf }: { perf: PerformanceStat[] }) {
   const th = useTheme();
   const { t, lang } = useT();
+  if (!perf.length) return <Card title={t.asset.performance}><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></Card>;
   return (
     <Card title={t.asset.performance}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
@@ -67,9 +68,10 @@ export function PerformanceGrid({ perf }: { perf: PerformanceStat[] }) {
   );
 }
 
-export function LiquidityCard({ l }: { l: LiquidityStat }) {
+export function LiquidityCard({ l }: { l: LiquidityStat | null }) {
   const th = useTheme();
   const { t, lang } = useT();
+  if (!l) return <Card title={t.asset.liquidity}><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></Card>;
   const color = l.level === 'high' ? th.up : l.level === 'medium' ? th.info : th.warn;
   return (
     <Card title={t.asset.liquidity} right={<Pill label={`${l.score}/100`} bg={color} color="#0B0F1E" />}>
@@ -108,7 +110,7 @@ export function FundamentalsCard({ r, sheet }: { r: Ratios; sheet: AssetSheet })
 export function TechnicalCard({ tech, currency }: { tech: TechnicalSnapshot | null; currency: CurrencyCode }) {
   const th = useTheme();
   const { t, lang } = useT();
-  if (!tech) return null;
+  if (!tech) return <Card title={t.asset.technical}><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></Card>;
   const p = (v: number | null) => (v == null ? '—' : fmtPrice(v, currency, lang));
   const trendColor = tech.trend === 'up' ? th.up : tech.trend === 'down' ? th.down : th.neutral;
   const patternNames: Record<string, { fr: string; en: string }> = {
@@ -155,7 +157,7 @@ export function ConsensusCard({ sheet }: { sheet: AssetSheet }) {
   const { t, lang } = useT();
   const c = sheet.consensus;
   const currency = sheet.asset.currency;
-  if (!c) return <Card title={t.asset.consensus}><Txt muted>{t.common.unavailable}</Txt></Card>;
+  if (!c) return <Card title={t.asset.consensus}><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></Card>;
   const oColor = c.orientation === 'positive' ? th.up : c.orientation === 'negative' ? th.down : th.neutral;
   const header = (
     <Row style={{ flexWrap: 'wrap' }}>

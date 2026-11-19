@@ -24,6 +24,7 @@ export default function Assistant() {
 
   const errText = (e: unknown) => {
     const code = (e as ApiError).code;
+    if (code === 'NO_AI_YET') return lang === 'fr' ? 'Assistant disponible une fois le serveur et la clé Claude configurés.' : 'Assistant available once the server and the Claude key are configured.';
     if (code === 'DEMO_NO_AI') return lang === 'fr' ? 'Assistant indisponible en mode démo (backend non configuré).' : 'Assistant unavailable in demo mode (no backend).';
     if (code === 'QUOTA_EXCEEDED') return lang === 'fr' ? 'Limite quotidienne atteinte. Passez à Premium pour continuer.' : 'Daily limit reached. Upgrade to Premium to continue.';
     if (code === 'PREMIUM_REQUIRED') return t.assistant.chartPremium;
