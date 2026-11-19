@@ -50,11 +50,15 @@ function sliceWindow(bars: Bar[], period: RangePeriod): { slice: Bar[]; partial:
   if (!last) return { slice: [], partial: true };
   const start = windowStart(last.date, period);
   const first = bars[0]!;
-  const partial = first.date > start;
+  // History starting within a week of the window start (weekends, holidays) counts as complete.
+  const partial = daysBetween(start, first.date) > TOLERANCE_DAYS;
   // For performance we need the reference close *before or at* the window start.
   const slice = bars.filter((b) => b.date > start || (period === 'YTD' && b.date >= start));
   return { slice, partial };
 }
+
+const TOLERANCE_DAYS = 7;
+const daysBetween = (a: string, b: string) => (Date.parse(b) - Date.parse(a)) / 86400_000;
 
 export function computeRange(bars: Bar[], period: RangePeriod): RangeStat | null {
   const { slice, partial } = sliceWindow(bars, period);
@@ -101,6 +105,7 @@ export function computePerformance(bars: Bar[], period: RangePeriod): Performanc
   for (const b of bars) {
     if (period === 'YTD' ? b.date < start : b.date <= start) ref = b; else break;
   }
+  if (!ref && period !== 'YTD' && bars[0] && daysBetween(start, bars[0].date) <= TOLERANCE_DAYS) ref = bars[0];
   const inWindow = bars.filter((b) => (ref ? b.date >= ref.date : false));
   return {
     period,

@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Nyota",
+    "slug": "nyota",
+    "scheme": "nyota",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0B0F1E",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nyota.markets",
+      "config": { "usesNonExemptEncryption": false },
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Nyota accède à vos photos uniquement pour analyser la capture d'écran de graphique que vous choisissez.",
+        "NSCameraUsageDescription": "Nyota utilise l'appareil photo uniquement si vous photographiez un graphique à analyser."
+      }
+    },
+    "android": {
+      "package": "com.nyota.markets",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0F1E",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["POST_NOTIFICATIONS"],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "expo-secure-store",
+      "expo-web-browser",
+      ["expo-notifications", { "color": "#F2B544" }],
+      ["expo-image-picker", { "photosPermission": "Nyota accède à vos photos uniquement pour analyser la capture d'écran de graphique que vous choisissez." }]
+    ],
+    "experiments": { "typedRoutes": false },
+    "extra": { "eas": { "projectId": "" } }
+  }
+}

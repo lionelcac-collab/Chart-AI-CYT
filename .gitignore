@@ -8,3 +8,5 @@ web-build/
 !.env.example
 .DS_Store
 coverage/
+google-play-service-account.json
+dist/

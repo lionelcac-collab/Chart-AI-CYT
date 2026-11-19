@@ -164,23 +164,26 @@ export function detectPatterns(bars: Bar[]): Pattern[] {
   if (closes[n - 1]! > maxP) out.push({ name: 'breakout_up', date: lastDate, confidence: 'medium' });
   if (closes[n - 1]! < minP) out.push({ name: 'breakdown', date: lastDate, confidence: 'medium' });
 
-  // Double top / bottom on the last 60 sessions: two extremes within 2 %, separated by ≥ 10 sessions
+  // Double top / bottom on the last 60 sessions (classic definition, confirmed by a neckline break):
+  // two extremes within 2 % of each other, ≥ 10 sessions apart, and the last close beyond the
+  // opposite extreme reached between them (the "neckline").
   const w = closes.slice(n - 60);
-  const idxMax = w.indexOf(Math.max(...w));
-  const idxMin = w.indexOf(Math.min(...w));
+  const last = closes[n - 1]!;
   const near = (a: number, b: number) => Math.abs(a - b) / b <= 0.02;
-  for (let j = 0; j < w.length; j++) {
-    if (Math.abs(j - idxMax) >= 10 && near(w[j]!, w[idxMax]!) && closes[n - 1]! < w[idxMax]! * 0.95) {
-      out.push({ name: 'double_top', date: lastDate, confidence: 'low' });
-      break;
+  const findDouble = (pick: (xs: number[]) => number, isTop: boolean): boolean => {
+    const i1 = w.indexOf(pick(w));
+    for (let j = 0; j < w.length; j++) {
+      if (Math.abs(j - i1) < 10 || !near(w[j]!, w[i1]!)) continue;
+      const [a, b] = j < i1 ? [j, i1] : [i1, j];
+      const between = w.slice(a + 1, b);
+      if (between.length === 0) continue;
+      const neckline = isTop ? Math.min(...between) : Math.max(...between);
+      if (isTop ? last < neckline : last > neckline) return true;
     }
-  }
-  for (let j = 0; j < w.length; j++) {
-    if (Math.abs(j - idxMin) >= 10 && near(w[j]!, w[idxMin]!) && closes[n - 1]! > w[idxMin]! * 1.05) {
-      out.push({ name: 'double_bottom', date: lastDate, confidence: 'low' });
-      break;
-    }
-  }
+    return false;
+  };
+  if (findDouble((xs) => Math.max(...xs), true)) out.push({ name: 'double_top', date: lastDate, confidence: 'low' });
+  else if (findDouble((xs) => Math.min(...xs), false)) out.push({ name: 'double_bottom', date: lastDate, confidence: 'low' });
   return out;
 }
 

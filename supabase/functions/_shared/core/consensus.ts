@@ -357,7 +357,8 @@ export function horizonForecast(price: number, S: number, sigma: number, horizon
     rangeLow: price * Math.exp(mu - z90 * s),
     rangeHigh: price * Math.exp(mu + z90 * s),
     bear: toScenario(pBear, truncatedMean(mu, s, null, -k)),
-    central: toScenario(pCentral, truncatedMean(mu, s, -k, k)),
+    // Central = median forecast exp(μ), kept inside the central band so the three scenarios stay ordered.
+    central: toScenario(pCentral, Math.min(k, Math.max(-k, mu))),
     bull: toScenario(pBull, truncatedMean(mu, s, k, null)),
   };
 }

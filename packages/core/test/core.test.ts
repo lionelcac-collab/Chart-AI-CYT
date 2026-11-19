@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   analystConsensus, backtest, bollinger, checkFundamentalsConsistency, computeConsensus, computePerformance,
-  computeRange, computeRanges, computeRatios, convert, ema, horizonForecast, liquidity, macd, rsi, sma,
+  computeRange, computeRanges, computeRatios, convert, detectPatterns, ema, horizonForecast, liquidity, macd, rsi, sma,
   DEFAULT_PARAMS, sessionState, MARKETS, windowStart, type Bar,
 } from '../src';
 
@@ -70,6 +70,20 @@ describe('indicators', () => {
   });
 });
 
+describe('patterns', () => {
+  const mk = (closes: number[]): Bar[] => closes.map((c, i) => ({ date: new Date(Date.UTC(2024, 0, 1 + i)).toISOString().slice(0, 10), open: c, high: c, low: c, close: c, volume: 1 }));
+  it('double top needs a neckline break; never both double top and bottom', () => {
+    // flat 40, peak 120 at 60-day window position ~10, trough 100, peak 120 again, then fall below 100
+    const base = Array.from({ length: 40 }, () => 100);
+    const shape = [...Array.from({ length: 10 }, (_, i) => 100 + i * 2), 120, ...Array.from({ length: 10 }, (_, i) => 118 - i * 1.8), 101, ...Array.from({ length: 10 }, (_, i) => 102 + i * 1.8), 120, ...Array.from({ length: 15 }, (_, i) => 118 - i * 1.6), 95, 94];
+    const p = detectPatterns(mk([...base, ...shape])).map((x) => x.name);
+    expect(p).toContain('double_top');
+    expect(p).not.toContain('double_bottom');
+    const unconfirmed = detectPatterns(mk([...base, ...shape.slice(0, -4), 110])).map((x) => x.name);
+    expect(unconfirmed).not.toContain('double_top');
+  });
+});
+
 describe('ranges (plus bas / plus haut)', () => {
   const bars = series(800);
   it('computes window starts', () => {
@@ -90,6 +104,17 @@ describe('ranges (plus bas / plus haut)', () => {
   it('flags partial windows', () => {
     expect(computeRange(series(100), '1Y')!.partial).toBe(true);
     expect(computeRange(bars, '1Y')!.partial).toBe(false);
+  });
+  it('treats history starting a few days after the window start as complete', () => {
+    const b = series(800);
+    const last = b[b.length - 1]!.date;
+    const start = windowStart(last, '3Y');
+    const trimmed = b.filter((x) => x.date > start).filter((x, i) => i > 2); // starts ~3-5 days late
+    expect(computeRange(trimmed, '3Y')!.partial).toBe(false);
+    expect(computePerformance(trimmed, '3Y').returnPct).not.toBeNull();
+    const late = b.filter((x) => x.date > start).slice(15);
+    expect(computeRange(late, '3Y')!.partial).toBe(true);
+    expect(computePerformance(late, '3Y').returnPct).toBeNull();
   });
   it('exact extremes on a hand-made series', () => {
     const b: Bar[] = [
@@ -159,6 +184,8 @@ describe('consensus', () => {
       expect(f.rangeLow).toBeLessThan(100 * (1 + f.expectedReturnPct / 100));
       expect(f.rangeHigh).toBeGreaterThan(100 * (1 + f.expectedReturnPct / 100));
     }
+    const mid = horizonForecast(100, 0.5, 0.25, '12M', DEFAULT_PARAMS);
+    expect(mid.central.returnPct).toBeCloseTo(mid.expectedReturnPct, 6); // central = median forecast
     const up = horizonForecast(100, 1, 0.25, '12M', DEFAULT_PARAMS);
     const down = horizonForecast(100, -1, 0.25, '12M', DEFAULT_PARAMS);
     expect(up.bull.probability).toBeGreaterThan(down.bull.probability);
