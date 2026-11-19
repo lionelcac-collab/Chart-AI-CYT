@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { TextInput } from 'react-native';
 import { Button, Card, Pill, Row, Screen, Txt } from '../components/ui';
+import { api } from '../lib/api';
 import { useT } from '../i18n';
 import { supabase } from '../lib/supabase';
 import { radius, space, useTheme } from '../theme';
@@ -27,19 +28,25 @@ export default function Auth() {
     setBusy(false);
     if (error) setErr(error.message); else setStep('code');
   }
+  // First sign-in (or profile never filled in): go through the investor profile questionnaire.
+  async function afterSignIn() {
+    const p = await api.investorProfile().catch(() => null);
+    if (p) router.back(); else router.replace({ pathname: '/profil', params: { first: '1' } });
+  }
+
   async function signInPassword() {
     if (!supabase) return;
     setBusy(true); setErr(null);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setBusy(false);
-    if (error) setErr(fr ? 'E-mail ou mot de passe incorrect.' : 'Wrong email or password.'); else router.back();
+    if (error) setErr(fr ? 'E-mail ou mot de passe incorrect.' : 'Wrong email or password.'); else await afterSignIn();
   }
   async function verify() {
     if (!supabase) return;
     setBusy(true); setErr(null);
     const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' });
     setBusy(false);
-    if (error) setErr(error.message); else router.back();
+    if (error) setErr(error.message); else await afterSignIn();
   }
 
   return (

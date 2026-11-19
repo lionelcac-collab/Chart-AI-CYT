@@ -115,6 +115,20 @@ Deno.serve(handler(async (req) => {
   const history: Anthropic.Beta.BetaMessageParam[] = messages.slice(-12).map((m) => ({ role: m.role, content: String(m.content).slice(0, 4000) }));
   const system = [{ type: 'text' as const, text: ANALYST_SYSTEM + `\nUtilise les outils pour toute donnée chiffrée. Pour les questions sur plusieurs titres (supports, résistances, hausses, baisses), utilise get_market_scan qui couvre toute la cote. Cite date et source de chaque chiffre.
 Mise en forme (affichage mobile) : titres courts avec ##, listes à puces avec -, gras avec **. JAMAIS de tableau. Dates au format JJ/MM/AAAA. Pourcentages à 2 décimales. N'écris pas de nom de champ technique ni de mot anglais (« sideways » = latérale, « breakdown » = cassure). Vouvoie toujours l'utilisateur. Ne cite jamais de nom d'outil, de table ou de champ technique. Arrondis les prix à 2 décimales maximum. Réponse concise. Termine par : « Information, pas un conseil en investissement. »`, cache_control: { type: 'ephemeral' as const } }];
+  // Investor profile (suitability questionnaire): adapt vocabulary and flag mismatches; never personal advice.
+  const { data: ip } = await admin().from('investor_profiles').select('risk_profile, knowledge_level, answers').eq('user_id', user.id).maybeSingle();
+  if (ip) {
+    const RISK: Record<string, string> = { prudent: 'Prudent (préservation du capital, faible tolérance aux pertes)', balanced: 'Équilibré (croissance modérée, pertes temporaires limitées acceptées)', dynamic: 'Dynamique (croissance, accepte de fortes variations sur un horizon long)', aggressive: 'Offensif (forte performance recherchée, tolère des pertes marquées et des titres peu liquides)' };
+    const KNOW: Record<string, string> = { beginner: 'Débutant', intermediate: 'Intermédiaire', advanced: 'Avancé' };
+    const a = ip.answers as Record<string, string>;
+    system.push({ type: 'text' as const, text:
+      `PROFIL INVESTISSEUR de l'utilisateur (questionnaire) : risque ${RISK[ip.risk_profile] ?? ip.risk_profile} ; connaissances ${KNOW[ip.knowledge_level] ?? ip.knowledge_level} ; horizon ${a.horizon ?? '?'} ; objectif ${a.objective ?? '?'} ; réaction à une baisse de 20 % : ${a.reaction ?? '?'}.
+Adapte ta réponse : niveau Débutant → phrases simples, définis chaque terme technique (RSI, support, liquidité, PER…) en une courte parenthèse, moins de chiffres, l'essentiel d'abord ; Intermédiaire → vocabulaire courant expliqué brièvement ; Avancé → vocabulaire technique sans explications, plus de détails chiffrés.
+Compatibilité avec le profil de risque : signale explicitement (« ⚠ Peu compatible avec votre profil … ») les titres, scénarios ou situations qui ne correspondent pas au profil (ex. pour un profil Prudent : titre très volatil, peu liquide, forte concentration, scénario baissier probable ; pour un horizon court : volatilité élevée). Pour les questions renforcer/vendre/maintenir, indique pour chaque signal s'il est compatible avec le profil. Cela reste une information : jamais de recommandation personnalisée ni de formulation impérative.` } as never);
+  } else {
+    system.push({ type: 'text' as const, text: `Profil investisseur non renseigné : adopte un niveau Intermédiaire et termine en une phrase en proposant de remplir le profil investisseur (menu Plus → Mon profil investisseur) pour des réponses adaptées.` } as never);
+  }
+
   // Portfolio mode (Suivi screen): the question is about the user's own holdings.
   if (context === 'portfolio') system.push({ type: 'text' as const, text:
     `CONTEXTE : l'utilisateur t'interroge depuis l'écran « Suivi », à propos de SON portefeuille réel. Appelle d'abord get_my_portfolio (période 1Y sauf si la question en précise une autre), puis get_asset_sheet sur les titres utiles.

@@ -203,6 +203,23 @@ export const api = {
   },
 
   /** Latest FX rates (units per 1 USD) for display conversions. */
+  /** Investor profile (suitability questionnaire). null when not filled in yet or signed out. */
+  async investorProfile(): Promise<{ answers: Record<string, string | string[]>; risk_profile: string; knowledge_level: string; updated_at: string } | null> {
+    if (!supabase) return null;
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return null;
+    const { data } = await supabase.from('investor_profiles').select('answers, risk_profile, knowledge_level, updated_at').eq('user_id', u.user.id).maybeSingle();
+    return data ?? null;
+  },
+
+  async saveInvestorProfile(answers: Record<string, string | string[]>, risk: string, knowledge: string, riskScore: number, knowledgeScore: number) {
+    if (!supabase) throw new ApiError('NO_BACKEND');
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) throw new ApiError('AUTH_REQUIRED');
+    const { error } = await supabase.from('investor_profiles').upsert({ user_id: u.user.id, answers, risk_profile: risk, knowledge_level: knowledge, risk_score: riskScore, knowledge_score: knowledgeScore, updated_at: new Date().toISOString() });
+    if (error) throw new ApiError('SAVE_FAILED', error.message);
+  },
+
   async fxRates(): Promise<Partial<Record<CurrencyCode, number>>> {
     if (!supabase) return {};
     const { data } = await supabase.from('fx_rates').select('quote, rate, as_of').in('quote', ['EUR', 'XOF', 'XAF', 'NGN', 'USD']).order('as_of', { ascending: false }).limit(50);

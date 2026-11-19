@@ -188,6 +188,8 @@ export function PortfolioAsk({ hasQuantities }: { hasQuantities: boolean }) {
   const [input, setInput] = useState('');
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
+  const prof = useQuery({ queryKey: ['investor-profile'], queryFn: api.investorProfile });
+  const profileMissing = prof.isFetched && !prof.data;
   const suggestions = fr
     ? ['Fais le bilan de mon portefeuille', 'Quels sont mes principaux risques et ma concentration ?', 'Qu’est-ce qui a le plus pesé ce mois-ci ?', 'Lesquels de mes titres sont proches d’un support ou d’une résistance ?', 'Quelle est mon exposition au naira et à chaque marché ?', 'Sur quels titres de mon portefeuille m’encourages-tu à renforcer ma position (achat) ? À vendre ? Ou à simplement maintenir ma position actuelle ?', 'Que feriez-vous à ma place avec ce portefeuille ?']
     : ['Review my portfolio', 'What are my main risks and concentration?', 'What weighed most this month?', 'Which of my stocks are near a support or resistance?', 'What is my exposure to the naira and to each market?', 'Which of my holdings would you encourage me to add to (buy), to sell, or simply to hold?', 'What would you do in my place with this portfolio?'];
@@ -215,6 +217,11 @@ export function PortfolioAsk({ hasQuantities }: { hasQuantities: boolean }) {
       <Txt size="sm" muted>{fr
         ? 'L’IA analyse votre situation réelle : vos titres, leurs poids, vos plus-values, la concentration, les risques et les niveaux techniques de vos lignes.'
         : 'The AI analyses your real situation: your stocks, weights, gains, concentration, risks and technical levels of your holdings.'}</Txt>
+      {profileMissing ? (
+        <Pressable accessibilityRole="link" onPress={() => router.push('/profil')} style={{ padding: space.sm, borderRadius: radius.md, backgroundColor: th.cardAlt }}>
+          <Txt size="xs" color={th.info}>🧭 {lang === 'fr' ? 'Complétez votre profil investisseur (2 min) pour des réponses adaptées à votre niveau et à votre profil de risque →' : 'Complete your investor profile (2 min) for answers suited to your level and risk profile →'}</Txt>
+        </Pressable>
+      ) : null}
       {!hasQuantities ? <Txt size="xs" color={th.info}>{fr ? 'Astuce : renseignez le nombre d’actions (✎) pour une analyse en valeur réelle.' : 'Tip: enter the number of shares (✎) for a real-value analysis.'}</Txt> : null}
       {!msgs.length ? (
         <Row style={{ flexWrap: 'wrap' }} gap={6}>

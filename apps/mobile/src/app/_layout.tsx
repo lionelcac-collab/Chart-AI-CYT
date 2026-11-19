@@ -59,6 +59,7 @@ function Shell() {
         <Stack.Screen name="auth" options={{ presentation: 'modal', title: '' }} />
         <Stack.Screen name="news" options={{ title: '' }} />
         <Stack.Screen name="admin" options={{ title: 'Administration' }} />
+        <Stack.Screen name="profil" options={{ title: 'Profil investisseur' }} />
         <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
       </Stack>
       </View>

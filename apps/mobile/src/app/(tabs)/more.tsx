@@ -74,6 +74,7 @@ export default function More() {
                 style={{ backgroundColor: th.cardAlt, color: th.text, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: th.border }} />
               <Item label={lang === 'fr' ? 'Changer mon mot de passe' : 'Change my password'} onPress={() => (newPw.length >= 10 ? changePassword() : setPwMsg(lang === 'fr' ? '10 caractères minimum.' : 'At least 10 characters.'))} />
               {pwMsg ? <Txt size="xs" muted>{pwMsg}</Txt> : null}
+              <Item label={lang === 'fr' ? '🧭 Mon profil investisseur' : '🧭 My investor profile'} onPress={() => router.push('/profil')} />
               {isAdmin.data ? <Item label={lang === 'fr' ? '⚙ Administration' : '⚙ Administration'} onPress={() => router.push('/admin')} /> : null}
               <Item label={t.more.signOut} onPress={signOut} />
               <Item label={lang === 'fr' ? 'Supprimer mon compte' : 'Delete my account'} onPress={deleteAccount} />

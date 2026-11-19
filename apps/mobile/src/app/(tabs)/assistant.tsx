@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Rich } from '../../components/Rich';
 import { Button, Card, Disclaimer, Pill, Row, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
@@ -25,6 +25,8 @@ export default function Assistant() {
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
   const signedOut = user.isFetched && !user.data;
+  const prof = useQuery({ queryKey: ['investor-profile'], queryFn: api.investorProfile, enabled: !!user.data });
+  const profileMissing = !!user.data && prof.isFetched && !prof.data;
 
   useEffect(() => { if (params.q) setInput(lang === 'fr' ? `Que penser de ${params.q} ?` : `What about ${params.q}?`); }, [params.q, lang]);
 
@@ -85,6 +87,11 @@ export default function Assistant() {
           <Card style={{ borderColor: th.accent, borderWidth: 2 }}>
             <Txt weight="800" color={th.accent}>✦ {lang === 'fr' ? 'Analyse IA avancée des bourses africaines' : 'Advanced AI analysis of African stock markets'}</Txt>
             <Txt size="sm" muted>{t.assistant.intro}</Txt>
+            {profileMissing ? (
+              <Pressable accessibilityRole="link" onPress={() => router.push('/profil')} style={{ padding: space.sm, borderRadius: radius.md, backgroundColor: th.cardAlt }}>
+                <Txt size="xs" color={th.info}>🧭 {lang === 'fr' ? 'Complétez votre profil investisseur (2 min) pour des réponses adaptées à votre niveau et à votre profil de risque →' : 'Complete your investor profile (2 min) for answers suited to your level and risk profile →'}</Txt>
+              </Pressable>
+            ) : null}
             {!msgs.length ? (
               <View style={{ gap: space.sm }}>
                 <Txt size="sm" weight="700">{lang === 'fr' ? 'Exemples de questions :' : 'Example questions:'}</Txt>

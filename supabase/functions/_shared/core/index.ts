@@ -14,3 +14,4 @@ export * from './scan.ts';
 
 /** Product name in one place. Domain: chart-boursafrikia.com */
 export const APP_NAME = 'Chart-BoursafrikIA';
+export * from './investorProfile.ts';
