@@ -108,6 +108,12 @@ export const api = {
     return r.reply;
   },
 
+  /** Reads stock names / tickers on screenshots and matches them to listed assets (nothing is added yet). */
+  async importWatchlistFromImages(images: { base64: string; mediaType: string }[], lang: 'fr' | 'en') {
+    if (!supabase) throw new ApiError('DEMO_NO_AI');
+    return invoke<{ readable: boolean; matched: { assetId: string; ticker: string; name: string; market: string; confidence: number; read: string }[]; unmatched: string[] }>('watchlist-import', { images, lang });
+  },
+
   async chartVision(imageBase64: string, mediaType: string, lang: 'fr' | 'en') {
     if (!supabase) throw new ApiError('DEMO_NO_AI');
     return invoke<{ content: Record<string, unknown> }>('chart-vision', { imageBase64, mediaType, lang });
