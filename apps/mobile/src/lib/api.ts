@@ -145,6 +145,20 @@ export const api = {
     return [...byId.values()].sort((a, b) => String(b.published_at).localeCompare(String(a.published_at))).slice(0, limit);
   },
 
+  /** Back-office call (server checks the admin role and journals every action). */
+  async admin<T = Record<string, any>>(action: string, body: Record<string, unknown> = {}): Promise<T> {
+    if (!supabase) throw new ApiError('NO_BACKEND');
+    return invoke<T>('admin', { action, ...body });
+  },
+
+  async isAdmin(): Promise<boolean> {
+    if (!supabase) return false;
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return false;
+    const { data } = await supabase.rpc('is_admin', { uid: u.user.id });
+    return data === true;
+  },
+
   async trackRecord(): Promise<TrackRecordRow[]> {
     if (!supabase) return SNAPSHOT ? [] : demoTrackRecord;
     const { data } = await supabase.from('public_track_record').select('*').order('scope');

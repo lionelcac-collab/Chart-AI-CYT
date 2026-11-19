@@ -53,6 +53,7 @@ function Shell() {
         <Stack.Screen name="track-record" options={{ title: '' }} />
         <Stack.Screen name="auth" options={{ presentation: 'modal', title: '' }} />
         <Stack.Screen name="news" options={{ title: '' }} />
+        <Stack.Screen name="admin" options={{ title: 'Administration' }} />
         <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
       </Stack>
     </>
