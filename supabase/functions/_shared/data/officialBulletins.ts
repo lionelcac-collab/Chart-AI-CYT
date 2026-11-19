@@ -56,6 +56,27 @@ export function parseBrvmBoc(text: string): OfficialRow[] {
   return out;
 }
 
+/**
+ * Splits space-separated digit groups ("206","720","206","720",…) into `n` prices, each within ±50 % of
+ * `ref`. Groups after the first of a number must have exactly 3 digits. Returns null when no split fits.
+ */
+export function splitPrices(groups: string[], n: number, ref: number): number[] | null {
+  const ok = (v: number) => v >= ref * 0.5 && v <= ref * 1.5;
+  const rec = (i: number, left: number): number[] | null => {
+    if (left === 0) return i === groups.length ? [] : null;
+    for (let len = 1; len <= 4 && i + len <= groups.length; len++) {
+      const part = groups.slice(i, i + len);
+      if (part.slice(1).some((g) => !/^\d{3}(,\d+)?$/.test(g))) break;
+      const v = frNum(part.join(' '));
+      if (v == null || !ok(v)) continue;
+      const rest = rec(i + len, left - 1);
+      if (rest) return [v, ...rest];
+    }
+    return null;
+  };
+  return rec(0, n);
+}
+
 /** Canonical BVMAC tickers by ISIN (aligned with Mansa's codes). */
 export const BVMAC_TICKERS: Record<string, string> = {
   CM0000010009: 'SEMC', CM0000010017: 'SAFACAM', CM0000010025: 'SOCAPALM', CM0000010041: 'REGIONALE',
@@ -82,13 +103,21 @@ export function parseBvmacBoc(text: string): OfficialRow[] {
     const label = m[3]!.trim();
     const ticker = BVMAC_TICKERS[isin] ?? label.split(/\s{2,}/).pop()!.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     if (!ticker || seen.has(ticker)) continue;
-    const close = frNum(m[11]);
-    if (close == null || close <= 0) continue;
-    seen.add(ticker);
     const prev = frNum(m[4]);
+    let open = frNum(m[10]);
+    let close = frNum(m[11]);
+    // "206 720 206 720 206 720 206 720" (open, close, upper, lower limits separated by single spaces) is
+    // ambiguous: re-split the digit groups into 4 prices consistent with the previous price.
+    const tail = `${m[10]} ${m[11]} ${m[12]} ${m[13]}`.split(/\s+/);
+    if (prev && (close == null || close < prev * 0.5 || close > prev * 1.5)) {
+      const fixed = splitPrices(tail, 4, prev);
+      if (fixed) { open = fixed[0]!; close = fixed[1]!; }
+    }
+    if (close == null || close <= 0 || (prev && (close < prev * 0.5 || close > prev * 1.5))) continue;
+    seen.add(ticker);
     out.push({
       ticker, isin, name: ticker,
-      previousClose: prev, open: frNum(m[10]), close,
+      previousClose: prev, open, close,
       changePct: prev ? Math.round(((close - prev) / prev) * 1e6) / 1e4 : null,
       volume: frNum(m[6]), value: frNum(m[7]),
     });
@@ -158,4 +187,28 @@ export function bvmacBocUrlFromIndex(indexHtml: string, date: string): string | 
   // Other names seen in the archive: BOC-automatise-20221207.pdf, BOC-20231004-1.pdf, BOC-20240614_compressed.pdf…
   const generic = new RegExp(`/BOC[^/]*?(?:${y}${m}${d}|${d}-${m}-${y})[^/]*\\.pdf$`, 'i');
   return links.find((l) => generic.test(l)) ?? null;
+}
+
+const FR_MONTHS: Record<string, string> = {
+  janvier: '01', fevrier: '02', février: '02', mars: '03', avril: '04', mai: '05', juin: '06', juillet: '07',
+  aout: '08', août: '08', septembre: '09', octobre: '10', novembre: '11', decembre: '12', décembre: '12',
+};
+
+/**
+ * Session date printed in the bulletin itself (ISO), or null. Archives are sometimes misfiled
+ * (e.g. NGX "…for 13-02-2026.pdf" contains the list "For 13/04/2026"): always trust this date.
+ */
+export function bulletinDate(market: string, text: string): string | null {
+  const head = text.slice(0, 6000);
+  if (market === 'NGX') {
+    const m = head.match(/For\s+(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+  }
+  const fr = head.match(/(?:lundi|mardi|mercredi|jeudi|vendredi|S[EÉ]ANCE\s+DU)\s+(\d{1,2})(?:er)?\s+([A-Za-zéûÉÛ]+)\s+(\d{4})/i);
+  if (fr) {
+    const mm = FR_MONTHS[fr[2]!.toLowerCase()];
+    if (mm) return `${fr[3]}-${mm}-${fr[1]!.padStart(2, '0')}`;
+  }
+  const num = head.match(/(?:COTE|SEANCE|SÉANCE)[^\n]{0,40}?DU\s+(\d{2})\/(\d{2})\/(\d{4})/i);
+  return num ? `${num[3]}-${num[2]}-${num[1]}` : null;
 }

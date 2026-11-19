@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { businessDays } from '../packages/data/src/bulletinConnector.ts';
 import {
-  brvmBocUrls, bvmacBocUrlFromIndex, ngxDailyListUrl, parseBrvmBoc, parseBvmacBoc, parseNgxDailyList, type OfficialRow,
+  brvmBocUrls, bulletinDate, bvmacBocUrlFromIndex, ngxDailyListUrl, parseBrvmBoc, parseBvmacBoc, parseNgxDailyList, type OfficialRow,
 } from '../packages/data/src/officialBulletins.ts';
 
 const arg = (k: string, d: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1]! : d; };
@@ -101,7 +101,15 @@ async function runMarket(market: string) {
       const text = pdfText(buf, `${market}_${date}`);
       const rows = market === 'BRVM' ? parseBrvmBoc(text) : market === 'NGX' ? parseNgxDailyList(text) : parseBvmacBoc(text);
       if (!rows.length) { log(market, date, 'unreadable', url); failed++; continue; }
-      write(market, date, rows, url); ok++;
+      // Trust the date printed in the document: archives are sometimes misfiled.
+      const docDate = bulletinDate(market, text);
+      if (docDate && docDate !== date) {
+        log(market, date, 'misfiled', `${url} contains ${docDate}`);
+        if (docDate >= FROM && docDate <= TO && !done.has(docDate)) { write(market, docDate, rows, url); done.add(docDate); }
+        continue;
+      }
+      if (!docDate) log(market, date, 'undated', url); // kept, but flagged for review
+      write(market, date, rows, url); done.add(date); ok++;
     } catch (e) {
       log(market, date, 'error', (e as Error).message); failed++;
     }

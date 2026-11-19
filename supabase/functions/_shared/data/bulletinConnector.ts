@@ -16,7 +16,7 @@
 import type { Asset, Bar, MarketCode, Quote } from '../core/index.ts';
 import { MARKETS, localClock } from '../core/index.ts';
 import { parseBulletinText, PROFILES, type BulletinProfile, type BulletinRow } from './bulletin.ts';
-import { parseBrvmBoc, parseBvmacBoc, parseNgxDailyList, type OfficialRow } from './officialBulletins.ts';
+import { bulletinDate, parseBrvmBoc, parseBvmacBoc, parseNgxDailyList, type OfficialRow } from './officialBulletins.ts';
 
 /** Real-format readers per market (used unless a generic `profile` is configured). */
 const OFFICIAL_PARSERS: Partial<Record<MarketCode, (text: string) => OfficialRow[]>> = { BRVM: parseBrvmBoc, BVMAC: parseBvmacBoc, NGX: parseNgxDailyList };
@@ -121,7 +121,10 @@ export class BulletinConnector implements MarketDataConnector {
       if (!res.ok || !res.arrayBuffer) throw new ConnectorError(this.id, `bulletin ${market} ${date} : HTTP ${res.status}`, res.status, res.status >= 500);
       const bytes = new Uint8Array(await res.arrayBuffer());
       if (bytes.length < 5 || String.fromCharCode(...bytes.slice(0, 4)) !== '%PDF') continue; // "not found" pages served as HTML
-      const rows = s.parse(await this.cfg.extractText(bytes));
+      const text = await this.cfg.extractText(bytes);
+      const docDate = bulletinDate(market, text);
+      if (docDate && docDate !== date) continue; // misfiled document: not this session
+      const rows = s.parse(text);
       if (rows.length === 0) throw new ConnectorError(this.id, `bulletin ${market} ${date} : aucune ligne reconnue (format modifié ?)`);
       return { market, date, url, rows };
     }
