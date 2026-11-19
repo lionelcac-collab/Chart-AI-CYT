@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Pressable, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { api } from '../lib/api';
 import { registerPush } from '../lib/notifications';
@@ -37,7 +38,15 @@ function Shell() {
   return (
     <>
       <StatusBar style={t.mode === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerShadowVisible: false }}>
+      <Stack screenOptions={{
+        headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerShadowVisible: false,
+        // Text arrow: no image asset needed (works in the single-file web demo too); falls back to home when there is no history.
+        headerLeft: () => (
+          <Pressable accessibilityRole="button" accessibilityLabel="Retour" hitSlop={12} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={{ paddingRight: 12 }}>
+            <Text style={{ color: t.text, fontSize: 28, lineHeight: 30 }}>‹</Text>
+          </Pressable>
+        ),
+      }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="asset/[id]" options={{ title: '' }} />
         <Stack.Screen name="premium" options={{ presentation: 'modal', title: 'Premium' }} />
