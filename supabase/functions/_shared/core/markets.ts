@@ -32,7 +32,7 @@ export const MARKETS: Record<'BRVM' | 'BVMAC' | 'NGX', MarketInfo> & Partial<Rec
     code: 'BVMAC', name: 'Bourse des Valeurs Mobilières de l’Afrique Centrale',
     countries: ['CM', 'GA', 'CG', 'TD', 'CF', 'GQ'], currency: 'XAF',
     timezone: 'Africa/Douala', open: '09:00', close: '14:00', bulletinDelayMin: 180,
-    regulator: 'COSUMAF', phase: 1, website: 'https://www.bosxch.bvm-ac.org',
+    regulator: 'COSUMAF', phase: 1, website: 'https://www.bvm-ac.org',
   },
   NGX: {
     code: 'NGX', name: 'Nigerian Exchange',

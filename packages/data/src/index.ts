@@ -7,3 +7,4 @@ export * from './validate';
 export * from './bulletin';
 export * from './registry';
 export * from './placeholders';
+export * from './bulletinConnector';

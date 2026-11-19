@@ -30,8 +30,8 @@
         ▼                               ▼
 ┌──────────────────────┐   ┌───────────────────────────────────────────────┐
 │ Claude API           │   │ Sources de données (légales)                  │
-│ Haiku 5.5 : masse    │   │ Mansa Markets API (cours, indices, forex…)    │
-│ Sonnet 5.5 : analyses│   │ Bulletins officiels BRVM/BVMAC/NGX (PDF)      │
+│ Haiku 5.5 : masse    │   │ BRVM, NGX : Mansa Markets API (+ bulletins)   │
+│ Sonnet 5.5 : analyses│   │ BVMAC : bulletins officiels (source n° 1)     │
 │ chat, vision         │   │ Banque mondiale · FMI · BCEAO/BEAC/CBN        │
 └──────────────────────┘   │ RSS officiels · GDELT                         │
                            │ [désactivés] API NGX officielle · flux TR     │
@@ -54,8 +54,17 @@
 1. **Collecte (pg_cron toutes les 15 min en semaine)** → `ingest-market` vérifie pour chaque bourse, dans *son* fuseau
    (`Africa/Abidjan`, `Africa/Douala`, `Africa/Lagos`), si la séance est close + délai de publication du bulletin, et si
    la séance n'a pas déjà été collectée. Un seul cron gère donc tous les fuseaux.
-2. **Source principale** Mansa → en cas d'échec, source suivante du registre ; chaque tentative est journalisée
-   (`ingestion_runs.attempts`).
+2. **Sources par marché** (registre ordonné, la première source active qui répond est retenue, chaque tentative est
+   journalisée dans `ingestion_runs.attempts`) :
+
+   | Marché | Source n° 1 | Secours | Contrôle / historique |
+   |---|---|---|---|
+   | BRVM | Mansa Markets | — | bulletin officiel (BOC) |
+   | **BVMAC** | **bulletin officiel BVMAC** (aucune API commerciale ne couvre la BVMAC) | Mansa (si couverture ajoutée) | historique reconstitué à partir des bulletins passés (`job: "backfill"`) |
+   | NGX | Mansa Markets | — | bulletin / liste de cours NGX |
+
+   Si le bulletin du jour n'est pas encore publié, la séance précédente est conservée, la collecte reste « partielle » et
+   est retentée toutes les 15 min ; l'admin n'est alerté qu'après 4 h de retard.
 3. **Contrôles** : cours ≤ 0, variation au-delà de la limite journalière (BRVM ±7,5 %), cotation périmée, OHLC incohérent,
    **écart > 0,5 % avec le bulletin officiel** → le cours est **bloqué** (non publié), une anomalie est créée et l'admin est
    alerté (webhook Slack/Discord/e-mail). Les cours recoupés avec le bulletin sont marqués `verified = true`.

@@ -1,7 +1,7 @@
 -- Référentiel des marchés MVP (horaires indicatifs, à confirmer avec les règlements en vigueur)
 insert into markets (code, name, countries, currency, timezone, open_time, close_time, bulletin_delay_min, regulator, phase, website) values
   ('BRVM', 'Bourse Régionale des Valeurs Mobilières', '{CI,SN,BJ,BF,ML,NE,TG,GW}', 'XOF', 'Africa/Abidjan', '09:00', '15:00', 120, 'AMF-UMOA', 1, 'https://www.brvm.org'),
-  ('BVMAC', 'Bourse des Valeurs Mobilières de l''Afrique Centrale', '{CM,GA,CG,TD,CF,GQ}', 'XAF', 'Africa/Douala', '09:00', '14:00', 180, 'COSUMAF', 1, 'https://www.bosxch.bvm-ac.org'),
+  ('BVMAC', 'Bourse des Valeurs Mobilières de l''Afrique Centrale', '{CM,GA,CG,TD,CF,GQ}', 'XAF', 'Africa/Douala', '09:00', '14:00', 180, 'COSUMAF', 1, 'https://www.bvm-ac.org'),
   ('NGX', 'Nigerian Exchange', '{NG}', 'NGN', 'Africa/Lagos', '10:00', '14:30', 90, 'SEC Nigeria', 1, 'https://ngxgroup.com')
 on conflict (code) do nothing;
 

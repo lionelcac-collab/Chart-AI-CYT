@@ -36,9 +36,18 @@ supabase link --project-ref <ref>
 supabase db push
 node scripts/sync-shared.mjs              # copie packages/core et packages/data dans supabase/functions/_shared
 supabase secrets set ANTHROPIC_API_KEY=... MANSA_API_KEY=... REVENUECAT_WEBHOOK_AUTH=... \
+  BULLETIN_URL_BVMAC='https://.../{YYYYMMDD}.pdf' \
   REVENUECAT_SECRET_KEY=... CINETPAY_API_KEY=... CINETPAY_SITE_ID=... WEB_APP_URL=https://... ADMIN_ALERT_WEBHOOK=...
 supabase functions deploy
 ```
+Si les bulletins BVMAC n'ont pas d'URL prévisible, remplacer `BULLETIN_URL_BVMAC` par
+`BULLETIN_INDEX_BVMAC` (page qui liste les bulletins) + `BULLETIN_LINK_BVMAC` (regex du lien, avec `{YYYY}{MM}{DD}`).
+Historique BVMAC à partir des bulletins passés (par tranches d'un mois, limite de durée des Edge Functions) :
+```bash
+curl -X POST "$SUPABASE_URL/functions/v1/ingest-market" -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+  -d '{"job":"backfill","market":"BVMAC","from":"2025-01-01","to":"2025-01-31"}'
+```
+
 Puis, dans l'éditeur SQL : `select vault.create_secret('<url>', 'project_url'); select vault.create_secret('<service_role_key>', 'service_role_key');`
 
 ## Web (Vercel)

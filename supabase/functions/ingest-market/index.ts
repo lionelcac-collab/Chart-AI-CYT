@@ -1,10 +1,17 @@
 // Job (pg_cron): end-of-day / delayed ingestion per market, timezone-aware.
-// 1) primary connector (Mansa) → fallback  2) validation  3) cross-check with the
-// official bulletin when available  4) upsert  5) anomalies + admin alert.
-import { extractText, getDocumentProxy } from 'npm:unpdf@1.4.0';
+// Sources per market (first enabled one that answers wins, every attempt is logged):
+//   BRVM  : licensed real-time (disabled) → Mansa ; official bulletin = cross-check + history
+//   BVMAC : OFFICIAL BULLETIN (primary, no commercial API covers BVMAC) → Mansa (if it ever adds coverage)
+//   NGX   : official NGX API (disabled) → Mansa ; official bulletin = cross-check
+// Steps: fetch → validation → cross-check with the bulletin → upsert → anomalies + admin alert.
+// Extra job: {"job":"backfill","market":"BVMAC","from":"2024-01-01","to":"2024-12-31"} rebuilds history from past bulletins.
+import { extractText as pdfText, getDocumentProxy } from 'npm:unpdf@1.4.0';
 import { admin, handler, json, requireService } from '../_shared/runtime.ts';
 import { MARKETS, MVP_MARKETS, isIngestionWindow, localClock, type MarketCode, type Quote } from '../_shared/core/index.ts';
-import { ConnectorRegistry, MansaConnector, NgxOfficialConnector, LicensedRealtimeConnector, PROFILES, crossCheck, parseBulletinText, validateQuote, type Anomaly } from '../_shared/data/index.ts';
+import {
+  BulletinConnector, ConnectorRegistry, LicensedRealtimeConnector, MansaConnector, NgxOfficialConnector, businessDays, crossCheck, validateQuote,
+  type Anomaly, type BulletinSourceConfig, type MarketDataConnector,
+} from '../_shared/data/index.ts';
 
 const mansa = new MansaConnector({
   apiKey: Deno.env.get('MANSA_API_KEY') ?? undefined,
@@ -13,23 +20,43 @@ const mansa = new MansaConnector({
   requestsPerMinute: Number(Deno.env.get('MANSA_RPM') ?? 30),
   delayMinutes: Number(Deno.env.get('MANSA_DELAY_MIN') ?? 0),
 });
-const registry = new ConnectorRegistry({
-  BRVM: [new LicensedRealtimeConnector(), mansa],
-  BVMAC: [mansa],
-  NGX: [new NgxOfficialConnector(), mansa],
+
+/** Bulletin location per market, from secrets:
+ *  BULLETIN_URL_<M>   direct template, e.g. https://…/BOC_{YYYYMMDD}.pdf
+ *  or BULLETIN_INDEX_<M> (listing page) + BULLETIN_LINK_<M> (regex with {YYYY}{MM}{DD} placeholders). */
+const bulletinSource = (m: MarketCode): BulletinSourceConfig => ({
+  urlTemplate: Deno.env.get(`BULLETIN_URL_${m}`) ?? undefined,
+  indexUrl: Deno.env.get(`BULLETIN_INDEX_${m}`) ?? undefined,
+  linkPattern: Deno.env.get(`BULLETIN_LINK_${m}`) ?? undefined,
+});
+const bulletin = new BulletinConnector({
+  sources: Object.fromEntries(MVP_MARKETS.map((m) => [m, bulletinSource(m)])),
+  extractText: async (bytes) => (await pdfText(await getDocumentProxy(bytes), { mergePages: true })).text as string,
+  backfillDelayMs: 1500,
 });
 
-/** Downloads and parses the official bulletin. URL template from env, e.g. BULLETIN_URL_BRVM=https://…/boc_{YYYYMMDD}.pdf */
-async function bulletinCloses(market: MarketCode, date: string): Promise<{ assetId: string; close: number; row: unknown }[] | null> {
-  const tpl = Deno.env.get(`BULLETIN_URL_${market}`);
-  const profile = PROFILES[market as 'BRVM'];
-  if (!tpl || !profile) return null;
-  const url = tpl.replace('{YYYYMMDD}', date.replaceAll('-', '')).replace('{YYYY-MM-DD}', date);
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  const pdf = await getDocumentProxy(new Uint8Array(await res.arrayBuffer()));
-  const { text } = await extractText(pdf, { mergePages: true });
-  return parseBulletinText(text as string, profile).map((r) => ({ assetId: `${market}:${r.ticker}`, close: r.close, row: r }));
+const registry = new ConnectorRegistry({
+  BRVM: [new LicensedRealtimeConnector(), mansa],
+  BVMAC: [bulletin, mansa],
+  NGX: [new NgxOfficialConnector(), mansa],
+});
+const byId: Record<string, MarketDataConnector> = { [mansa.id]: mansa, [bulletin.id]: bulletin };
+
+/** Hours after the expected bulletin time before a missing bulletin triggers an admin alert. */
+const ALERT_GRACE_HOURS = 4;
+function pastAlertCutoff(market: MarketCode): boolean {
+  const info = MARKETS[market as 'BRVM'];
+  const { hhmm } = localClock(info.timezone);
+  const [h, m] = info.close.split(':').map(Number) as [number, number];
+  const cutoff = h * 60 + m + info.bulletinDelayMin + ALERT_GRACE_HOURS * 60;
+  const [ch, cm] = hhmm.split(':').map(Number) as [number, number];
+  return ch * 60 + cm >= Math.min(cutoff, 23 * 60 + 59);
+}
+
+/** Bulletin closes of a session, used to cross-check another source. */
+async function bulletinCloses(market: MarketCode, date: string) {
+  const s = await bulletin.getSession(market, date).catch(() => null);
+  return s ? s.rows.map((r) => ({ assetId: `${market}:${r.ticker}`, close: r.close })) : null;
 }
 
 async function ingest(market: MarketCode, job: 'eod' | 'delayed') {
@@ -46,14 +73,19 @@ async function ingest(market: MarketCode, job: 'eod' | 'delayed') {
   const { value: quotes, source, attempts } = await registry.quotes(market);
   if (!quotes) {
     await db.from('ingestion_runs').update({ status: 'failed', attempts, finished_at: new Date().toISOString(), error: 'aucune source disponible' }).eq('id', run!.id);
-    await alertAdmin(`Collecte ${market} échouée : aucune source disponible`, attempts);
+    if (pastAlertCutoff(market)) await alertAdmin(`Collecte ${market} échouée : aucune source disponible`, attempts);
     return { market, status: 'failed' };
   }
+  // A bulletin source may return the previous session while today's bulletin is not yet published.
+  const sessionDate = quotes[0]!.provenance.asOf.slice(0, 10);
+  const todayPending = job === 'eod' && sessionDate < today;
 
   for (const q of quotes) anomalies.push(...validateQuote(q, market, { today }));
   let verifiedIds = new Set<string>();
-  if (job === 'eod') {
-    const ref = await bulletinCloses(market, today).catch(() => null);
+  if (source === bulletin.id) {
+    verifiedIds = new Set(quotes.map((q) => q.assetId)); // the official bulletin IS the reference
+  } else if (job === 'eod') {
+    const ref = await bulletinCloses(market, sessionDate);
     if (ref) {
       anomalies.push(...crossCheck(quotes, ref));
       const blocked = new Set(anomalies.filter((a) => a.kind === 'source_divergence').map((a) => a.assetId));
@@ -68,7 +100,7 @@ async function ingest(market: MarketCode, job: 'eod' | 'delayed') {
   const knownIds = new Set((known ?? []).map((a) => a.id));
   const missing = ok.filter((q) => !knownIds.has(q.assetId));
   if (missing.length) {
-    const assets = await mansa.listAssets(market).catch(() => []);
+    const assets = await (byId[source!] ?? mansa).listAssets(market).catch(() => []);
     const rows = assets.filter((a) => missing.some((m) => m.assetId === a.id)).map((a) => ({ id: a.id, market, ticker: a.ticker, isin: a.isin, name: a.name, country: a.country || null, currency: a.currency }));
     if (rows.length) await db.from('assets').upsert(rows, { onConflict: 'id' });
   }
@@ -90,8 +122,32 @@ async function ingest(market: MarketCode, job: 'eod' | 'delayed') {
   }
   if (anomalies.length) await db.from('data_anomalies').insert(anomalies.map((a) => ({ asset_id: a.assetId, kind: a.kind, severity: a.severity, message: a.message, details: a.details ?? null, run_id: run!.id })));
   if (blocked.size) await alertAdmin(`${blocked.size} cours bloqués sur ${market} (contrôle d'anomalies)`, anomalies.filter((a) => a.severity === 'block'));
-  await db.from('ingestion_runs').update({ status: blocked.size ? 'partial' : 'ok', source_used: source, attempts, rows_written: ok.length, finished_at: new Date().toISOString() }).eq('id', run!.id);
-  return { market, source, written: ok.length, blocked: blocked.size };
+  await db.from('ingestion_runs').update({ status: blocked.size || todayPending ? 'partial' : 'ok', error: todayPending ? `bulletin du ${today} non publié, séance du ${sessionDate} utilisée` : null, source_used: source, attempts, rows_written: ok.length, finished_at: new Date().toISOString() }).eq('id', run!.id);
+  if (todayPending && pastAlertCutoff(market)) await alertAdmin(`${market} : bulletin du ${today} toujours absent`, { lastSession: sessionDate });
+  return { market, source, session: sessionDate, written: ok.length, blocked: blocked.size, todayPending };
+}
+
+/** Rebuilds daily history from past official bulletins (one download per business day, polite delay). */
+async function backfill(market: MarketCode, from: string, to: string) {
+  const db = admin();
+  const { data: run } = await db.from('ingestion_runs').insert({ job: 'backfill', market }).select('id').single();
+  let sessions = 0, rows = 0;
+  for (const d of businessDays(from, to)) {
+    const s = await bulletin.getSession(market, d).catch((e) => { console.warn(market, d, e.message); return null; });
+    if (!s) continue; // holiday or missing bulletin: nothing is invented
+    const quotes = bulletin.toQuotes(s).filter((q) => validateQuote(q, market, { today: d }).every((a) => a.severity !== 'block'));
+    const known = new Set(((await db.from('assets').select('id').eq('market', market)).data ?? []).map((a) => a.id));
+    const newAssets = s.rows.filter((r) => !known.has(`${market}:${r.ticker}`)).map((r) => ({ id: `${market}:${r.ticker}`, market, ticker: r.ticker, name: r.name ?? r.ticker, currency: MARKETS[market as 'BRVM'].currency }));
+    if (newAssets.length) await db.from('assets').upsert(newAssets, { onConflict: 'id' });
+    await db.from('price_bars').upsert(s.rows.filter((r) => quotes.some((q) => q.assetId === `${market}:${r.ticker}`)).map((r) => ({
+      asset_id: `${market}:${r.ticker}`, session_date: d, open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume ?? 0, value: r.value,
+      source: bulletin.id, verified: true,
+    })), { onConflict: 'asset_id,session_date' });
+    sessions++; rows += quotes.length;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  await db.from('ingestion_runs').update({ status: 'ok', source_used: bulletin.id, rows_written: rows, finished_at: new Date().toISOString() }).eq('id', run!.id);
+  return { market, sessions, rows };
 }
 
 async function alertAdmin(subject: string, details: unknown) {
@@ -102,7 +158,12 @@ async function alertAdmin(subject: string, details: unknown) {
 
 Deno.serve(handler(async (req) => {
   requireService(req);
-  const { job = 'eod', markets = MVP_MARKETS } = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => ({}));
+  const { job = 'eod', markets = MVP_MARKETS } = body;
+  if (job === 'backfill') {
+    if (!body.market || !body.from || !body.to) return json({ error: 'market, from, to requis' }, 400);
+    return json(await backfill(body.market, body.from, body.to));
+  }
   const results = [];
   for (const m of markets as MarketCode[]) results.push(await ingest(m, job).catch((e) => ({ market: m, error: (e as Error).message })));
   // FX once per EOD run

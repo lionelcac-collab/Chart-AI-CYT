@@ -16,6 +16,7 @@ Légende : ✅ fait et vérifié · 🟡 fait, à valider avec vos accès/donné
 | Calculs (plus bas/hauts 1S→3A avec dates, position %, écarts ; performances + YTD ; volatilité ; MM20/50/200, RSI, MACD, Bollinger, supports/résistances, tendance, figures ; liquidité ; ratios) | ✅ 20 tests |
 | Connecteur Mansa (cours, indices, forex, historique) + cache + quota + registre avec secours | 🟡 testé sur réponses simulées ; chemins/champs/en-tête d'auth configurables à confirmer avec la doc fournie avec votre clé |
 | Parseur des bulletins officiels (PDF → texte → lignes) + recoupement > 0,5 % | 🟡 testé sur un format type ; à caler sur 3–4 vrais bulletins par bourse (`PROFILES`) et URL à renseigner (`BULLETIN_URL_*`) |
+| **BVMAC : bulletin officiel comme source principale** (connecteur `BulletinConnector`, repli sur la séance précédente, reconstitution de l'historique, Mansa en secours) | ✅ 6 tests ; 🟡 emplacement réel des bulletins sur bvm-ac.org et format des colonnes à confirmer sur de vrais PDF |
 | Contrôles d'anomalies (limite ±7,5 % BRVM, cours périmés, OHLC, divergence) + alerte admin | ✅ |
 | Banque mondiale / FMI, RSS + GDELT, classement d'actualités par Haiku | 🟡 code prêt ; flux RSS officiels à lister dans `news_sources` |
 | Edge Functions (fiche actif, analyse IA, chat à outils, vision, rapports, collecte, post-séance, backtest, paiements, suppression de compte) | ✅ typecheck Deno ; 🟡 non exécutées contre un vrai projet Supabase/Claude |
@@ -46,8 +47,12 @@ Légende : ✅ fait et vérifié · 🟡 fait, à valider avec vos accès/donné
 4. **Comptes Apple Developer et Google Play**, compte Expo.
 5. **RevenueCat** (produits, droit `premium`, webhook, clé secrète pour refléter les achats web).
 6. **CinetPay** (ou NotchPay/Flutterwave) : `CINETPAY_API_KEY`, `CINETPAY_SITE_ID`, `WEB_APP_URL` ; vérifier leurs endpoints actuels.
-7. **URL des bulletins officiels** par bourse et liste des flux RSS officiels.
-8. **Validation juridique** : statut d'outil d'information vs conseil (AMF-UMOA, COSUMAF, SEC Nigeria), politique de
+7. **Bulletins officiels** : pour la BVMAC c'est la source principale. Il me faut 3–4 bulletins PDF récents (pour régler le
+   lecteur de colonnes) et l'endroit où ils sont publiés sur bvm-ac.org (`BULLETIN_URL_BVMAC`, ou `BULLETIN_INDEX_BVMAC` +
+   `BULLETIN_LINK_BVMAC`). Idem pour BRVM et NGX (contrôle). Vérifier aussi que les conditions d'utilisation de la BVMAC
+   autorisent la réutilisation des cours dans une application commerciale (sinon, demander une licence de données). Plus la liste des flux RSS officiels.
+8. **Mansa** : confirmer par écrit la couverture BRVM (cours, historique, dividendes) et leurs droits de redistribution BRVM/NGX.
+9. **Validation juridique** : statut d'outil d'information vs conseil (AMF-UMOA, COSUMAF, SEC Nigeria), politique de
    confidentialité, CGU, licence de réutilisation des bulletins.
-9. **Nom et marque** : confirmer « Nyota » (ou me donner le nom définitif) et l'identité visuelle (icône).
-10. **Prix** : valider la grille (`PRICING` dans `packages/core/src/entitlements.ts`).
+10. **Nom et marque** : confirmer « Nyota » (ou me donner le nom définitif) et l'identité visuelle (icône).
+11. **Prix** : valider la grille (`PRICING` dans `packages/core/src/entitlements.ts`).

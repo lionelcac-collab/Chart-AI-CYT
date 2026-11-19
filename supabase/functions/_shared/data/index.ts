@@ -8,3 +8,4 @@ export * from './validate.ts';
 export * from './bulletin.ts';
 export * from './registry.ts';
 export * from './placeholders.ts';
+export * from './bulletinConnector.ts';
