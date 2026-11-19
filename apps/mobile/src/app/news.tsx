@@ -3,7 +3,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { MVP_MARKETS, type MarketCode } from '@chart-boursafrikia/core';
 import { NewsList } from '../components/NewsList';
-import { Card, ErrorBox, Loading, Pill, Row, Screen, Txt } from '../components/ui';
+import { Card, ErrorBox, Loading, Screen, Select, Txt } from '../components/ui';
 import { useT } from '../i18n';
 import { api } from '../lib/api';
 
@@ -23,14 +23,10 @@ export default function News() {
   return (
     <Screen edges={[]}>
       <Stack.Screen options={{ title: t.dashboard.news }} />
-      <Row style={{ flexWrap: 'wrap' }}>
-        <Pill label={t.screener.all} active={!market} onPress={() => setMarket(undefined)} />
-        {MVP_MARKETS.map((m) => <Pill key={m} label={m} active={market === m} onPress={() => setMarket(m)} />)}
-      </Row>
-      <Row style={{ flexWrap: 'wrap' }}>
-        <Pill label={t.screener.all} active={!cat} onPress={() => setCat(undefined)} />
-        {CATS.map((c) => <Pill key={c} label={CAT_LABEL[c][lang]} active={cat === c} onPress={() => setCat(c)} />)}
-      </Row>
+      <Select label={lang === 'fr' ? 'Marché' : 'Market'} value={market ?? ''} onChange={(v) => setMarket((v || undefined) as MarketCode | undefined)}
+        options={[{ value: '', label: t.screener.all }, ...MVP_MARKETS.map((m) => ({ value: m as string, label: m }))]} />
+      <Select label={lang === 'fr' ? 'Catégorie' : 'Category'} value={cat ?? ''} onChange={(v) => setCat(v || undefined)}
+        options={[{ value: '', label: t.screener.all }, ...CATS.map((c) => ({ value: c as string, label: CAT_LABEL[c][lang] }))]} />
       {q.isLoading ? <Loading /> : q.error ? <ErrorBox message={t.common.error} onRetry={() => q.refetch()} /> : (
         <Card>{items.length ? <NewsList items={items} /> : <Txt muted>{t.common.unavailable}</Txt>}</Card>
       )}

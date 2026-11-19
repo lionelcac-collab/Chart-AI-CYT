@@ -18,9 +18,9 @@ export function RangeTable({ ranges, currency }: { ranges: RangeStat[]; currency
   const th = useTheme();
   const { t, lang } = useT();
   const { displayCurrency } = useSettings();
-  if (!ranges.length) return <Card title={t.asset.ranges}><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></Card>;
+  if (!ranges.length) return <Card title={t.asset.ranges} collapsible badge={ranges.length ? `${ranges.length} périodes` : null}><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></Card>;
   return (
-    <Card title={t.asset.ranges}>
+    <Card title={t.asset.ranges} collapsible badge={ranges.length ? `${ranges.length} périodes` : null}>
       {ranges.map((r) => (
         <View key={r.period} style={{ gap: 6, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: th.grid }}>
           <Row style={{ justifyContent: 'space-between' }}>
@@ -51,9 +51,9 @@ export function RangeTable({ ranges, currency }: { ranges: RangeStat[]; currency
 export function PerformanceGrid({ perf }: { perf: PerformanceStat[] }) {
   const th = useTheme();
   const { t, lang } = useT();
-  if (!perf.length) return <Card title={t.asset.performance}><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></Card>;
+  if (!perf.length) return <Card title={t.asset.performance} collapsible defaultOpen={false}><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></Card>;
   return (
-    <Card title={t.asset.performance}>
+    <Card title={t.asset.performance} collapsible defaultOpen={false}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {perf.map((p) => (
           <View key={p.period} style={{ width: '23%', minWidth: 72, backgroundColor: th.cardAlt, borderRadius: radius.md, padding: space.sm, alignItems: 'center' }}>
@@ -74,7 +74,7 @@ export function LiquidityCard({ l }: { l: LiquidityStat | null }) {
   if (!l) return <Card title={t.asset.liquidity}><Txt muted>{t.common.unavailable}</Txt><Txt size="xs" muted>{t.common.historyNeeded}</Txt></Card>;
   const color = l.level === 'high' ? th.up : l.level === 'medium' ? th.info : th.warn;
   return (
-    <Card title={t.asset.liquidity} right={<Pill label={`${l.score}/100`} bg={color} color="#0B0F1E" />}>
+    <Card title={t.asset.liquidity} collapsible defaultOpen={false} right={<Pill label={`${l.score}/100`} bg={color} color="#0B0F1E" />}>
       <KV label={t.asset.avgVolume} value={fmtCompact(l.avgVolume, lang)} />
       <KV label={t.asset.zeroDays} value={`${l.zeroVolumeSessions} / ${l.sessions}`} />
       {l.warning ? <View style={{ backgroundColor: th.cardAlt, borderLeftWidth: 3, borderLeftColor: th.warn, padding: space.sm, borderRadius: radius.sm }}><Txt size="sm" color={th.warn}>⚠ {t.asset.illiquid}</Txt></View> : null}
@@ -87,7 +87,7 @@ export function FundamentalsCard({ r, sheet }: { r: Ratios; sheet: AssetSheet })
   const pct = (v: number | null) => (v == null ? t.common.unavailable : `${fmtNum(v, lang, 1)} %`);
   const x = (v: number | null) => (v == null ? t.common.unavailable : `${fmtNum(v, lang, 1)}x`);
   return (
-    <Card title={t.asset.fundamentals}>
+    <Card title={t.asset.fundamentals} collapsible defaultOpen={false}>
       <KV label="PER" value={x(r.per)} />
       <KV label="P/B" value={x(r.pb)} />
       <KV label={lang === 'fr' ? 'Rendement du dividende' : 'Dividend yield'} value={pct(r.dividendYieldPct)} />
@@ -119,7 +119,7 @@ export function TechnicalCard({ tech, currency }: { tech: TechnicalSnapshot | nu
     golden_cross: { fr: 'Croisement doré MM50/MM200', en: 'Golden cross 50/200' }, death_cross: { fr: 'Croisement de la mort MM50/MM200', en: 'Death cross 50/200' },
   };
   return (
-    <Card title={t.asset.technical} right={<Pill label={t.asset.trend[tech.trend]} bg={trendColor} color="#0B0F1E" />}>
+    <Card title={t.asset.technical} collapsible defaultOpen={false} right={<Pill label={t.asset.trend[tech.trend]} bg={trendColor} color="#0B0F1E" />}>
       <KV label="MM20 / MM50 / MM200" value={`${p(tech.sma20)} · ${p(tech.sma50)} · ${p(tech.sma200)}`} />
       <KV label="RSI 14" value={fmtNum(tech.rsi14, lang, 1)} valueColor={tech.rsi14 != null && (tech.rsi14 > 70 || tech.rsi14 < 30) ? th.warn : undefined} />
       <KV label="MACD (12,26,9)" value={`${fmtNum(tech.macd, lang)} / ${fmtNum(tech.macdSignal, lang)}`} valueColor={changeColor(th, tech.macdHist)} />
@@ -166,7 +166,7 @@ export function ConsensusCard({ sheet }: { sheet: AssetSheet }) {
     </Row>
   );
   return (
-    <Card title={t.asset.consensus}>
+    <Card title={t.asset.consensus} collapsible defaultOpen={false} badge={t.consensus.orientation[c.orientation]}>
       <Txt weight="700">{t.consensus.analysts}</Txt>
       {isFullConsensus(c) ? <AnalystBlock a={c.analysts} currency={currency} /> : <Txt size="sm" muted>{c.analysts?.count ? `${c.analysts.count} analyste(s)` : t.consensus.noAnalysts}</Txt>}
       <View style={{ height: 1, backgroundColor: th.grid }} />

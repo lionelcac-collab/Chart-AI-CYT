@@ -5,7 +5,7 @@ import { Pressable, View } from 'react-native';
 import { APP_NAME, MVP_MARKETS, MARKETS, sessionState, type MarketCode } from '@chart-boursafrikia/core';
 import { MarketScan } from '../../components/MarketScan';
 import { NewsList } from '../../components/NewsList';
-import { Button, Card, ErrorBox, Loading, Pill, ProvenanceBadge, Row, Screen, Txt } from '../../components/ui';
+import { Button, Card, ErrorBox, Loading, Pill, ProvenanceBadge, Row, Screen, Select, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { api } from '../../lib/api';
 import { sectorLabel } from '../../lib/demo';
@@ -32,9 +32,8 @@ export default function Dashboard() {
         <Txt size="xxl" weight="800">{APP_NAME}<Txt size="xxl" color={th.accent}> ✦</Txt></Txt>
         <Txt muted>{t.dashboard.title}</Txt>
       </View>
-      <Row style={{ flexWrap: 'wrap' }}>
-        {MVP_MARKETS.map((m) => <Pill key={m} label={m} active={m === market} onPress={() => setMarket(m)} />)}
-      </Row>
+      <Select label={lang === 'fr' ? 'Marché' : 'Market'} value={market} onChange={setMarket}
+        options={MVP_MARKETS.map((m) => ({ value: m, label: `${m} · ${MARKETS[m as 'BRVM'].name}` }))} />
       <Row style={{ justifyContent: 'space-between' }}>
         <Txt size="sm" muted>{MARKETS[market as 'BRVM'].name}</Txt>
         <Pill label={stateLabel} bg={state === 'open' ? th.up : th.cardAlt} color={state === 'open' ? '#0B0F1E' : th.textMuted} />
@@ -42,7 +41,7 @@ export default function Dashboard() {
 
       {q.isLoading ? <Loading /> : q.error ? <ErrorBox message={t.common.error} onRetry={() => q.refetch()} /> : d ? (
         <>
-          <Card title={t.dashboard.indices}>
+          <Card title={t.dashboard.indices} collapsible badge={d.indices.length || null}>
             {d.indices.length ? d.indices.map((i) => (
               <Row key={i.code} style={{ justifyContent: 'space-between' }}>
                 <View><Txt weight="700">{i.code}</Txt><Txt size="xs" muted>{i.name}</Txt></View>
@@ -56,13 +55,13 @@ export default function Dashboard() {
           </Card>
 
           {d.report ? (
-            <Card title={t.dashboard.report}>
+            <Card title={t.dashboard.report} collapsible defaultOpen={false}>
               <Txt weight="700">{d.report.title}</Txt>
               <Txt size="sm">{lang === 'fr' ? d.report.body_fr : d.report.body_en}</Txt>
             </Card>
           ) : null}
 
-          <Card title={t.dashboard.heatmap}>
+          <Card title={t.dashboard.heatmap} collapsible defaultOpen={false} badge={d.sectors.length || null}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
               {d.sectors.length ? d.sectors.map((s) => {
                 const intensity = Math.min(1, Math.abs(s.changePct) / 3);
@@ -79,11 +78,11 @@ export default function Dashboard() {
 
           <MarketScan market={market} />
 
-          <Card title={t.dashboard.news}>
+          <Card title={t.dashboard.news} collapsible defaultOpen={false} badge={news.data?.length || null}>
             {news.isLoading ? <Loading /> : news.data?.length ? <NewsList items={news.data} /> : <Txt muted>{t.common.unavailable}</Txt>}
             <Button label={t.dashboard.allNews} variant="secondary" onPress={() => router.push({ pathname: '/news', params: { market } })} />
           </Card>
-          <Card title={t.dashboard.volume}>
+          <Card title={t.dashboard.volume} collapsible defaultOpen={false} badge={traded.length || null}>
             {traded.map((a) => (
               <Row key={a.id} style={{ justifyContent: 'space-between' }}>
                 <Link href={`/asset/${encodeURIComponent(a.id)}`}><Txt weight="700">{a.ticker}</Txt></Link>
@@ -92,7 +91,7 @@ export default function Dashboard() {
             ))}
           </Card>
 
-          <Card title={t.dashboard.opportunities}>
+          <Card title={t.dashboard.opportunities} collapsible defaultOpen={false} badge={Math.min(5, d.opportunities.length) || null}>
             {d.opportunities.length ? d.opportunities.slice(0, 5).map((o, i) => (
               <Pressable key={o.asset_id} onPress={() => router.push(`/asset/${encodeURIComponent(o.asset_id)}`)}>
                 <Row style={{ justifyContent: 'space-between', paddingVertical: 4 }}>

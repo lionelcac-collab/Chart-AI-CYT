@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, type TextStyle, type ViewStyle, type StyleProp, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useT } from '../i18n';
@@ -53,17 +53,91 @@ export function Screen({ children, scroll = true, refreshing, onRefresh, edges =
   );
 }
 
-export function Card({ children, style, title, right }: { children: ReactNode; style?: StyleProp<ViewStyle>; title?: string; right?: ReactNode }) {
+/**
+ * Card. With `collapsible`, the title becomes a tap target that shows/hides the content
+ * (▸ closed / ▾ open); `badge` shows a short summary (e.g. a count) next to the title.
+ */
+export function Card({ children, style, title, right, collapsible, defaultOpen = true, badge }: {
+  children: ReactNode; style?: StyleProp<ViewStyle>; title?: string; right?: ReactNode; collapsible?: boolean; defaultOpen?: boolean; badge?: string | number | null;
+}) {
   const t = useTheme();
+  const [open, setOpen] = useState(defaultOpen);
+  const shown = !collapsible || open;
+  const header = title ? (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.sm }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexShrink: 1 }}>
+        {collapsible ? <Txt size="md" color={t.accent}>{open ? '▾' : '▸'}</Txt> : null}
+        <Txt size="lg" weight="700" style={{ flexShrink: 1 }}>{title}</Txt>
+        {badge != null && badge !== '' ? (
+          <View style={{ backgroundColor: t.cardAlt, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 }}>
+            <Txt size="xs" weight="700" muted>{badge}</Txt>
+          </View>
+        ) : null}
+      </View>
+      {right}
+    </View>
+  ) : null;
   return (
     <View style={[{ backgroundColor: t.card, borderRadius: radius.lg, padding: space.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, gap: space.md }, style]}>
-      {title ? (
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Txt size="lg" weight="700">{title}</Txt>
-          {right}
+      {header && collapsible ? (
+        <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={`${title}, ${open ? 'replier' : 'déplier'}`} onPress={() => setOpen((o) => !o)} hitSlop={6}>
+          {header}
+        </Pressable>
+      ) : header}
+      {shown ? children : null}
+    </View>
+  );
+}
+
+/** Collapsible sub-section inside a card (lighter than a Card). */
+export function Section({ title, badge, defaultOpen = false, children, color }: { title: string; badge?: string | number | null; defaultOpen?: boolean; children: ReactNode; color?: string }) {
+  const t = useTheme();
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border, paddingTop: space.sm, gap: space.sm }}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((o) => !o)} hitSlop={6}
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexShrink: 1 }}>
+          <Txt color={t.accent}>{open ? '▾' : '▸'}</Txt>
+          <Txt weight="700" color={color} style={{ flexShrink: 1 }}>{title}</Txt>
+        </View>
+        {badge != null && badge !== '' ? (
+          <View style={{ backgroundColor: t.cardAlt, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 }}>
+            <Txt size="xs" weight="700" muted>{badge}</Txt>
+          </View>
+        ) : null}
+      </Pressable>
+      {open ? children : null}
+    </View>
+  );
+}
+
+/** Dropdown selector: shows the current choice; tapping opens the option list (replaces long rows of pills). */
+export function Select<T extends string | number>({ label, value, options, onChange }: {
+  label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void;
+}) {
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+  const current = options.find((o) => o.value === value)?.label ?? String(value);
+  return (
+    <View style={{ gap: 6, flexGrow: 1, minWidth: 140 }}>
+      <Txt size="xs" muted>{label}</Txt>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${label} : ${current}`} accessibilityState={{ expanded: open }} onPress={() => setOpen((o) => !o)}
+        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: t.cardAlt, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: 10, borderWidth: 1, borderColor: open ? t.accent : t.border }}>
+        <Txt weight="600">{current}</Txt>
+        <Txt color={t.accent}>{open ? '▴' : '▾'}</Txt>
+      </Pressable>
+      {open ? (
+        <View accessibilityRole="menu" style={{ backgroundColor: t.cardAlt, borderRadius: radius.md, borderWidth: 1, borderColor: t.border, overflow: 'hidden' }}>
+          {options.map((o) => (
+            <Pressable key={String(o.value)} accessibilityRole="menuitem" accessibilityState={{ selected: o.value === value }}
+              onPress={() => { onChange(o.value); setOpen(false); }}
+              style={({ pressed }) => ({ paddingHorizontal: space.md, paddingVertical: 10, backgroundColor: o.value === value ? t.accent : pressed ? t.card : 'transparent' })}>
+              <Txt weight={o.value === value ? '700' : '400'} color={o.value === value ? t.accentText : t.text}>{o.label}</Txt>
+            </Pressable>
+          ))}
         </View>
       ) : null}
-      {children}
     </View>
   );
 }

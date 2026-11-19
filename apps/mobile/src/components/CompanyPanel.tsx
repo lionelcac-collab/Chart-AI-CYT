@@ -31,13 +31,13 @@ export function CompanyPanel({ s }: { s: AssetSheet }) {
 
   return (
     <>
-      <Card title={t.asset.about}>
+      <Card title={t.asset.about} collapsible>
         <Txt size="sm">{description ?? na}</Txt>
         {activity && activity !== description ? <><Txt weight="700">{t.asset.activity}</Txt><Txt size="sm">{activity}</Txt></> : null}
         {a.website ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(a.website!)}><Txt size="sm" color={th.info}>{a.website}</Txt></Pressable> : null}
       </Card>
 
-      <Card title={t.asset.keyFacts}>
+      <Card title={t.asset.keyFacts} collapsible>
         <KV label={lang === 'fr' ? 'Secteur' : 'Sector'} value={a.sectors ? (lang === 'fr' ? a.sectors.name_fr : a.sectors.name_en) : na} />
         <KV label={lang === 'fr' ? 'Bourse · pays' : 'Exchange · country'} value={`${a.market}${a.country ? ` · ${a.country}` : ''}`} />
         <KV label="Ticker" value={a.ticker} />
@@ -52,16 +52,16 @@ export function CompanyPanel({ s }: { s: AssetSheet }) {
         <KV label={lang === 'fr' ? 'Capitalisation' : 'Market cap'} value={s.quote?.market_cap != null ? fmtPrice(s.quote.market_cap, a.currency, lang) : na} />
       </Card>
 
-      <Card title={t.asset.shareholders}>
+      <Card title={t.asset.shareholders} collapsible defaultOpen={false}>
         {s.shareholders.length ? s.shareholders.map((h) => <KV key={h.holder} label={h.holder} value={h.pct != null ? `${fmtNum(h.pct, lang, 1)} %` : '—'} />) : <Txt size="sm" muted>{na}</Txt>}
         {s.shareholders[0]?.as_of ? <Txt size="xs" muted>{lang === 'fr' ? 'Au' : 'As of'} {fmtDate(s.shareholders[0].as_of, lang)} · {s.shareholders[0].source}</Txt> : null}
       </Card>
 
-      <Card title={t.asset.management}>
+      <Card title={t.asset.management} collapsible defaultOpen={false}>
         {s.executives.length ? s.executives.map((e) => <KV key={e.person + e.role} label={e.role} value={e.person} />) : <Txt size="sm" muted>{na}</Txt>}
       </Card>
 
-      <Card title={t.asset.financials}>
+      <Card title={t.asset.financials} collapsible defaultOpen={false}>
         {s.fundamentals.length ? (
           <View style={{ gap: 4 }}>
             <Row style={{ justifyContent: 'space-between' }}>
@@ -87,7 +87,7 @@ export function CompanyPanel({ s }: { s: AssetSheet }) {
         ) : null}
       </Card>
 
-      <Card title={t.asset.calendar}>
+      <Card title={t.asset.calendar} collapsible defaultOpen={false}>
         {upcoming.length || past.length ? (
           <>
             {upcoming.map((e, i) => <KV key={`u${i}`} label={`${fmtDate(e.event_date, lang)} · ${EVENT_LABEL[e.kind]?.[lang] ?? e.kind}`} value={(lang === 'fr' ? e.title_fr : e.title_en) ?? ''} />)}
@@ -96,7 +96,7 @@ export function CompanyPanel({ s }: { s: AssetSheet }) {
         ) : <Txt size="sm" muted>{na}</Txt>}
       </Card>
 
-      <Card title={t.asset.documents}>
+      <Card title={t.asset.documents} collapsible defaultOpen={false}>
         {s.documents?.length ? s.documents.map((d, i) => (
           <Pressable key={i} accessibilityRole="link" onPress={() => Linking.openURL(d.url)}>
             <Row style={{ justifyContent: 'space-between', paddingVertical: 4 }}>
@@ -108,7 +108,7 @@ export function CompanyPanel({ s }: { s: AssetSheet }) {
       </Card>
 
       {s.peers.length ? (
-        <Card title={t.asset.peers}>
+        <Card title={t.asset.peers} collapsible defaultOpen={false}>
           {s.peers.slice(0, 8).map((p) => (
             <Pressable key={p.id} onPress={() => router.push(`/asset/${encodeURIComponent(p.id)}`)}>
               <Row style={{ justifyContent: 'space-between', paddingVertical: 4 }}><Txt weight="600">{p.ticker}</Txt><Txt size="sm" muted numberOfLines={1}>{p.name} · {p.market}</Txt></Row>

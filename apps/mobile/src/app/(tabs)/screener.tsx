@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { MVP_MARKETS, type MarketCode } from '@chart-boursafrikia/core';
-import { Card, ErrorBox, Loading, Pill, Row, Screen, Txt } from '../../components/ui';
+import { MARKETS, MVP_MARKETS, type MarketCode } from '@chart-boursafrikia/core';
+import { Card, ErrorBox, Loading, Pill, Row, Screen, Select, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { api } from '../../lib/api';
 import { sectorLabel } from '../../lib/demo';
@@ -37,24 +37,15 @@ export default function Screener() {
       <TextInput value={query} onChangeText={setQuery} placeholder={t.common.search} placeholderTextColor={th.textMuted} autoCapitalize="characters"
         accessibilityLabel={t.common.search}
         style={{ backgroundColor: th.card, color: th.text, borderRadius: radius.md, padding: space.md, borderWidth: 1, borderColor: th.border, fontSize: 15 }} />
-      <Row style={{ flexWrap: 'wrap' }}>
-        <Pill label={t.screener.all} active={!market} onPress={() => setMarket(undefined)} />
-        {MVP_MARKETS.map((m) => <Pill key={m} label={m} active={market === m} onPress={() => setMarket(m)} />)}
-      </Row>
+      <Select label={lang === 'fr' ? 'Marché' : 'Market'} value={market ?? ''} onChange={(v) => setMarket((v || undefined) as MarketCode | undefined)}
+        options={[{ value: '', label: t.screener.all }, ...MVP_MARKETS.map((m) => ({ value: m as string, label: `${m} · ${MARKETS[m as 'BRVM'].name}` }))]} />
       {sectors.length ? (
-        <Row style={{ flexWrap: 'wrap' }}>
-          <Pill label={t.screener.all} active={!sector} onPress={() => setSector(undefined)} />
-          {sectors.map((s) => <Pill key={s} label={sectorLabel(s, lang)} active={sector === s} onPress={() => setSector(s)} />)}
-        </Row>
+        <Select label={lang === 'fr' ? 'Secteur' : 'Sector'} value={sector ?? ''} onChange={(v) => setSector(v || undefined)}
+          options={[{ value: '', label: t.screener.all }, ...sectors.map((s) => ({ value: s, label: sectorLabel(s, lang) }))]} />
       ) : null}
-      <Row style={{ flexWrap: 'wrap' }}>
-        <Txt size="sm" muted>{t.screener.sort} :</Txt>
-        <Pill label={lang === 'fr' ? 'Variation' : 'Change'} active={sort === 'change'} onPress={() => setSort('change')} />
-        <Pill label={lang === 'fr' ? 'Valeur échangée' : 'Traded value'} active={sort === 'value'} onPress={() => setSort('value')} />
-        <Pill label={lang === 'fr' ? 'Nom' : 'Name'} active={sort === 'name'} onPress={() => setSort('name')} />
-      </Row>
-      <Card>
-        <Txt weight="700">{t.screener.advanced}</Txt>
+      <Select label={t.screener.sort} value={sort} onChange={setSort}
+        options={[{ value: 'change' as const, label: lang === 'fr' ? 'Variation' : 'Change' }, { value: 'value' as const, label: lang === 'fr' ? 'Valeur échangée' : 'Traded value' }, { value: 'name' as const, label: lang === 'fr' ? 'Nom' : 'Name' }]} />
+      <Card title={t.screener.advanced} collapsible defaultOpen={false}>
         {plan === 'premium'
           ? <Pill label={lang === 'fr' ? 'Échangé aujourd’hui uniquement' : 'Traded today only'} active={minValue} onPress={() => setMinValue((v) => !v)} />
           : <Pressable onPress={() => router.push('/premium')}><Txt size="sm" color={th.info}>🔒 PER, rendement, momentum, liquidité, score du modèle → Premium</Txt></Pressable>}

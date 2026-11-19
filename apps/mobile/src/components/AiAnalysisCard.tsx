@@ -25,7 +25,7 @@ export function AssetSectionsAnalysis({ assetId }: { assetId: string }) {
 
   const a = m.data?.content;
   return (
-    <Card title={t.asset.analyze}>
+    <Card title={t.asset.analyze} collapsible defaultOpen={false}>
       {!a ? (
         <View style={{ gap: space.sm }}>
           {plan === 'free' ? <Txt size="xs" muted>{fmt(t.asset.analysesLeft, { n: ENTITLEMENTS.free.aiAnalysesPerDay })}</Txt> : null}
