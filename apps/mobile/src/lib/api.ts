@@ -43,6 +43,9 @@ const dropStale = (rows: AssetSummary[]) => {
 };
 
 
+export type ImportCandidate = { assetId: string; ticker: string; name: string; market: string; currency: string; confidence: number; read: string;
+  quantity: number | null; costAmount: number | null; costSource: 'total' | 'pru' | 'value_minus_pnl' | null; marketValue: number | null; pnl: number | null;
+  lastPrice: number | null; avgCostPrice: number | null; readCurrency: string | null; currencyMismatch: boolean };
 export type PortfolioLine = { assetId: string; ticker: string; name: string; market: string; currency: string; quantity: number | null; cost: number | null;
   priceStart: number | null; priceEnd: number | null; returnPct: number | null; valueStart: number | null; valueEnd: number | null; lastDate: string | null;
   weightPct?: number | null; contributionPts?: number | null; pnl?: number | null; pnlPct?: number | null };
@@ -117,9 +120,9 @@ export const api = {
   },
 
   /** Reads stock names / tickers on screenshots and matches them to listed assets (nothing is added yet). */
-  async importWatchlistFromImages(images: { base64: string; mediaType: string }[], lang: 'fr' | 'en') {
+  async importWatchlistFromImages(images: { base64: string; mediaType: string }[], lang: 'fr' | 'en', message?: string) {
     if (!supabase) throw new ApiError('DEMO_NO_AI');
-    return invoke<{ readable: boolean; matched: { assetId: string; ticker: string; name: string; market: string; confidence: number; read: string }[]; unmatched: string[] }>('watchlist-import', { images, lang });
+    return invoke<{ readable: boolean; matched: ImportCandidate[]; unmatched: string[]; totalValue: number | null; totalCurrency: string | null }>('watchlist-import', { images, lang, message });
   },
 
   async chartVision(imageBase64: string, mediaType: string, lang: 'fr' | 'en') {
