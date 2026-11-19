@@ -8,3 +8,4 @@ export * from './bulletin';
 export * from './registry';
 export * from './placeholders';
 export * from './bulletinConnector';
+export * from './officialBulletins';

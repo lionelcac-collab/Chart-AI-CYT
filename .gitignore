@@ -11,3 +11,6 @@ coverage/
 google-play-service-account.json
 dist/
 snapshot*.json
+data/history/.tmp/
+data/history*/*.csv
+data/history*/.tmp/

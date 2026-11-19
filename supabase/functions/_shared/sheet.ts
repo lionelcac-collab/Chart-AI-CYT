@@ -11,11 +11,16 @@ export async function loadBars(db: SupabaseClient, assetId: string, years = 3): 
   from.setUTCFullYear(from.getUTCFullYear() - years);
   from.setUTCDate(from.getUTCDate() - 10);
   const { data, error } = await db.from('price_bars')
-    .select('session_date, open, high, low, close, volume, value')
+    .select('session_date, open, high, low, close, volume, value, adjusted_factor')
     .eq('asset_id', assetId).gte('session_date', from.toISOString().slice(0, 10))
     .order('session_date', { ascending: true }).limit(2000);
   if (error) throw error;
-  return (data ?? []).map((r) => ({ date: r.session_date, open: r.open, high: r.high, low: r.low, close: Number(r.close), volume: Number(r.volume), value: r.value }));
+  // Prices adjusted for splits / bonus shares (adjusted_factor set by scripts/load-history.mts); volumes are left raw.
+  return (data ?? []).map((r) => {
+    const f = Number(r.adjusted_factor ?? 1);
+    const adj = (v: number | null) => (v == null ? null : Number(v) * f);
+    return { date: r.session_date, open: adj(r.open), high: adj(r.high), low: adj(r.low), close: Number(r.close) * f, volume: Number(r.volume), value: r.value };
+  });
 }
 
 export async function buildSheet(db: SupabaseClient, assetId: string) {

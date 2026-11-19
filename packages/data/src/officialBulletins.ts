@@ -1,0 +1,139 @@
+/**
+ * Readers for the official daily bulletins, tuned on real PDFs (text extracted with
+ * `pdftotext -layout` or unpdf), checked on 2022–2026 files.
+ *
+ *  BRVM  "Bulletin Officiel de la Cote"   https://www.brvm.org/sites/default/files/boc_YYYYMMDD[_2|_1|_2_0].pdf
+ *        columns: prev close · open · close · change % · volume · value · reference · YTD % · last dividend…
+ *  BVMAC "Bulletin Officiel de la Cote"   listed on https://www.bvm-ac.org/bulletin-officiel-de-la-cote-boc/
+ *        rows anchored on the ISIN; open/close follow the quotation status (NC, PEq…)
+ *  NGX   "Daily Official List – Equities" https://doclib.ngxgroup.com/DownloadsContent/Daily%20Official%20List%20-%20Equities%20for%20DD-MM-YYYY.pdf
+ *        close = "Current Market Price" column (read by column position); no reliable volume
+ *
+ * Every function returns only what the document states; missing values are null.
+ */
+
+export interface OfficialRow {
+  ticker: string;
+  name: string | null;
+  isin?: string | null;
+  previousClose: number | null;
+  open: number | null;
+  close: number;
+  changePct: number | null;
+  volume: number | null;
+  value: number | null;
+}
+
+/** "12 500" / "12 500,50" / "-0,84 %" → number (French formatting). */
+export function frNum(s: string | undefined | null): number | null {
+  if (s == null) return null;
+  const t = s.replace(/[\s  %]/g, '').replace(',', '.');
+  if (t === '' || t === '-' || t === '—') return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+const FR = String.raw`\d{1,3}(?: \d{3})*(?:,\d+)?`;
+const PCT = String.raw`-?\d{1,3}(?: \d{3})*,\d+ ?%`;
+
+/** BRVM equities. Line: [sector] TICKER  NAME  prev  open  close  var%  volume  value  reference … */
+export function parseBrvmBoc(text: string): OfficialRow[] {
+  const re = new RegExp(String.raw`^\s*(?:[A-Z]{2,4}\s+)?([A-Z]{4,6})\s{2,}(\S.*?)\s{2,}(${FR})\s+(${FR})\s+(${FR})\s+(${PCT})\s+(${FR})\s+(${FR})`);
+  const out: OfficialRow[] = [];
+  const seen = new Set<string>();
+  for (const line of text.split(/\r?\n/)) {
+    if (/TOTAL|COMPARTIMENT|INDICE|BRVM/.test(line.slice(0, 40))) continue;
+    const m = line.match(re);
+    if (!m) continue;
+    const [, ticker, name, prev, open, close, pct, vol, val] = m;
+    // Bond lines have a dot in the code (SNTS.O2) and are excluded by the ticker pattern.
+    const c = frNum(close);
+    if (!ticker || c == null || c <= 0 || seen.has(ticker)) continue;
+    seen.add(ticker);
+    out.push({ ticker, name: name!.trim(), previousClose: frNum(prev), open: frNum(open), close: c, changePct: frNum(pct), volume: frNum(vol), value: frNum(val) });
+  }
+  return out;
+}
+
+/** Canonical BVMAC tickers by ISIN (aligned with Mansa's codes). */
+export const BVMAC_TICKERS: Record<string, string> = {
+  CM0000010009: 'SEMC', CM0000010017: 'SAFACAM', CM0000010025: 'SOCAPALM', CM0000010041: 'REGIONALE',
+  GQ0000010050: 'BANGE', GA0000010066: 'SCGRE', GA0000010074: 'BGFIHC',
+};
+
+/** BVMAC equities. Anchor: ISIN, short name, last price + date, …, traded volume, value, nb trades, status, open, close. */
+export function parseBvmacBoc(text: string): OfficialRow[] {
+  const re = new RegExp(
+    String.raw`([A-Z]{2}) ?(\d{10})\s+(\S+)\s+(.+?)\s{2,}(${FR})\s+(\d{2}/\d{2}/\d{4})\s+.*?(${FR})\s{2,}(${FR})\s{2,}(\d+)\s+([A-Za-z]{1,4})\s+(${FR})\s+(${FR})\s+(${FR})\s+(${FR})\s+(${PCT}|-?\d+,\d+%)`,
+  );
+  const out: OfficialRow[] = [];
+  const seen = new Set<string>();
+  for (const line of text.split(/\r?\n/)) {
+    const m = line.match(re);
+    if (!m) continue;
+    const isin = `${m[1]}${m[2]}`;
+    const shortName = m[4]!.trim();
+    const ticker = BVMAC_TICKERS[isin] ?? shortName.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (seen.has(ticker)) continue;
+    const close = frNum(m[12]);
+    if (close == null || close <= 0) continue;
+    seen.add(ticker);
+    const prev = frNum(m[5]);
+    out.push({
+      ticker, isin, name: shortName.replace(/(\S) (\S)$/, '$1$2'),
+      previousClose: prev, open: frNum(m[11]), close,
+      changePct: prev ? Math.round(((close - prev) / prev) * 1e6) / 1e4 : null,
+      volume: frNum(m[7]), value: frNum(m[8]),
+    });
+  }
+  return out;
+}
+
+/** NGX equities: close read in the "Current Market Price" column, located from each page's header. */
+export function parseNgxDailyList(text: string): OfficialRow[] {
+  const num = /\d{1,3}(?:,\d{3})*\.\d{2}/g;
+  const out = new Map<string, OfficialRow>();
+  for (const page of text.split('\f')) {
+    const lines = page.split(/\r?\n/);
+    const header = lines.find((l) => l.includes('Market Price') && l.includes('Official'));
+    if (!header) continue;
+    const col = header.indexOf('Market Price');
+    for (const line of lines) {
+      const m = line.match(/^\s{1,6}([A-Z][A-Z0-9]{1,14})\s+(\S.*)$/);
+      if (!m) continue;
+      for (const t of line.matchAll(num)) {
+        const s = t.index!, e = s + t[0].length;
+        if (e >= col - 2 && s <= col + 14) {
+          const close = Number(t[0].replace(/,/g, ''));
+          if (close > 0 && !out.has(m[1]!)) {
+            const name = m[2]!.split(/\s{2,}/)[0]!.trim();
+            out.set(m[1]!, { ticker: m[1]!, name, previousClose: null, open: null, close, changePct: null, volume: null, value: null });
+          }
+          break;
+        }
+      }
+    }
+  }
+  return [...out.values()];
+}
+
+/** Candidate URLs of a session's bulletin (BRVM file names vary: _2, none, _1, _2_0). */
+export function brvmBocUrls(date: string): string[] {
+  const d = date.replaceAll('-', '');
+  return ['_2', '', '_1', '_2_0', '_3'].map((s) => `https://www.brvm.org/sites/default/files/boc_${d}${s}.pdf`);
+}
+export function ngxDailyListUrl(date: string): string {
+  const [y, m, d] = date.split('-');
+  return `https://doclib.ngxgroup.com/DownloadsContent/Daily%20Official%20List%20-%20Equities%20for%20${d}-${m}-${y}.pdf`;
+}
+/** BVMAC links are listed on one page; pick the one for the session date (several naming schemes since 2019). */
+export function bvmacBocUrlFromIndex(indexHtml: string, date: string): string | null {
+  const [y, m, d] = date.split('-');
+  const pats = [`BOC-${y}${m}${d}`, `BOC-BVMAC-${d}-${m}-${y}`, `BOC-BVMAC-${d}-${m}-${y!.slice(2)}`, `BOC-${d}-${m}-${y}`, `BOC_${y}${m}${d}`];
+  const links = [...indexHtml.matchAll(/href="([^"]+\.pdf)"/gi)].map((x) => x[1]!.replace('https://https://', 'https://'));
+  for (const p of pats) {
+    const hit = links.find((l) => l.toUpperCase().includes(p.toUpperCase()));
+    if (hit) return hit;
+  }
+  return null;
+}
