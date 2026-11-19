@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { MARKETS, MVP_MARKETS, type MarketCode } from '@chart-boursafrikia/core';
-import { useIsDesktop } from '../../components/Chrome';
+import { type MarketCode } from '@chart-boursafrikia/core';
+import { MarketButtons, useIsDesktop } from '../../components/Chrome';
 import { Card, ErrorBox, Loading, Pill, Row, Screen, Select, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { api } from '../../lib/api';
@@ -42,9 +42,8 @@ export default function Screener() {
       <TextInput value={query} onChangeText={setQuery} placeholder={t.common.search} placeholderTextColor={th.textMuted} autoCapitalize="characters"
         accessibilityLabel={t.common.search}
         style={{ backgroundColor: th.card, color: th.text, borderRadius: radius.md, padding: space.md, borderWidth: 1, borderColor: th.border, fontSize: 15 }} />
+      <MarketButtons<MarketCode> value={market} onChange={setMarket} allLabel={t.screener.all} />
       <View style={{ flexDirection: desktop ? 'row' : 'column', gap: space.md }}>
-        <View style={{ flex: desktop ? 1 : undefined }}><Select label={lang === 'fr' ? 'Marché' : 'Market'} value={market ?? ''} onChange={(v) => setMarket((v || undefined) as MarketCode | undefined)}
-        options={[{ value: '', label: t.screener.all }, ...MVP_MARKETS.map((m) => ({ value: m as string, label: `${m} · ${MARKETS[m as 'BRVM'].name}` }))]} /></View>
       {sectors.length ? (
           <View style={{ flex: desktop ? 1 : undefined }}><Select label={lang === 'fr' ? 'Secteur' : 'Sector'} value={sector ?? ''} onChange={(v) => setSector(v || undefined)}
           options={[{ value: '', label: t.screener.all }, ...sectors.map((s) => ({ value: s, label: sectorLabel(s, lang) }))]} /></View>

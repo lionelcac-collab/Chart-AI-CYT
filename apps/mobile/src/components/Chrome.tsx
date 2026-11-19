@@ -177,3 +177,32 @@ export function Footer() {
     </View>
   );
 }
+
+const SHORT_ZONE = { BRVM: 'UEMOA', BVMAC: 'CEMAC', NGX: 'Nigeria' };
+
+/** The three exchanges as always-visible buttons (optionally with an "All" button first). */
+export function MarketButtons<T extends string>({ value, onChange, allLabel }: { value: T | undefined; onChange: (m: T | undefined) => void; allLabel?: string }) {
+  const th = useTheme();
+  const { lang } = useT();
+  const c = copy[lang];
+  const desktop = useIsDesktop();
+  const items: [T | undefined, string, string][] = [
+    ...(allLabel ? [[undefined, allLabel, desktop ? 'BRVM · BVMAC · NGX' : (lang === 'fr' ? '3 bourses' : '3 exchanges')] as [T | undefined, string, string]] : []),
+    ...c.markets.map(([code, zone]) => [code as T, code, desktop ? zone : SHORT_ZONE[code as 'BRVM']] as [T | undefined, string, string]),
+  ];
+  return (
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: space.sm }}>
+      {items.map(([v, label, sub]) => {
+        const active = value === v;
+        return (
+          <Pressable key={label} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => onChange(v)}
+            style={{ flex: 1, alignItems: 'center', paddingVertical: 10, paddingHorizontal: 6, borderRadius: radius.md, borderWidth: 1,
+              backgroundColor: active ? th.accent : th.card, borderColor: active ? th.accent : th.border }}>
+            <Text style={{ color: active ? th.accentText : th.text, fontWeight: '800', fontSize: 15 }}>{label}</Text>
+            <Text numberOfLines={1} style={{ color: active ? th.accentText : th.textMuted, fontSize: 11, marginTop: 2 }}>{sub}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}

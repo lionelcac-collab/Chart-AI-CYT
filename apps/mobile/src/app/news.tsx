@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { MVP_MARKETS, type MarketCode } from '@chart-boursafrikia/core';
+import { type MarketCode } from '@chart-boursafrikia/core';
 import { NewsList } from '../components/NewsList';
+import { MarketButtons } from '../components/Chrome';
 import { Card, ErrorBox, Loading, Screen, Select, Txt } from '../components/ui';
 import { useT } from '../i18n';
 import { api } from '../lib/api';
@@ -23,8 +24,7 @@ export default function News() {
   return (
     <Screen edges={[]}>
       <Stack.Screen options={{ title: t.dashboard.news }} />
-      <Select label={lang === 'fr' ? 'Marché' : 'Market'} value={market ?? ''} onChange={(v) => setMarket((v || undefined) as MarketCode | undefined)}
-        options={[{ value: '', label: t.screener.all }, ...MVP_MARKETS.map((m) => ({ value: m as string, label: m }))]} />
+      <MarketButtons<MarketCode> value={market} onChange={setMarket} allLabel={t.screener.all} />
       <Select label={lang === 'fr' ? 'Catégorie' : 'Category'} value={cat ?? ''} onChange={(v) => setCat(v || undefined)}
         options={[{ value: '', label: t.screener.all }, ...CATS.map((c) => ({ value: c as string, label: CAT_LABEL[c][lang] }))]} />
       {q.isLoading ? <Loading /> : q.error ? <ErrorBox message={t.common.error} onRetry={() => q.refetch()} /> : (

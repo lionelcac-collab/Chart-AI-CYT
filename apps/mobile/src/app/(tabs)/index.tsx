@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, router } from 'expo-router';
 import { Fragment, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { APP_NAME, MVP_MARKETS, MARKETS, sessionState, type MarketCode } from '@chart-boursafrikia/core';
-import { Columns, Hero, useIsDesktop } from '../../components/Chrome';
+import { APP_NAME, MARKETS, sessionState, type MarketCode } from '@chart-boursafrikia/core';
+import { Columns, Hero, MarketButtons, useIsDesktop } from '../../components/Chrome';
 import { MarketScan } from '../../components/MarketScan';
 import { NewsList } from '../../components/NewsList';
-import { Button, Card, ErrorBox, Loading, Pill, ProvenanceBadge, Row, Screen, Select, Txt } from '../../components/ui';
+import { Button, Card, ErrorBox, Loading, Pill, ProvenanceBadge, Row, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { api } from '../../lib/api';
 import { sectorLabel } from '../../lib/demo';
@@ -37,8 +37,7 @@ export default function Dashboard() {
           <Txt size="sm" muted>{APP_NAME} · {lang === 'fr' ? 'cours officiels et analyse IA' : 'official prices and AI analysis'}</Txt>
         </View>
         <View style={{ width: desktop ? 460 : undefined }}>
-          <Select label={lang === 'fr' ? 'Marché' : 'Market'} value={market} onChange={setMarket}
-            options={MVP_MARKETS.map((m) => ({ value: m, label: `${m} · ${MARKETS[m as 'BRVM'].name}` }))} />
+          <MarketButtons<MarketCode> value={market} onChange={(m) => m && setMarket(m)} />
         </View>
         <View style={{ alignSelf: desktop ? 'auto' : 'flex-start', marginBottom: desktop ? 8 : 0 }}><Pill label={stateLabel} bg={state === 'open' ? th.up : th.cardAlt} color={state === 'open' ? '#0B0F1E' : th.textMuted} /></View>
       </View>
