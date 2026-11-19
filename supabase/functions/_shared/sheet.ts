@@ -138,7 +138,14 @@ export function sheetForPrompt(s: Sheet, lang: 'fr' | 'en') {
   return {
     language: lang,
     asset: { id: s.asset.id, name: s.asset.name, ticker: s.asset.ticker, market: s.asset.market, sector: s.asset.sectors?.name_fr, currency: s.asset.currency },
-    lastClose: s.lastClose && { ...s.lastClose, source: s.quote?.source ?? 'price_bars' },
+    lastClose: s.lastClose && (() => {
+      const prev = s.bars.length >= 2 ? s.bars[s.bars.length - 2]! : null;
+      return {
+        ...s.lastClose, source: s.lastSource ?? 'price_bars',
+        previousClose: prev ? { price: prev.close, date: prev.date } : null,
+        changePct: prev && prev.close > 0 ? Math.round(((s.lastClose.price - prev.close) / prev.close) * 10000) / 100 : null,
+      };
+    })(),
     ranges: s.ranges, performance: s.performance, liquidity: s.liquidity,
     technical: s.technical,
     ratios: s.ratios, fundamentalsYears: s.fundamentals.map((f) => ({ year: f.fiscalYear, revenue: f.revenue, netIncome: f.netIncome, source: f.provenance.source })),
