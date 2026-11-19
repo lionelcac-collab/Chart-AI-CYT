@@ -18,8 +18,8 @@ const mockFetch = (routes: Record<string, unknown>, status = 200): FetchLike & {
 describe('mansa connector', () => {
   it('is disabled without key and maps tolerant field names, never inventing prices', async () => {
     expect(new MansaConnector({}).isEnabled()).toBe(false);
-    const f = mockFetch({ '/api/v1/stocks': { data: [
-      { symbol: 'SNTS', name: 'Sonatel', price: '25 500', previous_close: 25000, volume: 1200, date: '2026-11-18' },
+    const f = mockFetch({ '/api/v1/markets/exchanges/ivory-coast/stocks': { data: [
+      { symbol: 'SNTS', name: 'Sonatel', price: '25 500', previous_close: 25000, volume: 1200, scraped_at: '2026-11-18T18:00:00Z' },
       { symbol: 'XXXX', name: 'No price' },
     ] } });
     const c = new MansaConnector({ apiKey: 'k', fetch: f });
@@ -27,8 +27,8 @@ describe('mansa connector', () => {
     expect(q).toHaveLength(1);
     expect(q[0]).toMatchObject({ assetId: 'BRVM:SNTS', last: 25500, previousClose: 25000, changePct: 2 });
     expect(q[0]!.provenance).toMatchObject({ source: 'mansa', status: { kind: 'close', sessionDate: '2026-11-18' } });
-    expect(f.calls[0]!.url).toContain('exchange=BRVM');
-    expect(f.calls[0]!.headers!['x-api-key']).toBe('k');
+    expect(f.calls[0]!.url).toContain('https://mansaapi.com/api/v1/markets/exchanges/ivory-coast/stocks');
+    expect(f.calls[0]!.headers!['X-API-Key']).toBe('k');
     await c.getQuotes('BRVM'); // cached
     expect(f.calls).toHaveLength(1);
   });
@@ -41,7 +41,7 @@ describe('mansa connector', () => {
 describe('registry fallback', () => {
   it('falls back and records attempts; disabled placeholders are skipped', async () => {
     const bad = new MansaConnector({ apiKey: 'k', fetch: mockFetch({}, 500) });
-    const good = new MansaConnector({ apiKey: 'k2', fetch: mockFetch({ '/api/v1/stocks': [{ ticker: 'DANGCEM', close: 500 }] }) });
+    const good = new MansaConnector({ apiKey: 'k2', fetch: mockFetch({ '/api/v1/markets/exchanges/nigeria/stocks': [{ ticker: 'DANGCEM', close: 500 }] }) });
     (good as unknown as { id: string }).id = 'mansa_backup';
     const reg = new ConnectorRegistry({ NGX: [new NgxOfficialConnector(), bad, good] });
     const r = await reg.quotes('NGX');

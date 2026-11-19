@@ -14,7 +14,7 @@ Légende : ✅ fait et vérifié · 🟡 fait, à valider avec vos accès/donné
 | Élément | État |
 |---|---|
 | Calculs (plus bas/hauts 1S→3A avec dates, position %, écarts ; performances + YTD ; volatilité ; MM20/50/200, RSI, MACD, Bollinger, supports/résistances, tendance, figures ; liquidité ; ratios) | ✅ 20 tests |
-| Connecteur Mansa (cours, indices, forex, historique) + cache + quota + registre avec secours | 🟡 testé sur réponses simulées ; chemins/champs/en-tête d'auth configurables à confirmer avec la doc fournie avec votre clé |
+| Connecteur Mansa (cours, indices, forex, historique) + cache + quota + registre avec secours | ✅ **testé sur l'API réelle le 19/11/2026** : BRVM 48 titres, BVMAC 7 titres, NGX 146 titres, indices BRVM-CI et NGX ASI, forex. 🟡 Historique non testé : il exige le plan **Pro** (clé actuelle = Free, 100 requêtes/jour) |
 | Parseur des bulletins officiels (PDF → texte → lignes) + recoupement > 0,5 % | 🟡 testé sur un format type ; à caler sur 3–4 vrais bulletins par bourse (`PROFILES`) et URL à renseigner (`BULLETIN_URL_*`) |
 | **BVMAC : bulletin officiel comme source principale** (connecteur `BulletinConnector`, repli sur la séance précédente, reconstitution de l'historique, Mansa en secours) | ✅ 6 tests ; 🟡 emplacement réel des bulletins sur bvm-ac.org et format des colonnes à confirmer sur de vrais PDF |
 | Contrôles d'anomalies (limite ±7,5 % BRVM, cours périmés, OHLC, divergence) + alerte admin | ✅ |
@@ -51,7 +51,7 @@ Légende : ✅ fait et vérifié · 🟡 fait, à valider avec vos accès/donné
    lecteur de colonnes) et l'endroit où ils sont publiés sur bvm-ac.org (`BULLETIN_URL_BVMAC`, ou `BULLETIN_INDEX_BVMAC` +
    `BULLETIN_LINK_BVMAC`). Idem pour BRVM et NGX (contrôle). Vérifier aussi que les conditions d'utilisation de la BVMAC
    autorisent la réutilisation des cours dans une application commerciale (sinon, demander une licence de données). Plus la liste des flux RSS officiels.
-8. **Mansa** : confirmer par écrit la couverture BRVM (cours, historique, dividendes) et leurs droits de redistribution BRVM/NGX.
+8. **Mansa** : passer au plan **Pro (50 $/mois)** pour l'historique OHLCV (Starter 20 $ pour dividendes et avis de courtiers) ; confirmer par écrit le droit d'afficher les cours dans une app payante (leur grille ne mentionne la « redistribution » qu'au plan Business, 200 $/mois).
 9. **Validation juridique** : statut d'outil d'information vs conseil (AMF-UMOA, COSUMAF, SEC Nigeria), politique de
    confidentialité, CGU, licence de réutilisation des bulletins.
 10. **Nom et marque** : confirmer « Nyota » (ou me donner le nom définitif) et l'identité visuelle (icône).
