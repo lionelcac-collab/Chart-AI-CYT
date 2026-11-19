@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { ENTITLEMENTS } from '@chart-boursafrikia/core';
-import { PortfolioPanel, PositionEditor } from '../../components/Portfolio';
+import { PortfolioAsk, PortfolioPanel, PositionEditor } from '../../components/Portfolio';
 import { Button, Card, Loading, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { ApiError, api } from '../../lib/api';
@@ -171,6 +171,7 @@ export default function Watchlist() {
       ) : null}
 
       <PortfolioPanel count={ids.data?.length ?? 0} />
+      {ids.data?.length ? <PortfolioAsk hasQuantities={Object.values(pos.data ?? {}).some((p) => p.quantity != null)} /> : null}
 
       {ids.isLoading ? <Loading /> : !ids.data?.length ? <Card><Txt muted>{fr ? 'Votre liste est vide. Ajoutez des titres depuis leur fiche (☆) ou importez une capture d’écran ci-dessus.' : t.watchlist.empty}</Txt></Card> : (
         <Card title={fr ? `Mes titres (${rows.length})` : `My stocks (${rows.length})`}>

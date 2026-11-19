@@ -4,6 +4,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@1.10.0';
 import { ANALYST_SYSTEM, MODELS, claude } from '../_shared/ai.ts';
 import { admin, asUser, audit, currentUser, handler, isPremium, json } from '../_shared/runtime.ts';
 import { buildSheet, sheetForPrompt } from '../_shared/sheet.ts';
+import { loadPortfolio, type Period } from '../_shared/portfolio.ts';
 import { ENTITLEMENTS } from '../_shared/core/index.ts';
 
 const tools: Anthropic.Tool[] = [
@@ -17,11 +18,13 @@ const tools: Anthropic.Tool[] = [
     input_schema: { type: 'object', properties: { market: { type: 'string', enum: ['BRVM', 'BVMAC', 'NGX'] } }, required: ['market'], additionalProperties: false }, strict: true },
   { name: 'get_market_scan', description: 'Balayage de TOUTE la cote d’un marché sur une période (identique à la page Marchés) : titres proches d’un support ou d’une résistance (écart en %), plus fortes hausses et baisses de la période. À utiliser pour toute question « quels titres… » sur supports, résistances, hausses ou baisses.',
     input_schema: { type: 'object', properties: { market: { type: 'string', enum: ['BRVM', 'BVMAC', 'NGX'] }, period: { type: 'string', enum: ['1D', '1W', '1M', '3M', '6M', '1Y'], description: 'défaut 3M pour supports/résistances, 1D pour hausses/baisses' }, max_distance_pct: { type: 'number', description: 'écart maximal au niveau, défaut 3' } }, required: ['market'], additionalProperties: false } },
+  { name: 'get_my_portfolio', description: 'Portefeuille RÉEL de l’utilisateur connecté (sa liste de suivi) : titres, nombre d’actions et montant investi s’ils sont renseignés, valeur, poids, variation et contribution de chaque titre sur la période, plus/moins-values, répartition par marché, secteur et devise. À appeler pour toute question sur « mon portefeuille », « mes titres », « ma liste ».',
+    input_schema: { type: 'object', properties: { period: { type: 'string', enum: ['1W', '1M', '3M', '6M', 'YTD', '1Y', '3Y'], description: 'défaut 1Y' } }, additionalProperties: false } },
   { name: 'search_documents', description: 'Recherche plein texte dans les rapports annuels, communiqués et bulletins officiels indexés.',
     input_schema: { type: 'object', properties: { query: { type: 'string' }, asset_id: { type: 'string' } }, required: ['query'], additionalProperties: false } },
 ];
 
-async function runTool(name: string, input: Record<string, string>, lang: 'fr' | 'en') {
+async function runTool(name: string, input: Record<string, string>, lang: 'fr' | 'en', userId: string) {
   const db = admin();
   switch (name) {
     case 'search_assets': {
@@ -64,6 +67,32 @@ async function runTool(name: string, input: Record<string, string>, lang: 'fr' |
         proches_support: near('supportDistPct'), proches_resistance: near('resistanceDistPct'),
         plus_fortes_hausses: byRet.filter((r) => r.returnPct! > 0).slice(0, 8).map(pick), plus_fortes_baisses: byRet.filter((r) => r.returnPct! < 0).slice(-8).reverse().map(pick) };
     }
+    case 'get_my_portfolio': {
+      const pf = await loadPortfolio(db, userId, ((input.period as Period) || '1Y'), 'XOF');
+      if ('empty' in pf && pf.empty) return { empty: true, message: 'La liste de suivi de l’utilisateur est vide.' };
+      const p = pf as Exclude<typeof pf, { empty: true }>;
+      const ids = p.lines.map((l) => l.assetId);
+      const { data: secs } = await db.from('assets').select('id, sectors(name_fr)').in('id', ids);
+      const sectorOf = new Map((secs ?? []).map((a) => [a.id, (a.sectors as unknown as { name_fr: string } | null)?.name_fr ?? 'Secteur non renseigné']));
+      const r2 = (x: number | null | undefined) => (x == null ? null : Math.round(x * 100) / 100);
+      const group = (key: (l: (typeof p.lines)[number]) => string) => {
+        const m = new Map<string, number>();
+        for (const l of p.lines) { const w = (l as { weightPct?: number | null }).weightPct; if (w != null) m.set(key(l), (m.get(key(l)) ?? 0) + w); }
+        return Object.fromEntries([...m].sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, r2(v)]));
+      };
+      return {
+        devise_affichage: 'FCFA (XOF)', mode: p.mode === 'value' ? 'valeur réelle (quantités renseignées)' : 'pondération égale (aucune quantité renseignée : poids identiques, pas de valeur en FCFA)',
+        periode: p.period, debut: p.start, fin: p.end, resume: p.summary,
+        titres: p.lines.map((l) => {
+          const x = l as typeof l & { weightPct?: number | null; contributionPts?: number | null; pnl?: number | null; pnlPct?: number | null };
+          return { id: x.assetId, titre: `${x.name} (${x.ticker})`, marche: x.market, secteur: sectorOf.get(x.assetId), devise: x.currency, nombre_actions: x.quantity, montant_investi_devise_titre: x.cost,
+            cours_debut: r2(x.priceStart), cours_fin: r2(x.priceEnd), derniere_cotation: x.lastDate, variation_pct: r2(x.returnPct), valeur_fcfa: r2(x.valueEnd), poids_pct: r2(x.weightPct),
+            contribution_pts: r2(x.contributionPts), plus_value_fcfa: r2(x.pnl), plus_value_pct: r2(x.pnlPct) };
+        }),
+        repartition_par_marche_pct: group((l) => l.market), repartition_par_secteur_pct: group((l) => sectorOf.get(l.assetId) ?? '—'), repartition_par_devise_pct: group((l) => l.currency),
+        change: p.fx, source: 'clôtures vérifiées ajustées (bulletins officiels / fournisseur licencié), calcul Chart-BoursafrikIA',
+      };
+    }
     case 'search_documents': {
       let q = db.from('rag_chunks').select('content, metadata, document_id').textSearch('content', input.query, { type: 'websearch', config: 'french' }).limit(6);
       if (input.asset_id) q = q.eq('asset_id', input.asset_id);
@@ -82,10 +111,15 @@ Deno.serve(handler(async (req) => {
   const { data: allowed } = premium ? { data: true } : await asUser(req).rpc('consume_ai_quota', { p_kind: 'chat', p_limit: limit });
   if (!allowed) return json({ error: 'QUOTA_EXCEEDED', limit }, 402);
 
-  const { messages, lang = 'fr' } = (await req.json()) as { messages: { role: 'user' | 'assistant'; content: string }[]; lang: 'fr' | 'en' };
+  const { messages, lang = 'fr', context } = (await req.json()) as { messages: { role: 'user' | 'assistant'; content: string }[]; lang: 'fr' | 'en'; context?: 'portfolio' };
   const history: Anthropic.Beta.BetaMessageParam[] = messages.slice(-12).map((m) => ({ role: m.role, content: String(m.content).slice(0, 4000) }));
   const system = [{ type: 'text' as const, text: ANALYST_SYSTEM + `\nUtilise les outils pour toute donnée chiffrée. Pour les questions sur plusieurs titres (supports, résistances, hausses, baisses), utilise get_market_scan qui couvre toute la cote. Cite date et source de chaque chiffre.
-Mise en forme (affichage mobile) : titres courts avec ##, listes à puces avec -, gras avec **. JAMAIS de tableau. Dates au format JJ/MM/AAAA. Pourcentages à 2 décimales. N'écris pas de nom de champ technique ni de mot anglais (« sideways » = latérale, « breakdown » = cassure). Réponse concise. Termine par : « Information, pas un conseil en investissement. »`, cache_control: { type: 'ephemeral' as const } }];
+Mise en forme (affichage mobile) : titres courts avec ##, listes à puces avec -, gras avec **. JAMAIS de tableau. Dates au format JJ/MM/AAAA. Pourcentages à 2 décimales. N'écris pas de nom de champ technique ni de mot anglais (« sideways » = latérale, « breakdown » = cassure). Vouvoie toujours l'utilisateur. Ne cite jamais de nom d'outil, de table ou de champ technique. Arrondis les prix à 2 décimales maximum. Réponse concise. Termine par : « Information, pas un conseil en investissement. »`, cache_control: { type: 'ephemeral' as const } }];
+  // Portfolio mode (Suivi screen): the question is about the user's own holdings.
+  if (context === 'portfolio') system.push({ type: 'text' as const, text:
+    `CONTEXTE : l'utilisateur t'interroge depuis l'écran « Suivi », à propos de SON portefeuille réel. Appelle d'abord get_my_portfolio (période 1Y sauf si la question en précise une autre), puis get_asset_sheet sur les titres utiles.
+Analyse sa situation concrète : performance et ce qui l'explique (contributions), concentration (poids du 1er titre et des 3 premiers, marché, secteur, devise), plus/moins-values, titres peu liquides ou qui ne cotent plus, exposition au naira, niveaux techniques et consensus du modèle sur ses lignes principales.
+Tu peux décrire des points d'attention et des leviers généraux (diversification, horizon, liquidité) mais JAMAIS de recommandation personnalisée d'achat, de vente ou d'arbitrage, ni de formulation impérative. Si aucune quantité n'est renseignée, précise que l'analyse suppose des poids égaux et invite à renseigner le nombre d'actions (bouton ✎) pour une analyse en valeur réelle. Ne révèle aucune donnée d'un autre utilisateur.` } as never);
 
   let usage = { input_tokens: 0, output_tokens: 0 };
   for (let turn = 0; turn < 6; turn++) {
@@ -104,7 +138,7 @@ Mise en forme (affichage mobile) : titres courts avec ##, listes à puces avec -
     const results = await Promise.all(res.content.filter((b) => b.type === 'tool_use').map(async (b) => {
       const tu = b as Anthropic.Beta.BetaToolUseBlock;
       try {
-        return { type: 'tool_result' as const, tool_use_id: tu.id, content: JSON.stringify(await runTool(tu.name, tu.input as Record<string, string>, lang)).slice(0, 60_000) };
+        return { type: 'tool_result' as const, tool_use_id: tu.id, content: JSON.stringify(await runTool(tu.name, tu.input as Record<string, string>, lang, user.id)).slice(0, 60_000) };
       } catch (e) {
         return { type: 'tool_result' as const, tool_use_id: tu.id, content: `Erreur: ${(e as Error).message}`, is_error: true };
       }

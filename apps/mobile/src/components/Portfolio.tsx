@@ -9,6 +9,7 @@ import { fmtDate, fmtNum, fmtPct } from '../lib/format';
 import { useSettings } from '../settings';
 import { changeColor, radius, space, useTheme } from '../theme';
 import { LineChart } from './LineChart';
+import { Rich } from './Rich';
 import { Button, Card, ErrorBox, Loading, Pill, Row, Txt } from './ui';
 
 const PERIODS = ['1W', '1M', '3M', '6M', 'YTD', '1Y', '3Y'] as const;
@@ -175,5 +176,67 @@ export function PositionEditor({ assetId, currency, quantity, cost, onDone }: { 
         <View style={{ flex: 1 }}><Button label={fr ? 'Annuler' : 'Cancel'} variant="ghost" onPress={onDone} /></View>
       </Row>
     </View>
+  );
+}
+
+type Msg = { role: 'user' | 'assistant'; content: string; auth?: boolean };
+
+/** Ask the AI about the user's real portfolio (the assistant reads it with get_my_portfolio). */
+export function PortfolioAsk({ hasQuantities }: { hasQuantities: boolean }) {
+  const th = useTheme();
+  const { lang, t } = useT();
+  const fr = lang === 'fr';
+  const [input, setInput] = useState('');
+  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [busy, setBusy] = useState(false);
+  const suggestions = fr
+    ? ['Fais le bilan de mon portefeuille', 'Quels sont mes principaux risques et ma concentration ?', 'Qu’est-ce qui a le plus pesé ce mois-ci ?', 'Lesquels de mes titres sont proches d’un support ou d’une résistance ?', 'Quelle est mon exposition au naira et à chaque marché ?']
+    : ['Review my portfolio', 'What are my main risks and concentration?', 'What weighed most this month?', 'Which of my stocks are near a support or resistance?', 'What is my exposure to the naira and to each market?'];
+
+  async function ask(text?: string) {
+    const q = (text ?? input).trim();
+    if (!q || busy) return;
+    const next: Msg[] = [...msgs, { role: 'user', content: q }];
+    setMsgs(next); setInput(''); setBusy(true);
+    try {
+      const reply = await api.chat(next.map(({ role, content }) => ({ role, content })), lang, 'portfolio');
+      setMsgs([...next, { role: 'assistant', content: reply }]);
+    } catch (e) {
+      const code = (e as { code?: string }).code;
+      const txt = code === 'AUTH_REQUIRED' ? (fr ? 'Connectez-vous pour interroger l’IA sur votre portefeuille.' : 'Sign in to ask the AI about your portfolio.')
+        : code === 'QUOTA_EXCEEDED' ? (fr ? 'Limite quotidienne de questions atteinte. Passez à Premium pour continuer.' : 'Daily question limit reached.')
+        : t.common.error;
+      setMsgs([...next, { role: 'assistant', content: `⚠ ${txt}`, auth: code === 'AUTH_REQUIRED' }]);
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <Card style={{ borderColor: th.accent, borderWidth: 2 }}>
+      <Txt weight="800" color={th.accent}>✦ {fr ? 'Interroger l’IA sur mon portefeuille' : 'Ask the AI about my portfolio'}</Txt>
+      <Txt size="sm" muted>{fr
+        ? 'L’IA analyse votre situation réelle : vos titres, leurs poids, vos plus-values, la concentration, les risques et les niveaux techniques de vos lignes.'
+        : 'The AI analyses your real situation: your stocks, weights, gains, concentration, risks and technical levels of your holdings.'}</Txt>
+      {!hasQuantities ? <Txt size="xs" color={th.info}>{fr ? 'Astuce : renseignez le nombre d’actions (✎) pour une analyse en valeur réelle.' : 'Tip: enter the number of shares (✎) for a real-value analysis.'}</Txt> : null}
+      {!msgs.length ? (
+        <Row style={{ flexWrap: 'wrap' }} gap={6}>
+          {suggestions.map((s) => <Pill key={s} label={s} onPress={() => ask(s)} />)}
+        </Row>
+      ) : null}
+      {msgs.map((m, i) => (
+        <View key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'stretch', maxWidth: m.role === 'user' ? '88%' : '100%', backgroundColor: m.role === 'user' ? th.accent : th.cardAlt, borderRadius: radius.lg, padding: space.md }}>
+          {m.role === 'user' ? <Txt size="sm" color={th.accentText}>{m.content}</Txt> : <Rich text={m.content} color={th.text} />}
+          {m.auth ? <View style={{ marginTop: space.sm }}><Button label={fr ? 'Se connecter' : 'Sign in'} onPress={() => router.push('/auth')} /></View> : null}
+        </View>
+      ))}
+      {busy ? <Txt size="sm" muted>✦ {fr ? 'L’IA analyse votre portefeuille… (15 à 40 secondes)' : 'The AI is analysing your portfolio… (15 to 40 seconds)'}</Txt> : null}
+      <Row gap={space.sm}>
+        <TextInput value={input} onChangeText={setInput} placeholder={fr ? 'Votre question sur votre portefeuille…' : 'Your question about your portfolio…'} placeholderTextColor={th.textMuted} multiline
+          accessibilityLabel={fr ? 'Question sur le portefeuille' : 'Portfolio question'}
+          style={{ flex: 1, backgroundColor: th.bg, color: th.text, borderRadius: radius.md, padding: space.md, borderWidth: 1, borderColor: th.border, maxHeight: 120, fontSize: 15 }} />
+        <Button label="➤" onPress={() => ask()} disabled={!input.trim()} loading={busy} />
+      </Row>
+      {msgs.length ? <Pressable onPress={() => setMsgs([])}><Txt size="xs" color={th.accent}>{fr ? '↺ Nouvelle conversation' : '↺ New conversation'}</Txt></Pressable> : null}
+      <Txt size="xs" muted>{fr ? 'Analyse informative de votre situation, pas un conseil en investissement personnalisé.' : 'Informative analysis of your situation, not personalised investment advice.'}</Txt>
+    </Card>
   );
 }

@@ -110,9 +110,9 @@ export const api = {
     return invoke('analyze', { assetId, lang });
   },
 
-  async chat(messages: { role: 'user' | 'assistant'; content: string }[], lang: 'fr' | 'en'): Promise<string> {
+  async chat(messages: { role: 'user' | 'assistant'; content: string }[], lang: 'fr' | 'en', context?: 'portfolio'): Promise<string> {
     if (!supabase) throw new ApiError(SNAPSHOT ? 'NO_AI_YET' : 'DEMO_NO_AI');
-    const r = await invoke<{ reply: string }>('chat', { messages, lang });
+    const r = await invoke<{ reply: string }>('chat', { messages, lang, context });
     return r.reply;
   },
 
