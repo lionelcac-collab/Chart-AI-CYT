@@ -47,7 +47,6 @@ export function ImportReview({ matched, unmatched, totalValue, totalCurrency, wa
   const adds = selected.filter((c) => !inList.has(c.assetId));
   const updates = selected.filter((c) => inList.has(c.assetId));
   const room = Math.max(0, max - (watched.length - (removeAbsent ? absent.length : 0)));
-  const anyAmounts = matched.some((c) => c.quantity != null || c.costAmount != null || c.marketValue != null);
 
   async function apply() {
     setErr(null);
@@ -85,6 +84,11 @@ export function ImportReview({ matched, unmatched, totalValue, totalCurrency, wa
   return (
     <Card title={fr ? `Lu sur vos captures (${matched.length})` : `Read on your screenshots (${matched.length})`}>
       {totalValue != null ? <Txt size="sm">{fr ? 'Valorisation totale affichée' : 'Total value shown'} : <Txt weight="800">{money(totalValue, totalCurrency ?? 'XOF', lang)}</Txt></Txt> : null}
+      {!matched.some((c) => c.quantity != null) ? (
+        <Txt size="xs" color={th.warn}>{fr
+          ? 'Aucun nombre de titres n’a été lu sur ces captures. Vous pouvez le saisir ci-dessous, ou relancer la lecture avec un message à l’IA, par ex. : « la colonne Unités est le nombre de titres que je détiens ».'
+          : 'No number of shares was read. Enter it below, or retry with a message to the AI, e.g. “the Units column is the number of shares I hold”.'}</Txt>
+      ) : null}
       <Txt size="xs" muted>{fr
         ? 'Cochez les lignes à appliquer. Nombre de titres et montant investi sont modifiables ; un champ vide ne change rien sur une ligne déjà suivie.'
         : 'Tick the lines to apply. Shares and amount invested are editable; an empty field leaves an existing line unchanged.'}</Txt>
@@ -115,12 +119,13 @@ export function ImportReview({ matched, unmatched, totalValue, totalCurrency, wa
             {readBits.length ? <Txt size="xs" muted>{fr ? 'Lu' : 'Read'} : {readBits.join(' · ')}{c.readCurrency ? ` ${cur(c.readCurrency)}` : ''}</Txt> : null}
             {existing && (p?.quantity != null || p?.cost != null) ? <Txt size="xs" muted>{fr ? 'Actuel' : 'Current'} : {p?.quantity != null ? `${fmtNum(p.quantity, lang, 0)} ${fr ? 'titres' : 'shares'}` : '—'}{p?.cost != null ? ` · ${money(p.cost, c.currency, lang)}` : ''}</Txt> : null}
             {c.currencyMismatch ? <Txt size="xs" color={th.warn}>{fr ? `Montants lus en ${cur(c.readCurrency ?? '')}, alors que le titre cote en ${cur(c.currency)} : montant investi non repris, saisissez-le dans la devise du titre.` : 'Amounts read in another currency than the stock’s: amount not used.'}</Txt> : null}
-            {d.on && (anyAmounts || existing) ? (
+            {d.on ? (
               <Row gap={space.sm}>
                 <View style={{ flex: 1, minWidth: 0, gap: 2 }}><Txt size="xs" muted>{fr ? 'Nombre de titres' : 'Shares'}</Txt><TextInput value={d.qty} onChangeText={(v) => set(c.assetId, { qty: v })} keyboardType="decimal-pad" placeholder={fr ? 'Nb de titres' : 'Shares'} placeholderTextColor={th.textMuted} style={input} accessibilityLabel={`${c.ticker} ${fr ? 'nombre de titres' : 'shares'}`} /></View>
                 <View style={{ flex: 1, minWidth: 0, gap: 2 }}><Txt size="xs" muted>{fr ? `Montant investi (${cur(c.currency)})` : `Invested (${cur(c.currency)})`}</Txt><TextInput value={d.cost} onChangeText={(v) => set(c.assetId, { cost: v })} keyboardType="decimal-pad" placeholder={fr ? `Investi (${cur(c.currency)})` : `Invested (${cur(c.currency)})`} placeholderTextColor={th.textMuted} style={input} accessibilityLabel={`${c.ticker} ${fr ? 'montant investi' : 'amount invested'}`} /></View>
               </Row>
             ) : null}
+            {d.on && c.qtySource === 'value_div_price' ? <Txt size="xs" muted>{fr ? 'Nombre de titres déduit : valeur ÷ cours affichés.' : 'Shares deduced: value ÷ price shown.'}</Txt> : null}
             {d.on && c.costSource ? <Txt size="xs" muted>{fr ? { total: 'Montant investi lu sur la capture.', pru: 'Montant investi = nombre de titres × PRU.', value_minus_pnl: 'Montant investi = valorisation − plus/moins-value.' }[c.costSource] : ''}</Txt> : null}
           </View>
         );

@@ -119,7 +119,7 @@ export default function Watchlist() {
           <View style={{ gap: 4 }}>
             <Txt size="xs" muted>{fr ? 'Message à l’IA (facultatif)' : 'Message to the AI (optional)'}</Txt>
             <TextInput value={note} onChangeText={setNote} multiline maxLength={600}
-              placeholder={fr ? 'ex. : la 2e colonne est le PRU ; ne garde que les titres BRVM ; les montants sont en FCFA…' : 'e.g. the 2nd column is the average cost; keep only BRVM stocks…'}
+              placeholder={fr ? 'ex. : « Unités » = nombre de titres que je détiens ; la 2e colonne est le PRU ; ne garde que les titres BRVM…' : 'e.g. the 2nd column is the average cost; keep only BRVM stocks…'}
               placeholderTextColor={th.textMuted} accessibilityLabel={fr ? 'Message à l’IA' : 'Message to the AI'}
               style={{ backgroundColor: th.bg, color: th.text, borderRadius: radius.md, padding: space.md, borderWidth: 1, borderColor: th.border, minHeight: 60, maxHeight: 120, fontSize: 14 }} />
           </View>

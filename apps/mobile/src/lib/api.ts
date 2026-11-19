@@ -43,7 +43,7 @@ const dropStale = (rows: AssetSummary[]) => {
 };
 
 
-export type ImportCandidate = { assetId: string; ticker: string; name: string; market: string; currency: string; confidence: number; read: string;
+export type ImportCandidate = { qtySource?: 'read' | 'value_div_price' | null; assetId: string; ticker: string; name: string; market: string; currency: string; confidence: number; read: string;
   quantity: number | null; costAmount: number | null; costSource: 'total' | 'pru' | 'value_minus_pnl' | null; marketValue: number | null; pnl: number | null;
   lastPrice: number | null; avgCostPrice: number | null; readCurrency: string | null; currencyMismatch: boolean };
 export type PortfolioLine = { assetId: string; ticker: string; name: string; market: string; currency: string; quantity: number | null; cost: number | null;

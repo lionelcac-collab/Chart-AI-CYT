@@ -29,8 +29,15 @@ const CUR: Record<string, string> = { FCFA: 'XOF', CFA: 'XOF', XOF: 'XOF', XAF: 
 type Asset = { id: string; ticker: string; name: string; market: string; isin: string | null; currency: string };
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
-const STOP = new Set(['SA', 'PLC', 'CI', 'SN', 'BF', 'BN', 'TG', 'ML', 'NG', 'NC', 'LTD', 'LIMITED', 'GROUP', 'HOLDING', 'HOLDINGS', 'THE', 'DE', 'DU', 'LA', 'LE', 'ET', 'AND', 'OF', 'D']);
-const tokens = (s: string) => norm(s).split(' ').filter((w) => w.length > 1 && !STOP.has(w));
+const STOP = new Set(['SA', 'PLC', 'NC', 'LTD', 'LIMITED', 'GROUP', 'HOLDING', 'HOLDINGS', 'THE', 'DE', 'DU', 'LA', 'LE', 'ET', 'AND', 'OF', 'D']);
+// Country names → BRVM suffix codes (BOA BENIN ≡ BANK OF AFRICA BN), common abbreviations expanded.
+const ALIASES: [RegExp, string][] = [
+  [/\bCOTE D ?IVOIRE\b|\bIVORY COAST\b/g, 'CI'], [/\bSENEGAL\b/g, 'SN'], [/\bBURKINA( FASO)?\b/g, 'BF'], [/\bBENIN\b/g, 'BN'],
+  [/\bTOGO\b/g, 'TG'], [/\bMALI\b/g, 'ML'], [/\bNIGER\b/g, 'NG'], [/\bBOA\b/g, 'BANK OF AFRICA'], [/\bSGB\b/g, 'SOCIETE GENERALE'],
+  [/\bSIB\b/g, 'SOCIETE IVOIRIENNE DE BANQUE'], [/\bGTB\b/g, 'GUARANTY TRUST'], [/\bTRANS\b/g, 'TRANSNATIONAL'],
+];
+const expand = (s: string) => ALIASES.reduce((acc, [re, to]) => acc.replace(re, to), ` ${norm(s)} `).trim();
+const tokens = (s: string) => expand(s).split(' ').filter((w) => w.length > 1 && !STOP.has(w));
 const MARKET_HINT: Record<string, string> = { BRVM: 'BRVM', ABIDJAN: 'BRVM', UEMOA: 'BRVM', XOF: 'BRVM', BVMAC: 'BVMAC', DOUALA: 'BVMAC', LIBREVILLE: 'BVMAC', CEMAC: 'BVMAC', XAF: 'BVMAC', NGX: 'NGX', NSE: 'NGX', LAGOS: 'NGX', NGN: 'NGX', NIGERIA: 'NGX' };
 
 function match(it: Item, assets: Asset[]): { asset: Asset; score: number } | null {
@@ -83,7 +90,7 @@ Deno.serve(handler(async (req) => {
         'Relève chaque action ou titre coté qui y apparaît : ticker (tel qu’écrit), nom complet de la société (avec le pays s’il est écrit), ISIN si visible, ' +
         'et la bourse (BRVM, BVMAC ou NGX) si elle est écrite OU déductible du contexte immédiat (ville : Abidjan → BRVM, Douala/Libreville → BVMAC, Lagos → NGX ; devise : FCFA/XOF → BRVM, XAF → BVMAC, naira/NGN → NGX), sinon null. ' +
         'Ne relève que ce qui est réellement lisible sur l’image : n’invente aucun titre, ne complète pas une liste. Ignore les indices, devises, cryptomonnaies et matières premières. ' +
-        'Pour chaque titre, relève aussi quand ils sont lisibles : quantity = nombre de titres/actions détenus ; avg_cost_price = prix de revient unitaire (PRU, prix moyen d’achat) ; ' +
+        'Pour chaque titre, relève aussi quand ils sont lisibles : quantity = nombre de titres détenus. Il peut être libellé « Unités », « Unité(s) », « Qté », « Quantité », « Nombre », « Nb titres », « Titres », « Actions », « Position », « Solde », « Avoir », « Détenu(s) », « Units », « Shares », « Holdings », « Qty », ou apparaître sans libellé à côté du nom (ex. « 120 unités », « x 120 »). Ce n’est PAS un volume échangé du marché ; avg_cost_price = prix de revient unitaire (PRU, prix moyen d’achat) ; ' +
         'total_cost = montant total investi (coût d’acquisition) ; market_value = valorisation de la ligne ; unrealized_pnl = plus/moins-value latente en montant (négative si perte) ; last_price = dernier cours affiché ; ' +
         'currency = devise des montants de la ligne (FCFA/XOF, XAF, NGN…). Recopie les nombres exactement (sans séparateurs de milliers, point décimal). Ne calcule rien toi-même, mets null si absent. ' +
         'portfolio_total_value = valorisation totale du portefeuille si elle est affichée. ' +
@@ -94,7 +101,7 @@ Deno.serve(handler(async (req) => {
 
   const { data: assets } = await admin().from('assets').select('id, ticker, name, market, isin, currency').eq('is_active', true);
   const seen = new Set<string>();
-  type Out = { assetId: string; ticker: string; name: string; market: string; currency: string; confidence: number; read: string;
+  type Out = { qtySource: string | null; assetId: string; ticker: string; name: string; market: string; currency: string; confidence: number; read: string;
     quantity: number | null; costAmount: number | null; costSource: string | null; marketValue: number | null; pnl: number | null; lastPrice: number | null; avgCostPrice: number | null; readCurrency: string | null; currencyMismatch: boolean };
   const matched: Out[] = [];
   const unmatched: string[] = [];
@@ -105,7 +112,12 @@ Deno.serve(handler(async (req) => {
     if (seen.has(m.asset.id)) continue;
     seen.add(m.asset.id);
     const pos = (x: number | null | undefined) => (typeof x === 'number' && Number.isFinite(x) && x > 0 ? x : null);
-    const qty = pos(it.quantity);
+    // Shares held: as read, else value ÷ last price when that gives a (near) whole number.
+    let qty = pos(it.quantity), qtySource: string | null = qty ? 'read' : null;
+    if (!qty && pos(it.market_value) && pos(it.last_price)) {
+      const q = it.market_value! / it.last_price!;
+      if (Math.abs(q - Math.round(q)) < 0.02 * Math.max(1, q / 50) && Math.round(q) > 0) { qty = Math.round(q); qtySource = 'value_div_price'; }
+    }
     const readCur = it.currency ? (CUR[it.currency.toUpperCase().replace(/[^A-Z₦]/g, '')] ?? it.currency.toUpperCase()) : null;
     const assetCur = m.asset.currency === 'XAF' ? 'XAF' : m.asset.currency;
     const mismatch = readCur != null && !(readCur === assetCur || (['XOF', 'XAF'].includes(readCur) && ['XOF', 'XAF'].includes(assetCur)));
@@ -114,10 +126,10 @@ Deno.serve(handler(async (req) => {
     if (pos(it.total_cost)) { cost = it.total_cost; costSource = 'total'; }
     else if (qty && pos(it.avg_cost_price)) { cost = qty * it.avg_cost_price!; costSource = 'pru'; }
     else if (pos(it.market_value) && typeof it.unrealized_pnl === 'number') { const c = it.market_value! - it.unrealized_pnl; if (c > 0) { cost = c; costSource = 'value_minus_pnl'; } }
-    matched.push({ assetId: m.asset.id, ticker: m.asset.ticker, name: m.asset.name, market: m.asset.market, currency: m.asset.currency, confidence: Math.round(m.score * 100) / 100, read,
+    matched.push({ qtySource, assetId: m.asset.id, ticker: m.asset.ticker, name: m.asset.name, market: m.asset.market, currency: m.asset.currency, confidence: Math.round(m.score * 100) / 100, read,
       quantity: qty, costAmount: mismatch ? null : cost == null ? null : Math.round(cost * 100) / 100, costSource: mismatch ? null : costSource,
       marketValue: pos(it.market_value), pnl: typeof it.unrealized_pnl === 'number' ? it.unrealized_pnl : null, lastPrice: pos(it.last_price), avgCostPrice: pos(it.avg_cost_price), readCurrency: readCur, currencyMismatch: mismatch });
   }
-  await audit(user.id, 'watchlist_import', 'ai', null, { model: r.model, usage: r.usage, images: images.length, read: r.data.items?.length ?? 0, matched: matched.length });
+  await audit(user.id, 'watchlist_import', 'ai', null, { model: r.model, usage: r.usage, images: images.length, read: r.data.items?.length ?? 0, matched: matched.length, withQuantity: matched.filter((x) => x.quantity != null).length, withCost: matched.filter((x) => x.costAmount != null).length, hasMessage: !!note });
   return json({ readable: r.data.readable, matched, unmatched, totalValue: r.data.portfolio_total_value ?? null, totalCurrency: r.data.portfolio_currency ?? null, lang });
 }));
