@@ -38,6 +38,8 @@ export async function buildSheet(db: SupabaseClient, assetId: string) {
     db.from('corporate_events').select('*').eq('asset_id', assetId).gte('event_date', new Date(Date.now() - 365 * 86400_000).toISOString().slice(0, 10)).order('event_date'),
     db.from('assets').select('id, ticker, name, market').eq('sector_id', asset.sector_id).neq('id', assetId).eq('is_active', true).limit(30),
   ]);
+  const { data: lastBarRow } = await db.from('price_bars').select('source').eq('asset_id', assetId).order('session_date', { ascending: false }).limit(1).maybeSingle();
+  const lastSource = !lastBarRow ? null : String(lastBarRow.source).startsWith('official_bulletin') ? 'bulletin officiel' : lastBarRow.source === 'mansa' ? 'mansa' : lastBarRow.source;
   const { data: documents } = await db.from('source_documents').select('kind, title, url, published_at').eq('asset_id', assetId).order('published_at', { ascending: false }).limit(20);
 
   const last = bars[bars.length - 1] ?? null;
@@ -94,6 +96,7 @@ export async function buildSheet(db: SupabaseClient, assetId: string) {
     asset,
     quote: quoteRes.data,
     lastClose: last ? { price: last.close, date: last.date } : null,
+    lastSource,
     bars,
     ranges: computeRanges(bars),
     performance: computePerformances(bars),

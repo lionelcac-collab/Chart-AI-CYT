@@ -9,7 +9,17 @@ import type { IndexQuote } from '@nyota/data';
 import type { MarketCode, Quote } from '@nyota/core';
 
 export interface SnapshotQuote extends Quote { name: string }
+export interface LatestRow {
+  asset_id: string; market: MarketCode; ticker: string; name: string; currency: string; sector: string | null;
+  session_date: string; close: number | string; previous_close: number | string | null; change_pct: number | string | null;
+  volume: number | string | null; value: number | string | null; source: string;
+}
 export interface Snapshot {
+  /** 'db' = export of the Nyota database (history included); absent = Mansa quotes only. */
+  kind?: 'db';
+  base?: string;
+  latest?: LatestRow[];
+  history?: Record<string, { d: number[]; c: number[]; v: (number | null)[] }>;
   fetchedAt: string;
   source: string;
   sourceUrl: string;

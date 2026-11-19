@@ -50,7 +50,7 @@ export function parseBrvmBoc(text: string): OfficialRow[] {
     const c = frNum(close);
     if (!ticker || c == null || c <= 0 || seen.has(ticker)) continue;
     seen.add(ticker);
-    out.push({ ticker, name: name!.trim(), previousClose: frNum(prev), open: frNum(open), close: c, changePct: frNum(pct), volume: frNum(vol), value: frNum(val) });
+    out.push({ ticker, name: name!.trim().replace(/''/g, "'").replace(/\s+/g, ' '), previousClose: frNum(prev), open: frNum(open), close: c, changePct: frNum(pct), volume: frNum(vol), value: frNum(val) });
   }
   return out;
 }

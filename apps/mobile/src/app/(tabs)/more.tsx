@@ -47,7 +47,7 @@ export default function More() {
             <Txt size="xs" muted>{SNAPSHOT
               ? (lang === 'fr' ? 'Instantané de données réelles : connexion, IA et abonnements désactivés tant que le serveur n’est pas déployé.' : 'Real-data snapshot: sign-in, AI and subscriptions disabled until the server is deployed.')
               : (lang === 'fr' ? 'Mode démo : connexion et abonnements désactivés.' : 'Demo mode: sign-in and subscriptions disabled.')}</Txt>
-            {SNAPSHOT ? null : <Pill label={lang === 'fr' ? 'Aperçu Premium (démo)' : 'Premium preview (demo)'} active={s.plan === 'premium'} onPress={() => s.setPlan(s.plan === 'premium' ? 'free' : 'premium')} />}
+            {SNAPSHOT && SNAPSHOT.kind !== 'db' ? null : <Pill label={lang === 'fr' ? 'Aperçu Premium (démo)' : 'Premium preview (demo)'} active={s.plan === 'premium'} onPress={() => s.setPlan(s.plan === 'premium' ? 'free' : 'premium')} />}
           </>
         ) : null}
       </Card>

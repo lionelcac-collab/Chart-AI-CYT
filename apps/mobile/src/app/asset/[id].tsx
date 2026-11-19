@@ -38,7 +38,14 @@ export default function AssetScreen() {
   if (q.isLoading) return <Screen><Loading /></Screen>;
   if (q.error || !s) return <Screen><ErrorBox message={t.common.error} onRetry={() => q.refetch()} /></Screen>;
 
-  const quote = s.quote;
+  // Free plan (or outside the session): no intraday quote → derive the header from the last verified session.
+  const lastBar = s.bars[s.bars.length - 1];
+  const prevBar = s.bars[s.bars.length - 2];
+  const quote = s.quote ?? (lastBar ? {
+    last: lastBar.close, change_pct: prevBar && prevBar.close > 0 ? ((lastBar.close - prevBar.close) / prevBar.close) * 100 : null,
+    volume: lastBar.volume, value: lastBar.value ?? null, market_cap: null, status: 'close' as const, delay_minutes: null,
+    as_of: lastBar.date, source: s.lastSource ?? '—',
+  } : null);
   const status = quote?.as_of?.includes('T') ? asOfLabel(quote.as_of, null, lang) : quote?.status === 'delayed'
     ? statusLabel({ kind: 'delayed', delayMinutes: quote.delay_minutes ?? 30 }, lang)
     : statusLabel(s.lastClose ? { kind: 'close', sessionDate: s.lastClose.date } : { kind: 'unavailable' }, lang);

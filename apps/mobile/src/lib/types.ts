@@ -41,6 +41,8 @@ export interface AssetSheet {
   };
   quote: { last: number; change_pct: number | null; volume: number | null; value: number | null; market_cap: number | null; status: DataStatus['kind']; delay_minutes: number | null; as_of: string; source: string } | null;
   lastClose: { price: number; date: string } | null;
+  /** Source of the last verified session ('bulletin officiel', 'mansa'…). */
+  lastSource?: string | null;
   bars: Bar[];
   ranges: RangeStat[];
   performance: PerformanceStat[];

@@ -119,7 +119,8 @@ async function ingest(market: MarketCode, job: 'eod' | 'delayed', force = false)
       source: q.provenance.source, verified: verifiedIds.has(q.assetId),
     }));
     await db.from('price_bars').upsert(bars, { onConflict: 'asset_id,session_date' });
-    const indices = await mansa.getIndices(market).catch(() => []);
+    // Same rule as prices: only closing index levels go into the history.
+    const indices = (await mansa.getIndices(market).catch(() => [])).filter((i) => i.provenance.status.kind === 'close');
     if (indices.length) await db.from('index_values').upsert(indices.map((i) => ({ index_code: i.code, market, name: i.name, session_date: i.provenance.asOf.slice(0, 10), value: i.value, change_pct: i.changePct, source: i.provenance.source })), { onConflict: 'index_code,session_date' });
   }
   if (anomalies.length) await db.from('data_anomalies').insert(anomalies.map((a) => ({ asset_id: a.assetId, kind: a.kind, severity: a.severity, message: a.message, details: a.details ?? null, run_id: run!.id })));

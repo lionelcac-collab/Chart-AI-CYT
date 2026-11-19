@@ -5,7 +5,7 @@
 import type { MarketCode, ScanPeriod, ScanRow } from '@nyota/core';
 import { DEMO_ASSETS, demoDashboard, demoNews, demoScan, demoSheet, demoSummary, demoTrackRecord } from './demo';
 import { SNAPSHOT } from './snapshot';
-import { snapDashboard, snapScan, snapSearch, snapSheet } from './snapshotApi';
+import { IS_DB, dbDashboard, dbScan, dbSearch, dbSheet, snapDashboard, snapScan, snapSearch, snapSheet } from './snapshotApi';
 import { DEMO_MODE, supabase } from './supabase';
 import type { AiAnalysis, AssetSheet, AssetSummary, Dashboard, NewsItem, TrackRecordRow } from './types';
 
@@ -25,30 +25,39 @@ async function invoke<T>(fn: string, body?: unknown, method: 'POST' | 'GET' = 'P
   return data as T;
 }
 
-const mapQuoteRow = (r: Record<string, any>): AssetSummary => ({
-  id: r.asset_id, ticker: r.assets?.ticker ?? r.asset_id.split(':')[1], name: r.assets?.name ?? r.asset_id, market: r.asset_id.split(':')[0],
-  sector: r.assets?.sectors?.code ?? null, currency: r.assets?.currency ?? 'XOF', last: r.last ?? null, changePct: r.change_pct ?? null,
-  volume: r.volume ?? null, value: r.value ?? null,
-  status: r.status === 'delayed' ? { kind: 'delayed', delayMinutes: r.delay_minutes ?? 30 } : { kind: 'close', sessionDate: String(r.as_of).slice(0, 10) },
-  source: r.source,
+/** Row of the `market_latest` view (latest verified close per asset). */
+const mapLatestRow = (r: Record<string, any>): AssetSummary => ({
+  id: r.asset_id, ticker: r.ticker, name: r.name, market: r.market, sector: r.sector ?? null, currency: r.currency,
+  last: r.close != null ? Number(r.close) : null, changePct: r.change_pct != null ? Number(r.change_pct) : null,
+  volume: r.volume != null ? Number(r.volume) : null, value: r.value != null ? Number(r.value) : null,
+  status: { kind: 'close', sessionDate: r.session_date }, source: String(r.source ?? '').startsWith('official_bulletin') ? 'bulletin officiel' : r.source,
+  asOf: r.session_date,
 });
+
+/** Stocks whose last close is more than 30 days older than the market's latest session (suspended / delisted). */
+const dropStale = (rows: AssetSummary[]) => {
+  const latest = rows.reduce((m, r) => (r.asOf && r.asOf > m ? r.asOf : m), '');
+  const cutoff = latest ? new Date(Date.parse(latest) - 30 * 86400_000).toISOString().slice(0, 10) : '';
+  return rows.filter((r) => !r.asOf || r.asOf >= cutoff);
+};
+
 
 export const api = {
   demo: DEMO_MODE,
 
   async dashboard(market: MarketCode): Promise<Dashboard> {
-    if (SNAPSHOT) return snapDashboard(market);
+    if (SNAPSHOT) return IS_DB ? dbDashboard(market) : snapDashboard(market);
     if (!supabase) return demoDashboard(market);
     const [idx, q, rk, rep] = await Promise.all([
       supabase.from('index_values').select('index_code, name, market, value, change_pct, session_date, source').eq('market', market).order('session_date', { ascending: false }).limit(8),
-      supabase.from('quotes_latest').select('*, assets(ticker, name, currency, sectors(code))').like('asset_id', `${market}:%`),
+      supabase.from('market_latest').select('*').eq('market', market),
       supabase.from('rankings').select('items, session_date').eq('scope', market).eq('style', 'overall').order('session_date', { ascending: false }).limit(1).maybeSingle(),
       invoke<{ content: Dashboard['report'] }>('reports', { kind: 'close', market }).catch(() => null),
     ]);
     const seen = new Set<string>();
     const indices = (idx.data ?? []).filter((i) => !seen.has(i.index_code) && seen.add(i.index_code))
       .map((i) => ({ code: i.index_code, name: i.name, market: i.market, value: Number(i.value), changePct: i.change_pct, date: i.session_date, source: i.source }));
-    const movers = (q.data ?? []).map(mapQuoteRow);
+    const movers = dropStale((q.data ?? []).map(mapLatestRow));
     const sec = new Map<string, { s: number; n: number }>();
     movers.forEach((m) => { if (!m.sector || m.changePct == null) return; const e = sec.get(m.sector) ?? { s: 0, n: 0 }; e.s += m.changePct; e.n++; sec.set(m.sector, e); });
     return {
@@ -61,7 +70,7 @@ export const api = {
 
   async asset(id: string, premiumHint: boolean): Promise<AssetSheet> {
     if (SNAPSHOT) {
-      const s = snapSheet(id);
+      const s = IS_DB ? dbSheet(id, premiumHint) : snapSheet(id);
       if (!s) throw new ApiError('NOT_FOUND');
       return s;
     }
@@ -75,16 +84,16 @@ export const api = {
 
   async search(query: string, market?: MarketCode): Promise<AssetSummary[]> {
     const ql = query.trim().toLowerCase();
-    if (SNAPSHOT) return snapSearch(query, market);
+    if (SNAPSHOT) return IS_DB ? dbSearch(query, market) : snapSearch(query, market);
     if (!supabase) {
       return DEMO_ASSETS.filter((a) => (!market || a.market === market) && (!ql || a.name.toLowerCase().includes(ql) || a.ticker.toLowerCase().includes(ql))).map(demoSummary);
     }
-    let req = supabase.from('quotes_latest').select('*, assets!inner(ticker, name, currency, isin, market, sectors(code))').limit(200);
-    if (market) req = req.eq('assets.market', market);
-    if (ql) req = req.or(`name.ilike.%${ql}%,ticker.ilike.%${ql}%,isin.eq.${ql.toUpperCase()}`, { referencedTable: 'assets' });
+    let req = supabase.from('market_latest').select('*').order('ticker').limit(500);
+    if (market) req = req.eq('market', market);
+    if (ql) req = req.or(`name.ilike.%${ql}%,ticker.ilike.%${ql}%`);
     const { data, error } = await req;
     if (error) throw new ApiError('NETWORK', error.message);
-    return (data ?? []).map(mapQuoteRow);
+    return (data ?? []).map(mapLatestRow);
   },
 
   async analyze(assetId: string, lang: 'fr' | 'en'): Promise<{ content: AiAnalysis; cached: boolean }> {
@@ -105,7 +114,7 @@ export const api = {
 
   /** Movers + support/resistance distances for a period (precomputed after each session). */
   async scan(market: MarketCode, period: ScanPeriod): Promise<{ rows: ScanRow[]; sessionDate: string | null; unavailable?: 'history' }> {
-    if (SNAPSHOT) return snapScan(market, period);
+    if (SNAPSHOT) return IS_DB ? dbScan(market, period) : snapScan(market, period);
     if (!supabase) {
       const rows = demoScan(market, period);
       return { rows, sessionDate: rows[0]?.lastDate ?? null };

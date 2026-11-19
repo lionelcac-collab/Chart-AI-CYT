@@ -23,7 +23,7 @@ export function DemoBanner() {
     return (
       <View accessibilityRole="alert" style={{ backgroundColor: t.info, paddingVertical: 6, paddingHorizontal: space.md }}>
         <Text style={{ color: '#06122B', fontSize: font.xs, fontWeight: '700', textAlign: 'center' }}>
-          {tr.common.snapshotBanner.replace('{date}', fmtDate(SNAPSHOT.fetchedAt, lang)).replace('{time}', hh)}
+          {(SNAPSHOT.kind === 'db' ? tr.common.dbBanner : tr.common.snapshotBanner).replace('{date}', fmtDate(SNAPSHOT.fetchedAt, lang)).replace('{time}', hh)}
         </Text>
       </View>
     );
