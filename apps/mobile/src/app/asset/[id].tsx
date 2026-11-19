@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { AssetSectionsAnalysis } from '../../components/AiAnalysisCard';
 import { ConsensusCard, FundamentalsCard, LiquidityCard, PerformanceGrid, RangeTable, TechnicalCard } from '../../components/AssetSections';
+import { Columns, useIsDesktop } from '../../components/Chrome';
 import { CompanyPanel } from '../../components/CompanyPanel';
 import { NewsList } from '../../components/NewsList';
 import PriceChart from '../../components/PriceChart';
@@ -23,6 +24,7 @@ export default function AssetScreen() {
   const { t, lang } = useT();
   const { plan, displayCurrency } = useSettings();
   const qc = useQueryClient();
+  const desktop = useIsDesktop();
   const [range, setRange] = useState<number>(260);
   const [tab, setTab] = useState<'analysis' | 'company' | 'news'>('analysis');
 
@@ -54,13 +56,25 @@ export default function AssetScreen() {
 
   return (
     <Screen edges={[]}>
-      <Stack.Screen options={{ title: s.asset.ticker, headerRight: () => (
+      <Stack.Screen options={{ title: s.asset.ticker, headerShown: !desktop, headerRight: () => (
         <Pressable accessibilityLabel={watched ? t.watchlist.remove : t.watchlist.add} onPress={() => toggle.mutate()} hitSlop={10}>
           <Txt size="xl" color={th.accent}>{watched ? '★' : '☆'}</Txt>
         </Pressable>
       ) }} />
+      {desktop ? (
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Pressable accessibilityRole="link" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
+            <Txt size="sm" color={th.accent} weight="700">‹ {lang === 'fr' ? 'Retour' : 'Back'}</Txt>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => toggle.mutate()}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: th.accent, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
+            <Txt color={th.accent}>{watched ? '★' : '☆'}</Txt>
+            <Txt size="sm" weight="700">{watched ? t.watchlist.remove : t.watchlist.add}</Txt>
+          </Pressable>
+        </Row>
+      ) : null}
       <View style={{ gap: 4 }}>
-        <Txt size="lg" weight="700">{s.asset.name}</Txt>
+        <Txt size={desktop ? 'xxl' : 'lg'} weight="800">{s.asset.name}</Txt>
         <Txt size="sm" muted>{s.asset.ticker} · {s.asset.market}{s.asset.sectors ? ` · ${lang === 'fr' ? s.asset.sectors.name_fr : s.asset.sectors.name_en}` : ''}</Txt>
         <Row style={{ alignItems: 'flex-end', marginTop: space.sm }}>
           <Txt size="xxl" weight="800">{fmtPrice(last, s.asset.currency, lang, displayCurrency)}</Txt>
@@ -76,7 +90,35 @@ export default function AssetScreen() {
       {tab === 'analysis' ? (
         <>
         <AssetSectionsAnalysis assetId={s.asset.id} />
+        {desktop ? (
+          <Columns flex={[3, 2]}>{[
+            <Fragment key="main">
+        <Card>
+          <Row style={{ flexWrap: 'wrap' }}>
+            {CHART_RANGES.map(([label, n]) => <Pill key={label} label={lang === 'en' ? label.replace('A', 'Y') : label} active={range === n} onPress={() => setRange(n)} />)}
+          </Row>
+          {bars.length > 1 ? <PriceChart bars={bars} levels={levels} /> : <Txt muted>{t.common.unavailable}</Txt>}
+          <Txt size="xs" muted>— MM50  - - MM200  · {t.asset.supports}/{t.asset.resistances}</Txt>
+        </Card>
 
+              <TechnicalCard tech={s.technical} currency={s.asset.currency} />
+              <ConsensusCard sheet={s} />
+            </Fragment>,
+            <Fragment key="side">
+        <Card title={t.asset.overview}>
+          <KV label={t.asset.volumeDay} value={fmtCompact(quote?.volume, lang)} />
+          <KV label={t.asset.valueDay} value={quote?.value != null ? fmtPrice(quote.value, s.asset.currency, lang) : '—'} />
+          <KV label={t.asset.marketCap} value={quote?.market_cap != null ? fmtPrice(quote.market_cap, s.asset.currency, lang) : t.common.unavailable} />
+        </Card>
+
+              <RangeTable ranges={s.ranges} currency={s.asset.currency} />
+              <PerformanceGrid perf={s.performance} />
+              <LiquidityCard l={s.liquidity} />
+              <FundamentalsCard r={s.ratios} sheet={s} />
+            </Fragment>,
+          ]}</Columns>
+        ) : (
+          <>
         <Card>
           <Row style={{ flexWrap: 'wrap' }}>
             {CHART_RANGES.map(([label, n]) => <Pill key={label} label={lang === 'en' ? label.replace('A', 'Y') : label} active={range === n} onPress={() => setRange(n)} />)}
@@ -97,6 +139,8 @@ export default function AssetScreen() {
         <ConsensusCard sheet={s} />
         <TechnicalCard tech={s.technical} currency={s.asset.currency} />
         <FundamentalsCard r={s.ratios} sheet={s} />
+          </>
+        )}
         </>
       ) : tab === 'company' ? (
         <CompanyPanel s={s} />

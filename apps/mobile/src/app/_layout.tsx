@@ -2,7 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Pressable, Text } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { TopNav, useIsDesktop } from '../components/Chrome';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { api } from '../lib/api';
 import { registerPush } from '../lib/notifications';
@@ -18,6 +19,7 @@ const queryClient = new QueryClient({
 function Shell() {
   const t = useTheme();
   const { setPlan } = useSettings();
+  const desktop = useIsDesktop();
   useEffect(() => {
     let unsub: (() => void) | undefined;
     (async () => {
@@ -38,6 +40,8 @@ function Shell() {
   return (
     <>
       <StatusBar style={t.mode === 'dark' ? 'light' : 'dark'} />
+      {desktop ? <TopNav /> : null}
+      <View style={{ flex: 1 }}>
       <Stack screenOptions={{
         headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerShadowVisible: false,
         // Text arrow: no image asset needed (works in the single-file web demo too); falls back to home when there is no history.
@@ -56,6 +60,7 @@ function Shell() {
         <Stack.Screen name="admin" options={{ title: 'Administration' }} />
         <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
       </Stack>
+      </View>
     </>
   );
 }

@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, router } from 'expo-router';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { APP_NAME, MVP_MARKETS, MARKETS, sessionState, type MarketCode } from '@chart-boursafrikia/core';
+import { Columns, Hero, useIsDesktop } from '../../components/Chrome';
 import { MarketScan } from '../../components/MarketScan';
 import { NewsList } from '../../components/NewsList';
 import { Button, Card, ErrorBox, Loading, Pill, ProvenanceBadge, Row, Screen, Select, Txt } from '../../components/ui';
@@ -16,6 +17,7 @@ export default function Dashboard() {
   const th = useTheme();
   const { t, lang } = useT();
   const [market, setMarket] = useState<MarketCode>('BRVM');
+  const desktop = useIsDesktop();
   const q = useQuery({ queryKey: ['dashboard', market], queryFn: () => api.dashboard(market) });
   const state = sessionState(MARKETS[market as 'BRVM']);
   const stateLabel = { fr: { open: 'Séance en cours', closed: 'Séance terminée', pre_open: 'Avant ouverture', weekend: 'Marché fermé' }, en: { open: 'Session open', closed: 'Session closed', pre_open: 'Pre-open', weekend: 'Market closed' } }[lang][state];
@@ -27,20 +29,23 @@ export default function Dashboard() {
   const traded = [...(d?.movers ?? [])].filter((m) => (byValue ? m.value : m.volume) ?? 0).sort((a, b) => ((byValue ? b.value : b.volume) ?? 0) - ((byValue ? a.value : a.volume) ?? 0)).slice(0, 5);
 
   return (
-    <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
-      <View>
-        <Txt size="xxl" weight="800">{APP_NAME}<Txt size="xxl" color={th.accent}> ✦</Txt></Txt>
-        <Txt muted>{t.dashboard.title}</Txt>
+    <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()} brand={false}>
+      <Hero />
+      <View style={{ flexDirection: desktop ? 'row' : 'column', alignItems: desktop ? 'flex-end' : 'stretch', gap: space.md }}>
+        <View style={{ flex: desktop ? 1 : undefined }}>
+          <Txt size="xl" weight="800">{t.dashboard.title}</Txt>
+          <Txt size="sm" muted>{APP_NAME} · {lang === 'fr' ? 'cours officiels et analyse IA' : 'official prices and AI analysis'}</Txt>
+        </View>
+        <View style={{ width: desktop ? 460 : undefined }}>
+          <Select label={lang === 'fr' ? 'Marché' : 'Market'} value={market} onChange={setMarket}
+            options={MVP_MARKETS.map((m) => ({ value: m, label: `${m} · ${MARKETS[m as 'BRVM'].name}` }))} />
+        </View>
+        <View style={{ alignSelf: desktop ? 'auto' : 'flex-start', marginBottom: desktop ? 8 : 0 }}><Pill label={stateLabel} bg={state === 'open' ? th.up : th.cardAlt} color={state === 'open' ? '#0B0F1E' : th.textMuted} /></View>
       </View>
-      <Select label={lang === 'fr' ? 'Marché' : 'Market'} value={market} onChange={setMarket}
-        options={MVP_MARKETS.map((m) => ({ value: m, label: `${m} · ${MARKETS[m as 'BRVM'].name}` }))} />
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Txt size="sm" muted>{MARKETS[market as 'BRVM'].name}</Txt>
-        <Pill label={stateLabel} bg={state === 'open' ? th.up : th.cardAlt} color={state === 'open' ? '#0B0F1E' : th.textMuted} />
-      </Row>
 
       {q.isLoading ? <Loading /> : q.error ? <ErrorBox message={t.common.error} onRetry={() => q.refetch()} /> : d ? (
-        <>
+        <Columns flex={[3, 2]}>{[
+        <Fragment key="main">
           <Card title={t.dashboard.indices} collapsible badge={d.indices.length || null}>
             {d.indices.length ? d.indices.map((i) => (
               <Row key={i.code} style={{ justifyContent: 'space-between' }}>
@@ -77,12 +82,14 @@ export default function Dashboard() {
           </Card>
 
           <MarketScan market={market} />
+        </Fragment>,
+        <Fragment key="side">
 
-          <Card title={t.dashboard.news} collapsible defaultOpen={false} badge={news.data?.length || null}>
+          <Card title={t.dashboard.news} collapsible defaultOpen={desktop} badge={news.data?.length || null}>
             {news.isLoading ? <Loading /> : news.data?.length ? <NewsList items={news.data} /> : <Txt muted>{t.common.unavailable}</Txt>}
             <Button label={t.dashboard.allNews} variant="secondary" onPress={() => router.push({ pathname: '/news', params: { market } })} />
           </Card>
-          <Card title={t.dashboard.volume} collapsible defaultOpen={false} badge={traded.length || null}>
+          <Card title={t.dashboard.volume} collapsible defaultOpen={desktop} badge={traded.length || null}>
             {traded.map((a) => (
               <Row key={a.id} style={{ justifyContent: 'space-between' }}>
                 <Link href={`/asset/${encodeURIComponent(a.id)}`}><Txt weight="700">{a.ticker}</Txt></Link>
@@ -91,7 +98,7 @@ export default function Dashboard() {
             ))}
           </Card>
 
-          <Card title={t.dashboard.opportunities} collapsible defaultOpen={false} badge={Math.min(5, d.opportunities.length) || null}>
+          <Card title={t.dashboard.opportunities} collapsible defaultOpen={desktop} badge={Math.min(5, d.opportunities.length) || null}>
             {d.opportunities.length ? d.opportunities.slice(0, 5).map((o, i) => (
               <Pressable key={o.asset_id} onPress={() => router.push(`/asset/${encodeURIComponent(o.asset_id)}`)}>
                 <Row style={{ justifyContent: 'space-between', paddingVertical: 4 }}>
@@ -103,7 +110,8 @@ export default function Dashboard() {
             <Txt size="xs" muted>{lang === 'fr' ? 'Score du modèle de −100 à +100, ⚠ = titre peu liquide. Classement statistique, pas une recommandation.' : 'Model score from −100 to +100, ⚠ = illiquid. Statistical ranking, not a recommendation.'}</Txt>
           </Card>
           {d.movers[0] ? <ProvenanceBadge status={asOfLabel(d.movers[0].asOf, d.movers[0].status, lang)} source={d.movers[0].source} /> : null}
-        </>
+        </Fragment>,
+        ]}</Columns>
       ) : null}
     </Screen>
   );

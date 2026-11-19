@@ -6,6 +6,7 @@ import { fmtDate } from '../lib/format';
 import { SNAPSHOT } from '../lib/snapshot';
 import { DEMO_MODE } from '../lib/supabase';
 import { font, radius, space, useTheme } from '../theme';
+import { BrandStrip, CONTENT_MAX, Footer, useIsDesktop } from './Chrome';
 
 export function Txt({ children, size = 'md', weight = '400', color, muted, style, numberOfLines, onPress }: {
   children: ReactNode; size?: keyof typeof font; weight?: TextStyle['fontWeight']; color?: string; muted?: boolean; style?: StyleProp<TextStyle>; numberOfLines?: number; onPress?: () => void;
@@ -36,19 +37,25 @@ export function DemoBanner() {
   );
 }
 
-export function Screen({ children, scroll = true, refreshing, onRefresh, edges = ['top'] }: { children: ReactNode; scroll?: boolean; refreshing?: boolean; onRefresh?: () => void; edges?: ('top' | 'bottom')[] }) {
+export function Screen({ children, scroll = true, refreshing, onRefresh, edges = ['top'], brand = true }: { children: ReactNode; scroll?: boolean; refreshing?: boolean; onRefresh?: () => void; edges?: ('top' | 'bottom')[]; brand?: boolean }) {
   const t = useTheme();
+  const desktop = useIsDesktop();
+  // Desktop: the top navigation already carries the brand; phones get a small strip on every screen.
+  const strip = brand && !desktop ? <BrandStrip /> : null;
+  const maxWidth = desktop ? CONTENT_MAX : 960;
   return (
-    <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: t.bg }}>
+    <SafeAreaView edges={desktop ? [] : edges} style={{ flex: 1, backgroundColor: t.bg }}>
       <DemoBanner />
       {scroll ? (
         <ScrollView
-          contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: space.xxl * 2, maxWidth: 960, width: '100%', alignSelf: 'center' }}
+          contentContainerStyle={{ padding: desktop ? space.xl : space.lg, gap: space.lg, paddingBottom: space.xxl * 2, maxWidth, width: '100%', alignSelf: 'center' }}
           refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={t.accent} /> : undefined}
         >
+          {strip}
           {children}
+          {desktop ? <Footer /> : null}
         </ScrollView>
-      ) : <View style={{ flex: 1, maxWidth: 960, width: '100%', alignSelf: 'center' }}>{children}</View>}
+      ) : <View style={{ flex: 1, maxWidth, width: '100%', alignSelf: 'center' }}>{strip ? <View style={{ padding: space.md, paddingBottom: 0 }}>{strip}</View> : null}{children}</View>}
     </SafeAreaView>
   );
 }

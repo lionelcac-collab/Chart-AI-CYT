@@ -2,16 +2,18 @@ import { Tabs } from 'expo-router';
 import { Text, type ColorValue } from 'react-native';
 import { useT } from '../../i18n';
 import { useTheme } from '../../theme';
+import { useIsDesktop } from '../../components/Chrome';
 
 const icon = (glyph: string) => ({ color }: { color: ColorValue }) => <Text style={{ color, fontSize: 18 }}>{glyph}</Text>;
 
 export default function TabsLayout() {
   const th = useTheme();
   const { t } = useT();
+  const desktop = useIsDesktop();
   return (
     <Tabs screenOptions={{
       headerShown: false,
-      tabBarStyle: { backgroundColor: th.card, borderTopColor: th.border },
+      tabBarStyle: desktop ? { display: 'none' } : { backgroundColor: th.card, borderTopColor: th.border },
       tabBarActiveTintColor: th.accent, tabBarInactiveTintColor: th.textMuted,
     }}>
       <Tabs.Screen name="index" options={{ title: t.tabs.dashboard, tabBarIcon: icon('◎') }} />

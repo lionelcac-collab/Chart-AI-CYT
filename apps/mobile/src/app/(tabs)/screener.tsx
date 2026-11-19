@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { MARKETS, MVP_MARKETS, type MarketCode } from '@chart-boursafrikia/core';
+import { useIsDesktop } from '../../components/Chrome';
 import { Card, ErrorBox, Loading, Pill, Row, Screen, Select, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { api } from '../../lib/api';
@@ -14,6 +15,7 @@ import { changeColor, radius, space, useTheme } from '../../theme';
 type SortKey = 'change' | 'value' | 'name';
 
 export default function Screener() {
+  const desktop = useIsDesktop();
   const th = useTheme();
   const { t, lang, fmt } = useT();
   const { plan } = useSettings();
@@ -33,18 +35,23 @@ export default function Screener() {
 
   return (
     <Screen>
-      <Txt size="xl" weight="800">{t.screener.title}</Txt>
+      <View>
+        <Txt size="xl" weight="800">{t.screener.title}</Txt>
+        <Txt size="sm" muted>{lang === 'fr' ? 'Toutes les actions BRVM · BVMAC · NGX. Ouvrez un titre pour obtenir son analyse IA complète ✦' : 'All BRVM · BVMAC · NGX stocks. Open a stock to get its full AI analysis ✦'}</Txt>
+      </View>
       <TextInput value={query} onChangeText={setQuery} placeholder={t.common.search} placeholderTextColor={th.textMuted} autoCapitalize="characters"
         accessibilityLabel={t.common.search}
         style={{ backgroundColor: th.card, color: th.text, borderRadius: radius.md, padding: space.md, borderWidth: 1, borderColor: th.border, fontSize: 15 }} />
-      <Select label={lang === 'fr' ? 'Marché' : 'Market'} value={market ?? ''} onChange={(v) => setMarket((v || undefined) as MarketCode | undefined)}
-        options={[{ value: '', label: t.screener.all }, ...MVP_MARKETS.map((m) => ({ value: m as string, label: `${m} · ${MARKETS[m as 'BRVM'].name}` }))]} />
+      <View style={{ flexDirection: desktop ? 'row' : 'column', gap: space.md }}>
+        <View style={{ flex: desktop ? 1 : undefined }}><Select label={lang === 'fr' ? 'Marché' : 'Market'} value={market ?? ''} onChange={(v) => setMarket((v || undefined) as MarketCode | undefined)}
+        options={[{ value: '', label: t.screener.all }, ...MVP_MARKETS.map((m) => ({ value: m as string, label: `${m} · ${MARKETS[m as 'BRVM'].name}` }))]} /></View>
       {sectors.length ? (
-        <Select label={lang === 'fr' ? 'Secteur' : 'Sector'} value={sector ?? ''} onChange={(v) => setSector(v || undefined)}
-          options={[{ value: '', label: t.screener.all }, ...sectors.map((s) => ({ value: s, label: sectorLabel(s, lang) }))]} />
+          <View style={{ flex: desktop ? 1 : undefined }}><Select label={lang === 'fr' ? 'Secteur' : 'Sector'} value={sector ?? ''} onChange={(v) => setSector(v || undefined)}
+          options={[{ value: '', label: t.screener.all }, ...sectors.map((s) => ({ value: s, label: sectorLabel(s, lang) }))]} /></View>
       ) : null}
-      <Select label={t.screener.sort} value={sort} onChange={setSort}
-        options={[{ value: 'change' as const, label: lang === 'fr' ? 'Variation' : 'Change' }, { value: 'value' as const, label: lang === 'fr' ? 'Valeur échangée' : 'Traded value' }, { value: 'name' as const, label: lang === 'fr' ? 'Nom' : 'Name' }]} />
+        <View style={{ flex: desktop ? 1 : undefined }}><Select label={t.screener.sort} value={sort} onChange={setSort}
+        options={[{ value: 'change' as const, label: lang === 'fr' ? 'Variation' : 'Change' }, { value: 'value' as const, label: lang === 'fr' ? 'Valeur échangée' : 'Traded value' }, { value: 'name' as const, label: lang === 'fr' ? 'Nom' : 'Name' }]} /></View>
+      </View>
       <Card title={t.screener.advanced} collapsible defaultOpen={false}>
         {plan === 'premium'
           ? <Pill label={lang === 'fr' ? 'Échangé aujourd’hui uniquement' : 'Traded today only'} active={minValue} onPress={() => setMinValue((v) => !v)} />

@@ -1,0 +1,179 @@
+/**
+ * App chrome: desktop top navigation, brand strip, home hero, responsive columns and footer.
+ * Desktop = web viewport ≥ 900 px: top nav replaces the bottom tab bar and content gets a wide grid.
+ */
+import { router, usePathname } from 'expo-router';
+import type { ReactNode } from 'react';
+import { Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { APP_NAME } from '@chart-boursafrikia/core';
+import { useT } from '../i18n';
+import { useSettings } from '../settings';
+import { font, radius, space, useTheme } from '../theme';
+
+export const DESKTOP_MIN = 900;
+export const CONTENT_MAX = 1240;
+
+export function useIsDesktop() {
+  const { width } = useWindowDimensions();
+  return Platform.OS === 'web' && width >= DESKTOP_MIN;
+}
+
+const copy = {
+  fr: {
+    tagline: 'Analyse IA des bourses africaines',
+    badge: '✦ Analyse IA avancée',
+    heroTitle: 'L’intelligence artificielle au service des bourses africaines',
+    heroSub: 'Cours officiels, plus bas / plus hauts, supports et résistances, scénarios et consensus calculés par IA sur les actions de la BRVM, de la BVMAC et de la NGX.',
+    askAi: 'Demander à l’assistant IA', explore: 'Explorer les actions', premium: 'Premium', signIn: 'Connexion',
+    strip: 'Analyse IA · Bourses africaines',
+    markets: [['BRVM', '8 pays UEMOA'], ['BVMAC', '6 pays CEMAC'], ['NGX', 'Nigeria']],
+    footer: 'Analyse IA des marchés boursiers africains — données issues des bulletins officiels et de fournisseurs licenciés.',
+    disclaimer: 'Estimations statistiques, pas une garantie ni un conseil en investissement.',
+  },
+  en: {
+    tagline: 'AI analysis of African stock markets',
+    badge: '✦ Advanced AI analysis',
+    heroTitle: 'Artificial intelligence for African stock markets',
+    heroSub: 'Official prices, lows / highs, supports and resistances, AI-computed scenarios and consensus on BRVM, BVMAC and NGX stocks.',
+    askAi: 'Ask the AI assistant', explore: 'Explore stocks', premium: 'Premium', signIn: 'Sign in',
+    strip: 'AI analysis · African markets',
+    markets: [['BRVM', '8 WAEMU countries'], ['BVMAC', '6 CEMAC countries'], ['NGX', 'Nigeria']],
+    footer: 'AI analysis of African stock markets — data from official bulletins and licensed providers.',
+    disclaimer: 'Statistical estimates, not a guarantee nor investment advice.',
+  },
+} as const;
+
+export function useChromeCopy() { const { lang } = useT(); return copy[lang]; }
+
+function Logo({ size = 22 }: { size?: number }) {
+  const th = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ width: size + 10, height: size + 10, borderRadius: 8, backgroundColor: th.accent, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: th.accentText, fontSize: size - 4, fontWeight: '900' }}>✦</Text>
+      </View>
+      <Text style={{ color: th.text, fontSize: size, fontWeight: '800', letterSpacing: -0.3 }}>{APP_NAME}</Text>
+    </View>
+  );
+}
+
+/** Desktop header: logo + tagline, main navigation, Premium / sign-in. */
+export function TopNav() {
+  const th = useTheme();
+  const { t } = useT();
+  const c = useChromeCopy();
+  const { plan } = useSettings();
+  const path = usePathname();
+  const items: [string, string, string][] = [
+    ['/', t.tabs.dashboard, '◎'], ['/screener', t.tabs.screener, '⌕'], ['/watchlist', t.tabs.watchlist, '☆'],
+    ['/assistant', t.tabs.assistant, '✦'], ['/track-record', 'Track record', '◷'], ['/more', t.tabs.more, '≡'],
+  ];
+  const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+  return (
+    <View accessibilityRole="header" style={{ backgroundColor: th.card, borderBottomWidth: 1, borderBottomColor: th.border }}>
+      <View style={{ maxWidth: CONTENT_MAX, width: '100%', alignSelf: 'center', paddingHorizontal: space.xl, paddingVertical: space.md, flexDirection: 'row', alignItems: 'center', gap: space.xl }}>
+        <Pressable accessibilityRole="link" onPress={() => router.navigate('/')} style={{ gap: 2 }}>
+          <Logo />
+          <Text style={{ color: th.textMuted, fontSize: font.xs, fontWeight: '600', marginLeft: 40 }}>{c.tagline}</Text>
+        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 4, flex: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {items.map(([href, label, icon]) => {
+            const active = isActive(href);
+            const ai = href === '/assistant';
+            return (
+              <Pressable key={href} accessibilityRole="link" accessibilityState={{ selected: active }} onPress={() => router.navigate(href as never)}
+                style={(state) => ({
+                  flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.pill,
+                  backgroundColor: active ? th.accent : (state as { hovered?: boolean }).hovered ? th.cardAlt : 'transparent',
+                  borderWidth: ai && !active ? 1 : 0, borderColor: th.accent,
+                })}>
+                <Text style={{ color: active ? th.accentText : ai ? th.accent : th.textMuted, fontSize: 14 }}>{icon}</Text>
+                <Text style={{ color: active ? th.accentText : th.text, fontSize: 14, fontWeight: active ? '700' : '600' }}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
+          {plan !== 'premium' ? (
+            <Pressable accessibilityRole="button" onPress={() => router.push('/premium')} style={{ backgroundColor: th.accent, paddingHorizontal: 16, paddingVertical: 9, borderRadius: radius.pill }}>
+              <Text style={{ color: th.accentText, fontWeight: '800', fontSize: 14 }}>★ {c.premium}</Text>
+            </Pressable>
+          ) : <Text style={{ color: th.accent, fontWeight: '800' }}>★ Premium</Text>}
+          <Pressable accessibilityRole="button" onPress={() => router.push('/more')} style={{ borderWidth: 1, borderColor: th.border, paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill }}>
+            <Text style={{ color: th.text, fontWeight: '600', fontSize: 14 }}>👤</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** Small strip shown at the top of every mobile screen: what the app is. */
+export function BrandStrip() {
+  const th = useTheme();
+  const c = useChromeCopy();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: th.cardAlt, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start', maxWidth: '100%' }}>
+      <Text style={{ color: th.accent, fontSize: 12, fontWeight: '900' }}>✦</Text>
+      <Text style={{ color: th.text, fontSize: 12, fontWeight: '700', flexShrink: 0 }} numberOfLines={1}>{APP_NAME}</Text>
+      <Text style={{ color: th.textMuted, fontSize: 12, flexShrink: 1 }} numberOfLines={1}>· {c.strip}</Text>
+    </View>
+  );
+}
+
+/** Home hero: tells immediately that this is advanced AI analysis of African markets. */
+export function Hero() {
+  const th = useTheme();
+  const c = useChromeCopy();
+  const desktop = useIsDesktop();
+  return (
+    <View style={{ backgroundColor: th.mode === 'dark' ? '#121A36' : '#0F1630', borderRadius: radius.lg, padding: desktop ? 40 : space.xl, gap: space.md, overflow: 'hidden' }}>
+      <Text style={{ position: 'absolute', right: desktop ? 40 : -10, top: desktop ? -20 : -10, fontSize: desktop ? 220 : 120, color: 'rgba(242,181,68,0.10)', fontWeight: '900' }}>✦</Text>
+      <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(242,181,68,0.18)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5 }}>
+        <Text style={{ color: '#F2B544', fontWeight: '800', fontSize: 12, letterSpacing: 0.4 }}>{c.badge.toUpperCase()}</Text>
+      </View>
+      {!desktop ? <Text style={{ color: '#EEF1FA', fontSize: 15, fontWeight: '800' }}>{APP_NAME}</Text> : null}
+      <Text accessibilityRole="header" style={{ color: '#FFFFFF', fontSize: desktop ? 40 : 24, lineHeight: desktop ? 46 : 30, fontWeight: '800', maxWidth: 760, letterSpacing: -0.5 }}>{c.heroTitle}</Text>
+      <Text style={{ color: '#B9C2DE', fontSize: desktop ? 17 : 14, lineHeight: desktop ? 25 : 20, maxWidth: 720 }}>{c.heroSub}</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+        {c.markets.map(([code, zone]) => (
+          <View key={code} style={{ flexDirection: 'row', gap: 6, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 }}>
+            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>{code}</Text>
+            <Text style={{ color: '#B9C2DE', fontSize: 12 }}>{zone}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md, marginTop: space.sm }}>
+        <Pressable accessibilityRole="button" onPress={() => router.navigate('/assistant')} style={{ backgroundColor: '#F2B544', paddingHorizontal: 20, paddingVertical: 12, borderRadius: radius.md }}>
+          <Text style={{ color: '#1A1300', fontWeight: '800', fontSize: 15 }}>✦ {c.askAi}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.navigate('/screener')} style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', paddingHorizontal: 20, paddingVertical: 12, borderRadius: radius.md }}>
+          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 15 }}>{c.explore} →</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/** Side-by-side columns on desktop, stacked on phones. `flex` sets each column's relative width. */
+export function Columns({ children, flex }: { children: ReactNode[]; flex?: number[] }) {
+  const desktop = useIsDesktop();
+  if (!desktop) return <>{children}</>;
+  return (
+    <View style={{ flexDirection: 'row', gap: space.lg, alignItems: 'flex-start' }}>
+      {children.map((col, i) => <View key={i} style={{ flex: flex?.[i] ?? 1, minWidth: 0, gap: space.lg }}>{col}</View>)}
+    </View>
+  );
+}
+
+export function Footer() {
+  const th = useTheme();
+  const c = useChromeCopy();
+  return (
+    <View style={{ borderTopWidth: 1, borderTopColor: th.border, paddingTop: space.lg, marginTop: space.xl, gap: 4 }}>
+      <Logo size={16} />
+      <Text style={{ color: th.textMuted, fontSize: font.sm }}>{c.footer}</Text>
+      <Text style={{ color: th.textMuted, fontSize: font.xs }}>{c.disclaimer}</Text>
+    </View>
+  );
+}

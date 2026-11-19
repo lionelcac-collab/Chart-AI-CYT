@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
-import { Button, Card, Disclaimer, Row, Screen, Txt } from '../../components/ui';
+import { Button, Card, Disclaimer, Pill, Row, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { ApiError, api } from '../../lib/api';
 import { useSettings } from '../../settings';
@@ -73,7 +73,21 @@ export default function Assistant() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }} keyboardVerticalOffset={80}>
         <ScrollView ref={scroll} contentContainerStyle={{ padding: space.lg, gap: space.md }}>
           <Txt size="xl" weight="800">{t.assistant.title}</Txt>
-          <Card><Txt size="sm" muted>{t.assistant.intro}</Txt></Card>
+          <Card style={{ borderColor: th.accent, borderWidth: 2 }}>
+            <Txt weight="800" color={th.accent}>✦ {lang === 'fr' ? 'Analyse IA avancée des bourses africaines' : 'Advanced AI analysis of African stock markets'}</Txt>
+            <Txt size="sm" muted>{t.assistant.intro}</Txt>
+            {!msgs.length ? (
+              <View style={{ gap: space.sm }}>
+                <Txt size="sm" weight="700">{lang === 'fr' ? 'Exemples de questions :' : 'Example questions:'}</Txt>
+                <Row style={{ flexWrap: 'wrap' }}>
+                  {(lang === 'fr'
+                    ? ['Quels titres de la BRVM sont proches d’un support ?', 'Analyse SONATEL : tendance et niveaux clés', 'Quels secteurs ont le plus monté ce mois-ci ?', 'Compare Dangote Cement et BUA Cement']
+                    : ['Which BRVM stocks are near a support?', 'Analyse SONATEL: trend and key levels', 'Which sectors rose most this month?', 'Compare Dangote Cement and BUA Cement']
+                  ).map((q) => <Pill key={q} label={q} onPress={() => setInput(q)} />)}
+                </Row>
+              </View>
+            ) : null}
+          </Card>
           {msgs.map((m, i) => (
             <View key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%', backgroundColor: m.role === 'user' ? th.accent : th.card, borderRadius: radius.lg, padding: space.md, borderWidth: m.role === 'user' ? 0 : 1, borderColor: th.border }}>
               <Txt size="sm" color={m.role === 'user' ? th.accentText : th.text}>{m.content}</Txt>
