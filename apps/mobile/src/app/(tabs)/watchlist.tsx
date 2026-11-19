@@ -4,11 +4,12 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { ENTITLEMENTS } from '@chart-boursafrikia/core';
+import { PortfolioPanel, PositionEditor } from '../../components/Portfolio';
 import { Button, Card, Loading, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { ApiError, api } from '../../lib/api';
 import { prepImage } from '../../lib/imagePrep';
-import { fmtPct, fmtPrice } from '../../lib/format';
+import { fmtNum, fmtPct, fmtPrice } from '../../lib/format';
 import { DEMO_MODE, supabase } from '../../lib/supabase';
 import { useSettings } from '../../settings';
 import { changeColor, radius, space, useTheme } from '../../theme';
@@ -28,6 +29,8 @@ export default function Watchlist() {
   const all = useQuery({ queryKey: ['search', '', undefined], queryFn: () => api.search(''), enabled: !!ids.data?.length });
   const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
   const rows = (all.data ?? []).filter((a) => ids.data?.includes(a.id));
+  const pos = useQuery({ queryKey: ['positions', ids.data?.length ?? 0], queryFn: api.positions, enabled: !!ids.data?.length });
+  const [editing, setEditing] = useState<string | null>(null);
 
   const [reading, setReading] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -94,7 +97,7 @@ export default function Watchlist() {
     setAdding(true);
     try {
       for (const id of toAdd) await api.toggleWatch(id, true);
-      await qc.invalidateQueries({ queryKey: ['watchlist'] });
+      await Promise.all([qc.invalidateQueries({ queryKey: ['watchlist'] }), qc.invalidateQueries({ queryKey: ['portfolio'] })]);
       setFound(null); setPicked(new Set());
       setMsg(toAdd.length < list.length
         ? (fr ? `${toAdd.length} titre(s) ajouté(s). Limite de ${max} titres atteinte${plan === 'free' ? ' (offre gratuite)' : ''}.` : `${toAdd.length} stock(s) added. ${max}-stock limit reached.`)
@@ -167,17 +170,44 @@ export default function Watchlist() {
         </Card>
       ) : null}
 
+      <PortfolioPanel count={ids.data?.length ?? 0} />
+
       {ids.isLoading ? <Loading /> : !ids.data?.length ? <Card><Txt muted>{fr ? 'Votre liste est vide. Ajoutez des titres depuis leur fiche (☆) ou importez une capture d’écran ci-dessus.' : t.watchlist.empty}</Txt></Card> : (
         <Card title={fr ? `Mes titres (${rows.length})` : `My stocks (${rows.length})`}>
-          {rows.map((a) => (
-            <Pressable key={a.id} onPress={() => router.push(`/asset/${encodeURIComponent(a.id)}`)} style={{ flexDirection: 'row', paddingVertical: space.sm, borderRadius: radius.sm }}>
-              <View style={{ flex: 1 }}><Txt weight="700">{a.ticker} <Txt size="xs" muted>{a.market}</Txt></Txt><Txt size="xs" muted numberOfLines={1}>{a.name}</Txt></View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Txt size="sm">{fmtPrice(a.last, a.currency, lang)}</Txt>
-                <Txt size="sm" weight="700" color={changeColor(th, a.changePct)}>{fmtPct(a.changePct, lang)}</Txt>
+          <Txt size="xs" muted>{fr ? 'Touchez ✎ pour indiquer (facultatif) le nombre d’actions et le montant investi.' : 'Tap ✎ to enter (optional) the number of shares and amount invested.'}</Txt>
+          {rows.map((a) => {
+            const p = pos.data?.[a.id];
+            const value = p?.quantity != null && a.last != null ? p.quantity * a.last : null;
+            const pnl = value != null && p?.cost != null ? value - p.cost : null;
+            return (
+              <View key={a.id} style={{ borderBottomWidth: 1, borderBottomColor: th.grid }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, gap: space.sm }}>
+                  <Pressable onPress={() => router.push(`/asset/${encodeURIComponent(a.id)}`)} style={{ flex: 1, flexDirection: 'row', borderRadius: radius.sm }}>
+                    <View style={{ flex: 1 }}>
+                      <Txt weight="700">{a.ticker} <Txt size="xs" muted>{a.market}</Txt></Txt>
+                      <Txt size="xs" muted numberOfLines={1}>{a.name}</Txt>
+                      {p?.quantity != null ? (
+                        <Txt size="xs" color={th.textMuted}>
+                          {fmtNum(p.quantity, lang, p.quantity % 1 ? 2 : 0)} {fr ? 'actions' : 'shares'}{value != null ? ` · ${fmtPrice(value, a.currency, lang)}` : ''}
+                          {pnl != null ? <Txt size="xs" weight="700" color={changeColor(th, pnl)}> · {pnl > 0 ? '+' : ''}{fmtPrice(pnl, a.currency, lang)} ({fmtPct(p!.cost ? (pnl / p!.cost) * 100 : null, lang)})</Txt> : null}
+                        </Txt>
+                      ) : null}
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Txt size="sm">{fmtPrice(a.last, a.currency, lang)}</Txt>
+                      <Txt size="sm" weight="700" color={changeColor(th, a.changePct)}>{fmtPct(a.changePct, lang)}</Txt>
+                    </View>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={fr ? `Modifier la position ${a.ticker}` : `Edit position ${a.ticker}`} hitSlop={8}
+                    onPress={() => setEditing(editing === a.id ? null : a.id)}
+                    style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: p?.quantity != null ? th.accent : th.border, alignItems: 'center', justifyContent: 'center' }}>
+                    <Txt size="sm" color={p?.quantity != null ? th.accent : th.textMuted}>✎</Txt>
+                  </Pressable>
+                </View>
+                {editing === a.id ? <PositionEditor assetId={a.id} currency={a.currency} quantity={p?.quantity ?? null} cost={p?.cost ?? null} onDone={() => setEditing(null)} /> : null}
               </View>
-            </Pressable>
-          ))}
+            );
+          })}
         </Card>
       )}
     </Screen>

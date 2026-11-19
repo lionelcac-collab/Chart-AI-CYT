@@ -43,6 +43,14 @@ const dropStale = (rows: AssetSummary[]) => {
 };
 
 
+export type PortfolioLine = { assetId: string; ticker: string; name: string; market: string; currency: string; quantity: number | null; cost: number | null;
+  priceStart: number | null; priceEnd: number | null; returnPct: number | null; valueStart: number | null; valueEnd: number | null; lastDate: string | null;
+  weightPct?: number | null; contributionPts?: number | null; pnl?: number | null; pnlPct?: number | null };
+export type PortfolioResult = { empty?: boolean; noData?: boolean; mode: 'value' | 'equal'; period: string; start: string; end: string; currency: string;
+  series: { date: string; v: number }[];
+  summary: { valueStart?: number; valueEnd?: number; change?: number; changePct: number | null; cost?: number | null; pnl?: number | null; pnlPct?: number | null; linesWithCost?: number; linesHeld?: number; indexEnd?: number };
+  lines: PortfolioLine[]; fx: { note: string; ngnPerUsd: number | null; asOf: string | null } };
+
 export const api = {
   demo: DEMO_MODE,
 
@@ -176,6 +184,24 @@ export const api = {
     if (!supabase) return [];
     const { data } = await supabase.from('watchlist_items').select('asset_id, watchlists!inner(position)').order('added_at');
     return (data ?? []).map((r) => r.asset_id);
+  },
+
+  /** Optional position details (shares held, amount invested) per watched asset. */
+  async positions(): Promise<Record<string, { quantity: number | null; cost: number | null }>> {
+    if (!supabase) return {};
+    const { data } = await supabase.from('watchlist_items').select('asset_id, quantity, cost_amount');
+    return Object.fromEntries((data ?? []).map((r) => [r.asset_id, { quantity: r.quantity == null ? null : Number(r.quantity), cost: r.cost_amount == null ? null : Number(r.cost_amount) }]));
+  },
+
+  async updatePosition(assetId: string, quantity: number | null, cost: number | null) {
+    if (!supabase) return;
+    const { error } = await supabase.from('watchlist_items').update({ quantity, cost_amount: cost }).eq('asset_id', assetId);
+    if (error) throw new ApiError('SAVE_FAILED', error.message);
+  },
+
+  async portfolio(period: string, currency: string) {
+    if (!supabase) throw new ApiError('NO_BACKEND');
+    return invoke<PortfolioResult>('portfolio', { period, currency });
   },
 
   async toggleWatch(assetId: string, on: boolean) {
