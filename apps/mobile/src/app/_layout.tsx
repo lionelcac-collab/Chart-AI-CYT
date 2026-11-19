@@ -28,6 +28,7 @@ function Shell() {
       setPlan(await api.plan());
       if (supabase) {
         const { data } = supabase.auth.onAuthStateChange(async (_e, session) => {
+          queryClient.invalidateQueries({ queryKey: ['user'] });
           if (session?.user) { await identify(session.user.id); registerPush(session.user.id).catch(() => {}); }
           setPlan(await api.plan());
         });

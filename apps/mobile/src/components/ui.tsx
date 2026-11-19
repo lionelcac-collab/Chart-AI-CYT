@@ -156,11 +156,11 @@ export function Row({ children, style, gap = space.sm }: { children: ReactNode; 
 export function Pill({ label, color, bg, onPress, active }: { label: string; color?: string; bg?: string; onPress?: () => void; active?: boolean }) {
   const t = useTheme();
   const content = (
-    <View style={{ paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: bg ?? (active ? t.accent : t.cardAlt), borderWidth: StyleSheet.hairlineWidth, borderColor: active ? t.accent : t.border }}>
+    <View style={{ maxWidth: '100%', paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: bg ?? (active ? t.accent : t.cardAlt), borderWidth: StyleSheet.hairlineWidth, borderColor: active ? t.accent : t.border }}>
       <Text style={{ color: color ?? (active ? t.accentText : t.text), fontSize: font.sm, fontWeight: '600' }}>{label}</Text>
     </View>
   );
-  return onPress ? <Pressable accessibilityRole="button" accessibilityState={{ selected: !!active }} onPress={onPress} hitSlop={6}>{content}</Pressable> : content;
+  return onPress ? <Pressable accessibilityRole="button" accessibilityState={{ selected: !!active }} onPress={onPress} hitSlop={6} style={{ maxWidth: '100%' }}>{content}</Pressable> : content;
 }
 
 export function Button({ label, onPress, variant = 'primary', disabled, loading, icon }: { label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'ghost'; disabled?: boolean; loading?: boolean; icon?: string }) {

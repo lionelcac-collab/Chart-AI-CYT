@@ -20,6 +20,7 @@ async function invoke<T>(fn: string, body?: unknown, method: 'POST' | 'GET' = 'P
     // Supabase wraps non-2xx responses: read our {error} payload when present.
     const ctx = (error as { context?: Response }).context;
     const payload = ctx && typeof ctx.json === 'function' ? await ctx.json().catch(() => null) : null;
+    if (ctx?.status === 401) throw new ApiError('AUTH_REQUIRED', payload?.error ?? error.message);
     throw new ApiError(payload?.error ?? 'NETWORK', payload?.error ?? error.message);
   }
   return data as T;
