@@ -10,9 +10,9 @@ import { api } from '../lib/api';
 import { fmtDate, fmtNum } from '../lib/format';
 import { radius, space, useTheme } from '../theme';
 
-type Tab = 'overview' | 'jobs' | 'anomalies' | 'users' | 'assets' | 'actions' | 'analysts' | 'audit';
+type Tab = 'overview' | 'services' | 'jobs' | 'anomalies' | 'users' | 'assets' | 'actions' | 'analysts' | 'audit';
 const TABS: [Tab, string][] = [
-  ['overview', 'Vue d’ensemble'], ['jobs', 'Collecte'], ['anomalies', 'Anomalies'], ['users', 'Utilisateurs'],
+  ['overview', 'Vue d’ensemble'], ['services', 'Services & crédits'], ['jobs', 'Collecte'], ['anomalies', 'Anomalies'], ['users', 'Utilisateurs'],
   ['assets', 'Titres'], ['actions', 'Opérations sur titres'], ['analysts', 'Avis d’analystes'], ['audit', 'Journal'],
 ];
 
@@ -67,6 +67,111 @@ function Overview() {
             <Row><Txt size="xs" muted>{r.rows_written ?? 0}</Txt><StatusPill s={r.status} /></Row>
           </Row>
         ))}
+      </Card>
+    </>
+  );
+}
+
+const usd = (v: number | null | undefined, d = 2) => (v == null ? '—' : `${v < 0.01 && v > 0 ? '< 0,01' : fmtNum(v, 'fr', d)} $`);
+const mb = (b: number | null | undefined) => (b == null ? '—' : `${fmtNum(b / 1024 / 1024, 'fr', 0)} Mo`);
+const tok = (n: number) => (n >= 1e6 ? `${fmtNum(n / 1e6, 'fr', 2)} M` : n >= 1e3 ? `${fmtNum(n / 1e3, 'fr', 1)} k` : String(n));
+
+function LinkBtn({ label, url }: { label: string; url: string }) {
+  const th = useTheme();
+  return <Pressable accessibilityRole="link" onPress={() => Linking.openURL(url)}><Txt size="sm" color={th.accent} weight="700">{label} ↗</Txt></Pressable>;
+}
+function Dot({ ok, warn }: { ok: boolean; warn?: boolean }) {
+  const th = useTheme();
+  return <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: ok ? th.up : warn ? th.warn : th.down }} />;
+}
+
+function Services() {
+  const th = useTheme();
+  const q = useQuery({ queryKey: ['admin', 'services'], queryFn: () => api.admin<any>('services') });
+  if (q.isLoading) return <Loading />;
+  if (q.error) return <ErrorBox message={(q.error as Error).message} onRetry={() => q.refetch()} />;
+  const d = q.data!;
+  const c = d.claude, e = c.estimate;
+  const maxDay = Math.max(0.0001, ...Object.values(e.daily as Record<string, number>));
+  const days = Object.entries(e.daily as Record<string, number>).sort(([a], [b]) => a.localeCompare(b)).slice(-14);
+  const dbPct = d.supabase.dbBytes != null ? (d.supabase.dbBytes / d.supabase.freePlanDbBytes) * 100 : null;
+  return (
+    <>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <Txt size="xs" muted>Mis à jour le {dt(d.generatedAt)}</Txt>
+        <Pressable onPress={() => q.refetch()}><Txt size="sm" color={th.accent} weight="700">↻ Actualiser</Txt></Pressable>
+      </Row>
+
+      <Card title="✦ Claude (Anthropic) — IA">
+        <Row><Dot ok={c.configured} /><Txt size="sm">{c.configured ? 'Clé API active sur le serveur' : 'Clé API absente'}</Txt></Row>
+        <Txt weight="700" style={{ marginTop: space.sm }}>Dépense réelle (facturée par Anthropic)</Txt>
+        {c.real.available ? (
+          <>
+            <KV label="Ce mois-ci" value={usd(c.real.monthUsd)} />
+            <KV label="Aujourd’hui" value={usd(c.real.todayUsd)} />
+            <Txt size="xs" muted>Données Anthropic au {dt(c.real.refreshedAt)} (délai de quelques heures). Montants avant déduction des crédits.</Txt>
+          </>
+        ) : c.real.reason === 'error' ? (
+          <Txt size="sm" color={th.warn}>Lecture impossible : {c.real.error}</Txt>
+        ) : (
+          <Txt size="sm" color={th.info}>Pour afficher la dépense réelle : dans la console Anthropic, créez une clé « Admin » (commence par sk-ant-admin01-, nécessite une organisation et le rôle admin), puis ajoutez-la dans Supabase (Edge Functions → Secrets) sous le nom ANTHROPIC_ADMIN_KEY.</Txt>
+        )}
+        <Txt size="xs" muted>Le solde de crédits prépayés n’est fourni par aucune API Anthropic : il se consulte uniquement dans la console (lien ci-dessous).</Txt>
+
+        <Txt weight="700" style={{ marginTop: space.sm }}>Consommation estimée (calcul de l’application)</Txt>
+        <KV label="Aujourd’hui" value={`${usd(e.today.usd, 3)} · ${e.today.calls} appels`} />
+        <KV label="7 derniers jours" value={`${usd(e.d7.usd)} · ${e.d7.calls} appels`} />
+        <KV label="Ce mois-ci" value={`${usd(e.month.usd)} · ${e.month.calls} appels`} />
+        <KV label="Moyenne par jour (récente)" value={usd(e.dailyAvgUsd, 3)} />
+        <KV label="Projection fin de mois" value={usd(e.projectedMonthUsd)} />
+        {days.length ? (
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 70, marginTop: 6 }}>
+            {days.map(([day, v]) => (
+              <View key={day} style={{ flex: 1, maxWidth: 40, alignItems: 'center', gap: 2 }}>
+                <View style={{ width: '80%', height: Math.max(2, (v / maxDay) * 52), backgroundColor: th.accent, borderRadius: 3 }} />
+                <Txt size="xs" muted>{day.slice(8, 10)}</Txt>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        <Txt weight="700" style={{ marginTop: space.sm }}>Par fonction (ce mois)</Txt>
+        {Object.entries(e.byFeature as Record<string, any>).sort(([, a], [, b]) => b.usd - a.usd).map(([k, v]) => (
+          <KV key={k} label={`${k} · ${v.calls} appels`} value={`${usd(v.usd, 3)} · ${tok(v.input + v.cacheRead + v.cacheWrite)} entrée / ${tok(v.output)} sortie`} />
+        ))}
+        <Txt weight="700" style={{ marginTop: space.sm }}>Par modèle (ce mois)</Txt>
+        {Object.entries(e.byModel as Record<string, any>).map(([k, v]) => <KV key={k} label={k} value={`${usd(v.usd, 3)} · ${v.calls} appels`} />)}
+        {c.unknownModels.length ? <Txt size="xs" color={th.warn}>Prix inconnu pour : {c.unknownModels.join(', ')} (non compté).</Txt> : null}
+        <Txt size="xs" muted>Estimation au prix public (Sonnet 5.5 : 2 $ / 10 $ par million de jetons en entrée / sortie ; Haiku 5.5 : 0,10 $ / 0,50 $), à partir des jetons enregistrés à chaque appel.</Txt>
+        <Row style={{ flexWrap: 'wrap', gap: space.md, marginTop: 4 }}>
+          <LinkBtn label="Solde & facturation" url="https://platform.claude.com/settings/billing" />
+          <LinkBtn label="Coûts" url="https://platform.claude.com/cost" />
+          <LinkBtn label="Limites de dépense" url="https://platform.claude.com/settings/limits" />
+          <LinkBtn label="Clés Admin" url="https://platform.claude.com/settings/admin-keys" />
+        </Row>
+      </Card>
+
+      <Card title="Mansa Markets — données de marché">
+        <Row><Dot ok={!!d.mansa.ok} /><Txt size="sm">{!d.mansa.configured ? 'Clé API absente' : d.mansa.ok ? `Clé valide (réponse en ${d.mansa.latencyMs} ms)` : `Erreur ${d.mansa.status ?? ''} ${d.mansa.errorCode ?? d.mansa.error ?? ''}`}</Txt></Row>
+        <KV label="Limite configurée" value={`${d.mansa.rpm} requêtes / minute`} />
+        <KV label="Collectes Mansa aujourd’hui" value={String(d.mansa.runsToday)} />
+        {Object.keys(d.mansa.quotaHeaders ?? {}).length ? Object.entries(d.mansa.quotaHeaders).map(([k, v]) => <KV key={k} label={k} value={String(v)} />)
+          : <Txt size="xs" muted>Mansa ne publie pas de solde ni de quota restant par API : consultez votre tableau de bord Mansa.</Txt>}
+        <Row style={{ flexWrap: 'wrap', gap: space.md }}><LinkBtn label="Compte Mansa" url="https://mansaapi.com" /><LinkBtn label="Offres" url="https://mansaapi.com/pricing" /></Row>
+      </Card>
+
+      <Card title="Supabase — base de données & serveur">
+        <KV label="Taille de la base" value={`${mb(d.supabase.dbBytes)}${dbPct != null ? ` · ${fmtNum(dbPct, 'fr', 0)} % de 500 Mo` : ''}`} />
+        {dbPct != null ? <View style={{ height: 6, backgroundColor: th.cardAlt, borderRadius: 3 }}><View style={{ width: `${Math.min(100, dbPct)}%`, height: 6, borderRadius: 3, backgroundColor: dbPct > 80 ? th.down : dbPct > 60 ? th.warn : th.up }} /></View> : null}
+        {(d.supabase.topTables ?? []).slice(0, 4).map((t: any) => <KV key={t.name} label={t.name} value={mb(t.bytes)} />)}
+        <Txt size="xs" muted>500 Mo = limite de l’offre gratuite Supabase (8 Go sur l’offre Pro).</Txt>
+        <LinkBtn label="Utilisation & facturation Supabase" url="https://supabase.com/dashboard/project/kpevjemvmsdqqpyaizns/settings/billing/usage" />
+      </Card>
+
+      <Card title="Hébergement & paiements">
+        <Row style={{ justifyContent: 'space-between' }}><Txt size="sm">Vercel (site web)</Txt><LinkBtn label="Utilisation" url="https://vercel.com/cyt-chart-ia/~/usage" /></Row>
+        <Row style={{ justifyContent: 'space-between' }}><Row><Dot ok={d.payments.revenuecat.configured} warn /><Txt size="sm">RevenueCat (abonnements stores)</Txt></Row><LinkBtn label="Tableau de bord" url="https://app.revenuecat.com" /></Row>
+        <Row style={{ justifyContent: 'space-between' }}><Row><Dot ok={d.payments.cinetpay.configured} warn /><Txt size="sm">CinetPay (mobile money)</Txt></Row><LinkBtn label="Tableau de bord" url="https://app.cinetpay.com" /></Row>
+        <Txt size="xs" muted>Vercel, RevenueCat et CinetPay ne sont pas interrogés automatiquement : leurs soldes et revenus se consultent sur leurs tableaux de bord.</Txt>
       </Card>
     </>
   );
@@ -340,7 +445,7 @@ export default function AdminScreen() {
       ) : (
         <>
           <Row style={{ flexWrap: 'wrap', gap: space.sm }}>{TABS.map(([k, l]) => <Pill key={k} label={l} active={tab === k} onPress={() => setTab(k)} />)}</Row>
-          {tab === 'overview' ? <Overview /> : tab === 'jobs' ? <Jobs /> : tab === 'anomalies' ? <Anomalies /> : tab === 'users' ? <Users />
+          {tab === 'overview' ? <Overview /> : tab === 'services' ? <Services /> : tab === 'jobs' ? <Jobs /> : tab === 'anomalies' ? <Anomalies /> : tab === 'users' ? <Users />
             : tab === 'assets' ? <Assets /> : tab === 'actions' ? <Actions /> : tab === 'analysts' ? <Analysts /> : <Audit />}
         </>
       )}

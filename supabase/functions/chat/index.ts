@@ -121,13 +121,14 @@ Mise en forme (affichage mobile) : titres courts avec ##, listes à puces avec -
 Analyse sa situation concrète : performance et ce qui l'explique (contributions), concentration (poids du 1er titre et des 3 premiers, marché, secteur, devise), plus/moins-values, titres peu liquides ou qui ne cotent plus, exposition au naira, niveaux techniques et consensus du modèle sur ses lignes principales.
 Tu peux décrire des points d'attention et des leviers généraux (diversification, horizon, liquidité) mais JAMAIS de recommandation personnalisée d'achat, de vente ou d'arbitrage, ni de formulation impérative. Si aucune quantité n'est renseignée, précise que l'analyse suppose des poids égaux et invite à renseigner le nombre d'actions (bouton ✎) pour une analyse en valeur réelle. Ne révèle aucune donnée d'un autre utilisateur.` } as never);
 
-  let usage = { input_tokens: 0, output_tokens: 0 };
+  let usage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
   for (let turn = 0; turn < 6; turn++) {
     const res = await claude().beta.messages.create({
       model: MODELS.deep, max_tokens: 4000, system, tools: tools as never, messages: history,
       output_config: { effort: 'low' }, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default',
     } as never) as unknown as Anthropic.Beta.BetaMessage;
-    usage = { input_tokens: usage.input_tokens + res.usage.input_tokens, output_tokens: usage.output_tokens + res.usage.output_tokens };
+    usage = { input_tokens: usage.input_tokens + res.usage.input_tokens, output_tokens: usage.output_tokens + res.usage.output_tokens,
+      cache_read_input_tokens: usage.cache_read_input_tokens + (res.usage.cache_read_input_tokens ?? 0), cache_creation_input_tokens: usage.cache_creation_input_tokens + (res.usage.cache_creation_input_tokens ?? 0) };
     if (res.stop_reason === 'refusal') return json({ error: 'AI_REFUSAL' }, 422);
     history.push({ role: 'assistant', content: res.content as never });
     if (res.stop_reason !== 'tool_use') {
