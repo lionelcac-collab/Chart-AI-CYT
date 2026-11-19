@@ -1,19 +1,19 @@
 import { useColorScheme } from 'react-native';
 import { useSettings } from './settings';
 
-/** Chart-BoursafrikIA identity: night indigo + gold. Positive/negative colours tuned for both modes (WCAG AA on cards). */
+/** Chart-BoursafrikIA identity (from the logo): graphite black + Africa cyan. Positive/negative colours tuned for both modes (WCAG AA on cards). */
 const palette = {
   dark: {
-    bg: '#0B0F1E', card: '#141A2E', cardAlt: '#1B2240', border: '#26304F',
-    text: '#EEF1FA', textMuted: '#9AA4C2', accent: '#F2B544', accentText: '#1A1300',
-    up: '#2FCB8E', down: '#FF6B6B', neutral: '#8C96B5', warn: '#F5A524', info: '#6EA8FE',
-    chartLine: '#F2B544', chartFill: 'rgba(242,181,68,0.16)', grid: '#1F2742',
+    bg: '#0F1315', card: '#161B1E', cardAlt: '#1E2528', border: '#2A3438',
+    text: '#EEF4F5', textMuted: '#9AABAF', accent: '#6EECF2', accentText: '#04191B',
+    up: '#2FCB8E', down: '#FF6B6B', neutral: '#8FA0A4', warn: '#F5A524', info: '#7CB4FF',
+    chartLine: '#6EECF2', chartFill: 'rgba(110,236,242,0.14)', grid: '#1F282B',
   },
   light: {
-    bg: '#F5F6FB', card: '#FFFFFF', cardAlt: '#EEF0F8', border: '#DDE1EE',
-    text: '#111629', textMuted: '#5B6480', accent: '#B87A00', accentText: '#FFFFFF',
-    up: '#0E8A5A', down: '#D33A3A', neutral: '#6B7390', warn: '#A86400', info: '#2F6FD6',
-    chartLine: '#B87A00', chartFill: 'rgba(184,122,0,0.12)', grid: '#E6E9F3',
+    bg: '#F3F7F8', card: '#FFFFFF', cardAlt: '#E9F1F2', border: '#D5E1E3',
+    text: '#0F1A1D', textMuted: '#52666B', accent: '#0A7C85', accentText: '#FFFFFF',
+    up: '#0E8A5A', down: '#D33A3A', neutral: '#66787C', warn: '#A86400', info: '#2F6FD6',
+    chartLine: '#0A7C85', chartFill: 'rgba(10,124,133,0.12)', grid: '#E3ECEE',
   },
 };
 

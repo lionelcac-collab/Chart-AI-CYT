@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#0B0F1E",
+    "backgroundColor": "#161B1E",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.chartboursafrikia.app",
@@ -20,7 +20,7 @@
     "android": {
       "package": "com.chartboursafrikia.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0B0F1E",
+        "backgroundColor": "#161B1E",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -38,7 +38,7 @@
       "expo-localization",
       "expo-secure-store",
       "expo-web-browser",
-      ["expo-notifications", { "color": "#F2B544" }],
+      ["expo-notifications", { "color": "#6EECF2" }],
       ["expo-image-picker", { "photosPermission": "Chart-BoursafrikIA accède à vos photos uniquement pour analyser la capture d'écran de graphique que vous choisissez." }]
     ],
     "experiments": { "typedRoutes": false },

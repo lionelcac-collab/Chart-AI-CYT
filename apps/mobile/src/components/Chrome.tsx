@@ -4,7 +4,7 @@
  */
 import { router, usePathname } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Image, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { APP_NAME } from '@chart-boursafrikia/core';
 import { useT } from '../i18n';
 import { useSettings } from '../settings';
@@ -49,9 +49,7 @@ function Logo({ size = 22 }: { size?: number }) {
   const th = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <View style={{ width: size + 10, height: size + 10, borderRadius: 8, backgroundColor: th.accent, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ color: th.accentText, fontSize: size - 4, fontWeight: '900' }}>✦</Text>
-      </View>
+      <Image source={require('../../assets/logo-mark.png')} accessibilityLabel="logo" style={{ width: size + 18, height: size + 18, borderRadius: (size + 18) * 0.22 }} />
       <Text style={{ color: th.text, fontSize: size, fontWeight: '800', letterSpacing: -0.3 }}>{APP_NAME}</Text>
     </View>
   );
@@ -74,7 +72,7 @@ export function TopNav() {
       <View style={{ maxWidth: CONTENT_MAX, width: '100%', alignSelf: 'center', paddingHorizontal: space.xl, paddingVertical: space.md, flexDirection: 'row', alignItems: 'center', gap: space.xl }}>
         <Pressable accessibilityRole="link" onPress={() => router.navigate('/')} style={{ gap: 2 }}>
           <Logo />
-          <Text style={{ color: th.textMuted, fontSize: font.xs, fontWeight: '600', marginLeft: 40 }}>{c.tagline}</Text>
+          <Text style={{ color: th.textMuted, fontSize: font.xs, fontWeight: '600', marginLeft: 48 }}>{c.tagline}</Text>
         </Pressable>
         <View style={{ flexDirection: 'row', gap: 4, flex: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
           {items.map(([href, label, icon]) => {
@@ -114,7 +112,7 @@ export function BrandStrip() {
   const c = useChromeCopy();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: th.cardAlt, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start', maxWidth: '100%' }}>
-      <Text style={{ color: th.accent, fontSize: 12, fontWeight: '900' }}>✦</Text>
+      <Image source={require('../../assets/logo-mark.png')} accessibilityIgnoresInvertColors style={{ width: 20, height: 20, borderRadius: 5 }} />
       <Text style={{ color: th.text, fontSize: 12, fontWeight: '700', flexShrink: 0 }} numberOfLines={1}>{APP_NAME}</Text>
       <Text style={{ color: th.textMuted, fontSize: 12, flexShrink: 1 }} numberOfLines={1}>· {c.strip}</Text>
     </View>
@@ -127,25 +125,25 @@ export function Hero() {
   const c = useChromeCopy();
   const desktop = useIsDesktop();
   return (
-    <View style={{ backgroundColor: th.mode === 'dark' ? '#121A36' : '#0F1630', borderRadius: radius.lg, padding: desktop ? 40 : space.xl, gap: space.md, overflow: 'hidden' }}>
-      <Text style={{ position: 'absolute', right: desktop ? 40 : -10, top: desktop ? -20 : -10, fontSize: desktop ? 220 : 120, color: 'rgba(242,181,68,0.10)', fontWeight: '900' }}>✦</Text>
-      <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(242,181,68,0.18)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5 }}>
-        <Text style={{ color: '#F2B544', fontWeight: '800', fontSize: 12, letterSpacing: 0.4 }}>{c.badge.toUpperCase()}</Text>
+    <View style={{ backgroundColor: '#161B1E', borderWidth: th.mode === 'dark' ? 1 : 0, borderColor: '#2A3438', borderRadius: radius.lg, padding: desktop ? 40 : space.xl, gap: space.md, overflow: 'hidden' }}>
+      <Image source={require('../../assets/splash-icon.png')} accessibilityIgnoresInvertColors style={{ position: 'absolute', right: desktop ? 30 : -60, top: desktop ? 10 : 10, width: desktop ? 380 : 220, height: desktop ? 380 : 220, opacity: desktop ? 0.9 : 0.22 }} />
+      <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(110,236,242,0.16)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5 }}>
+        <Text style={{ color: '#6EECF2', fontWeight: '800', fontSize: 12, letterSpacing: 0.4 }}>{c.badge.toUpperCase()}</Text>
       </View>
       {!desktop ? <Text style={{ color: '#EEF1FA', fontSize: 15, fontWeight: '800' }}>{APP_NAME}</Text> : null}
-      <Text accessibilityRole="header" style={{ color: '#FFFFFF', fontSize: desktop ? 40 : 24, lineHeight: desktop ? 46 : 30, fontWeight: '800', maxWidth: 760, letterSpacing: -0.5 }}>{c.heroTitle}</Text>
-      <Text style={{ color: '#B9C2DE', fontSize: desktop ? 17 : 14, lineHeight: desktop ? 25 : 20, maxWidth: 720 }}>{c.heroSub}</Text>
+      <Text accessibilityRole="header" style={{ color: '#FFFFFF', fontSize: desktop ? 40 : 24, lineHeight: desktop ? 46 : 30, fontWeight: '800', maxWidth: desktop ? 680 : undefined, letterSpacing: -0.5 }}>{c.heroTitle}</Text>
+      <Text style={{ color: '#B5C6C9', fontSize: desktop ? 17 : 14, lineHeight: desktop ? 25 : 20, maxWidth: desktop ? 660 : undefined }}>{c.heroSub}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {c.markets.map(([code, zone]) => (
           <View key={code} style={{ flexDirection: 'row', gap: 6, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 }}>
             <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>{code}</Text>
-            <Text style={{ color: '#B9C2DE', fontSize: 12 }}>{zone}</Text>
+            <Text style={{ color: '#B5C6C9', fontSize: 12 }}>{zone}</Text>
           </View>
         ))}
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md, marginTop: space.sm }}>
-        <Pressable accessibilityRole="button" onPress={() => router.navigate('/assistant')} style={{ backgroundColor: '#F2B544', paddingHorizontal: 20, paddingVertical: 12, borderRadius: radius.md }}>
-          <Text style={{ color: '#1A1300', fontWeight: '800', fontSize: 15 }}>✦ {c.askAi}</Text>
+        <Pressable accessibilityRole="button" onPress={() => router.navigate('/assistant')} style={{ backgroundColor: '#6EECF2', paddingHorizontal: 20, paddingVertical: 12, borderRadius: radius.md }}>
+          <Text style={{ color: '#04191B', fontWeight: '800', fontSize: 15 }}>✦ {c.askAi}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => router.navigate('/screener')} style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', paddingHorizontal: 20, paddingVertical: 12, borderRadius: radius.md }}>
           <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 15 }}>{c.explore} →</Text>
