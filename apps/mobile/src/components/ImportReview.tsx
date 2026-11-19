@@ -99,7 +99,7 @@ export function ImportReview({ matched, unmatched, totalValue, totalCurrency, wa
         const readBits = [
           c.quantity != null ? `${fmtNum(c.quantity, lang, c.quantity % 1 ? 2 : 0)} ${fr ? 'titres' : 'shares'}` : null,
           c.avgCostPrice != null ? `PRU ${fmtNum(c.avgCostPrice, lang, c.avgCostPrice < 100 ? 2 : 0)}` : null,
-          c.marketValue != null ? `${fr ? 'valo.' : 'value'} ${fmtNum(c.marketValue, lang, 0)}` : null,
+          c.marketValue != null ? `${fr ? 'valo.' : 'value'} ${fmtNum(c.marketValue, lang, 0)}${c.readCurrency ? ` ${cur(c.readCurrency)}` : ''}` : null,
           c.pnl != null ? `${c.pnl > 0 ? '+' : ''}${fmtNum(c.pnl, lang, 0)}` : null,
           c.pnlPct != null ? `${c.pnlPct > 0 ? '+' : ''}${fmtNum(c.pnlPct, lang, 2)} %` : null,
         ].filter(Boolean);
@@ -117,9 +117,13 @@ export function ImportReview({ matched, unmatched, totalValue, totalCurrency, wa
                 <Txt size="xs" weight="700" color={existing ? th.text : th.accentText}>{existing ? (fr ? 'Mise à jour' : 'Update') : (fr ? 'Nouveau' : 'New')}</Txt>
               </View>
             </Pressable>
-            {readBits.length ? <Txt size="xs" muted>{fr ? 'Lu' : 'Read'} : {readBits.join(' · ')}{c.readCurrency ? ` ${cur(c.readCurrency)}` : ''}</Txt> : null}
+            {readBits.length ? <Txt size="xs" muted>{fr ? 'Lu' : 'Read'} : {readBits.join(' · ')}</Txt> : null}
             {existing && (p?.quantity != null || p?.cost != null) ? <Txt size="xs" muted>{fr ? 'Actuel' : 'Current'} : {p?.quantity != null ? `${fmtNum(p.quantity, lang, 0)} ${fr ? 'titres' : 'shares'}` : '—'}{p?.cost != null ? ` · ${money(p.cost, c.currency, lang)}` : ''}</Txt> : null}
-            {c.currencyMismatch ? <Txt size="xs" color={th.warn}>{fr ? `Montants lus en ${cur(c.readCurrency ?? '')}, alors que le titre cote en ${cur(c.currency)} : montant investi non repris, saisissez-le dans la devise du titre.` : 'Amounts read in another currency than the stock’s: amount not used.'}</Txt> : null}
+            {c.currencyMismatch ? <Txt size="xs" color={c.costAmount != null ? th.textMuted : th.warn}>{fr
+              ? c.costAmount != null
+                ? `Montants lus en ${cur(c.readCurrency ?? '')} (le titre cote en ${cur(c.currency)}) : le montant investi est recalculé en ${cur(c.currency)} à partir du % de plus/moins-value, indépendant de la devise.`
+                : `Montants lus en ${cur(c.readCurrency ?? '')}, alors que le titre cote en ${cur(c.currency)} : montant investi non repris. Indiquez le % de plus/moins-value (indépendant de la devise) ou saisissez le montant dans la devise du titre.`
+              : c.costAmount != null ? 'Amounts in another currency: amount invested recomputed from the gain/loss %.' : 'Amounts read in another currency than the stock’s: amount not used.'}</Txt> : null}
             {d.on ? (
               <Row gap={space.sm}>
                 <View style={{ flex: 1, minWidth: 0, gap: 2 }}><Txt size="xs" muted>{fr ? 'Nombre de titres' : 'Shares'}</Txt><TextInput value={d.qty} onChangeText={(v) => set(c.assetId, { qty: v })} keyboardType="decimal-pad" placeholder={fr ? 'Nb de titres' : 'Shares'} placeholderTextColor={th.textMuted} style={input} accessibilityLabel={`${c.ticker} ${fr ? 'nombre de titres' : 'shares'}`} /></View>
@@ -127,7 +131,7 @@ export function ImportReview({ matched, unmatched, totalValue, totalCurrency, wa
               </Row>
             ) : null}
             {d.on && c.qtySource === 'value_div_price' ? <Txt size="xs" muted>{fr ? 'Nombre de titres déduit : valeur ÷ cours affichés.' : 'Shares deduced: value ÷ price shown.'}</Txt> : null}
-            {d.on && c.costSource ? <Txt size="xs" muted>{fr ? { total: 'Montant investi lu sur la capture.', pru: 'Montant investi = nombre de titres × PRU.', value_minus_pnl: 'Montant investi = valorisation − plus/moins-value.', value_div_pnl_pct: 'Montant investi = valorisation ÷ (1 + plus/moins-value en %).' }[c.costSource] : ''}</Txt> : null}
+            {d.on && c.costSource ? <Txt size="xs" muted>{fr ? { total: 'Montant investi lu sur la capture.', pru: 'Montant investi = nombre de titres × PRU.', value_minus_pnl: 'Montant investi = valorisation − plus/moins-value.', value_div_pnl_pct: 'Montant investi = valorisation ÷ (1 + plus/moins-value en %).', own_price_div_pnl_pct: 'Montant investi = nombre de titres × dernier cours en base ÷ (1 + plus/moins-value en %).' }[c.costSource] : ''}</Txt> : null}
           </View>
         );
       })}

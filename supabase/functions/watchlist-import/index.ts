@@ -41,8 +41,16 @@ const tokens = (s: string) => expand(s).split(' ').filter((w) => w.length > 1 &&
 const MARKET_HINT: Record<string, string> = { BRVM: 'BRVM', ABIDJAN: 'BRVM', UEMOA: 'BRVM', XOF: 'BRVM', BVMAC: 'BVMAC', DOUALA: 'BVMAC', LIBREVILLE: 'BVMAC', CEMAC: 'BVMAC', XAF: 'BVMAC', NGX: 'NGX', NSE: 'NGX', LAGOS: 'NGX', NGN: 'NGX', NIGERIA: 'NGX' };
 
 function match(it: Item, assets: Asset[]): { asset: Asset; score: number } | null {
+  const inPool = matchIn(it, assets, true);
+  if (inPool && inPool.score >= 0.8) return inPool;
+  const anywhere = matchIn(it, assets, false);
+  if (!inPool) return anywhere;
+  return anywhere && anywhere.score > inPool.score + 0.1 ? anywhere : inPool;
+}
+
+function matchIn(it: Item, assets: Asset[], useHint: boolean): { asset: Asset; score: number } | null {
   const hint = it.exchange ? Object.entries(MARKET_HINT).find(([k]) => norm(it.exchange!).includes(k))?.[1] : undefined;
-  const pool = hint ? assets.filter((a) => a.market === hint) : assets;
+  const pool = hint && useHint ? assets.filter((a) => a.market === hint) : assets;
   if (it.isin) { const a = assets.find((x) => x.isin && x.isin === it.isin!.toUpperCase().replace(/\s/g, '')); if (a) return { asset: a, score: 1 }; }
   if (it.ticker) {
     const t = norm(it.ticker).replace(/ (BRVM|NGX|BVMAC|LG|NL|CI)$/, '').replace(/ /g, '');
@@ -57,12 +65,16 @@ function match(it: Item, assets: Asset[]): { asset: Asset; score: number } | nul
   }
   return null;
 }
+const GENERIC = new Set(['BANK', 'BANQUE', 'INTERNATIONAL', 'INSURANCE', 'ASSURANCE', 'ASSURANCES', 'FINANCE', 'FINANCIAL', 'CAPITAL', 'INVESTMENT', 'COMPANY', 'CORPORATION', 'INDUSTRIES', 'AFRICA', 'AFRIQUE', 'NIGERIA', 'OIL', 'MOTORS', 'TRUST', 'CEMENT', 'BREWERIES']);
 function overlap(a: string, b: string) {
   const ta = tokens(a), tb = new Set(tokens(b));
   if (!ta.length || !tb.size) return 0;
-  const common = ta.filter((w) => tb.has(w) || [...tb].some((x) => x.length > 3 && w.length > 3 && (x.startsWith(w) || w.startsWith(x)))).length;
-  // Symmetric score: a longer exact name (TOTAL SENEGAL) beats a shorter partial one (TOTAL).
-  return (common / ta.length + common / tb.size) / 2;
+  const wt = (w: string) => (GENERIC.has(w) ? 0.3 : 1);
+  const hit = (w: string) => tb.has(w) || [...tb].some((x) => x.length > 3 && w.length > 3 && (x.startsWith(w) || w.startsWith(x)));
+  const common = ta.filter(hit).reduce((s, w) => s + wt(w), 0);
+  const totA = ta.reduce((s, w) => s + wt(w), 0), totB = [...tb].reduce((s, w) => s + wt(w), 0);
+  // Weighted symmetric score: distinctive words count, generic ones (BANK, INSURANCE…) much less.
+  return (common / totA + common / totB) / 2;
 }
 
 Deno.serve(handler(async (req) => {
@@ -88,7 +100,7 @@ Deno.serve(handler(async (req) => {
       { type: 'text' as const, text:
         'Ces images sont des captures d’écran (application de courtier, portefeuille, liste de cotations, article, tableau…). ' +
         'Relève chaque action ou titre coté qui y apparaît : ticker (tel qu’écrit), nom complet de la société (avec le pays s’il est écrit), ISIN si visible, ' +
-        'et la bourse (BRVM, BVMAC ou NGX) si elle est écrite OU déductible du contexte immédiat (ville : Abidjan → BRVM, Douala/Libreville → BVMAC, Lagos → NGX ; devise : FCFA/XOF → BRVM, XAF → BVMAC, naira/NGN → NGX), sinon null. ' +
+        'et la bourse (BRVM, BVMAC ou NGX) seulement si elle est écrite ou clairement indiquée pour CE titre (ville de cotation : Abidjan → BRVM, Douala/Libreville → BVMAC, Lagos → NGX), sinon null. Ne déduis jamais la bourse de la devise de valorisation d’un portefeuille (un relevé consolidé en FCFA peut contenir des titres nigérians). ' +
         'Ne relève que ce qui est réellement lisible sur l’image : n’invente aucun titre, ne complète pas une liste. Ignore les indices, devises, cryptomonnaies et matières premières. ' +
         'Pour chaque titre, relève aussi quand ils sont lisibles : quantity = nombre de titres détenus. Il peut être libellé « Unités », « Unité(s) », « Qté », « Quantité », « Nombre », « Nb titres », « Titres », « Actions », « Position », « Solde », « Avoir », « Détenu(s) », « Units », « Shares », « Holdings », « Qty », ou apparaître sans libellé à côté du nom (ex. « 120 unités », « x 120 »). Ce n’est PAS un volume échangé du marché ; avg_cost_price = prix de revient unitaire (PRU, prix moyen d’achat) ; ' +
         'total_cost = montant total investi (coût d’acquisition) ; market_value = valorisation de la ligne ; unrealized_pnl = plus/moins-value latente en montant (négative si perte) ; unrealized_pnl_pct = plus/moins-value latente en POURCENTAGE (ex. « +12,5 % » → 12.5, « -8 % » → -8 ; ce n’est PAS la variation du jour) ; last_price = dernier cours affiché ; ' +
@@ -100,6 +112,9 @@ Deno.serve(handler(async (req) => {
   });
 
   const { data: assets } = await admin().from('assets').select('id, ticker, name, market, isin, currency').eq('is_active', true);
+  // Last verified close in the stock's own currency (used with a gain/loss % when the capture gives no usable value).
+  const { data: closes } = await admin().from('market_latest').select('asset_id, close');
+  const lastClose = new Map((closes ?? []).map((c) => [c.asset_id as string, Number(c.close)]));
   const seen = new Set<string>();
   type Out = { qtySource: string | null; assetId: string; ticker: string; name: string; market: string; currency: string; confidence: number; read: string;
     quantity: number | null; costAmount: number | null; costSource: string | null; marketValue: number | null; pnl: number | null; pnlPct: number | null; lastPrice: number | null; avgCostPrice: number | null; readCurrency: string | null; currencyMismatch: boolean };
@@ -122,17 +137,24 @@ Deno.serve(handler(async (req) => {
     const assetCur = m.asset.currency === 'XAF' ? 'XAF' : m.asset.currency;
     const mismatch = readCur != null && !(readCur === assetCur || (['XOF', 'XAF'].includes(readCur) && ['XOF', 'XAF'].includes(assetCur)));
     // Amount invested: explicit total cost, else quantity × average cost, else market value − unrealised gain.
+    // Amounts shown in another currency than the stock's are not reused (no reliable conversion of the purchase date's rate).
     let cost: number | null = null, costSource: string | null = null;
-    if (pos(it.total_cost)) { cost = it.total_cost; costSource = 'total'; }
-    else if (qty && pos(it.avg_cost_price)) { cost = qty * it.avg_cost_price!; costSource = 'pru'; }
-    else if (pos(it.market_value) && typeof it.unrealized_pnl === 'number') { const c = it.market_value! - it.unrealized_pnl; if (c > 0) { cost = c; costSource = 'value_minus_pnl'; } }
-    // Gain/loss in %: invested = current value ÷ (1 + %/100), value as shown or shares × price shown.
+    if (!mismatch) {
+      if (pos(it.total_cost)) { cost = it.total_cost; costSource = 'total'; }
+      else if (qty && pos(it.avg_cost_price)) { cost = qty * it.avg_cost_price!; costSource = 'pru'; }
+      else if (pos(it.market_value) && typeof it.unrealized_pnl === 'number') { const c = it.market_value! - it.unrealized_pnl; if (c > 0) { cost = c; costSource = 'value_minus_pnl'; } }
+    }
+    // Gain/loss in % is currency-independent: invested = current value ÷ (1 + %/100), with the value shown (same currency),
+    // else shares × price shown (same currency), else shares × last verified close in the stock's currency.
     if (cost == null && typeof it.unrealized_pnl_pct === 'number' && it.unrealized_pnl_pct > -100) {
-      const value = pos(it.market_value) ?? (qty && pos(it.last_price) ? qty * it.last_price! : null);
-      if (value) { cost = value / (1 + it.unrealized_pnl_pct / 100); costSource = 'value_div_pnl_pct'; }
+      const k = 1 + it.unrealized_pnl_pct / 100;
+      const shown = !mismatch ? (pos(it.market_value) ?? (qty && pos(it.last_price) ? qty * it.last_price! : null)) : null;
+      const own = qty && lastClose.get(m.asset.id) ? qty * lastClose.get(m.asset.id)! : null;
+      if (shown) { cost = shown / k; costSource = 'value_div_pnl_pct'; }
+      else if (own) { cost = own / k; costSource = 'own_price_div_pnl_pct'; }
     }
     matched.push({ qtySource, assetId: m.asset.id, ticker: m.asset.ticker, name: m.asset.name, market: m.asset.market, currency: m.asset.currency, confidence: Math.round(m.score * 100) / 100, read,
-      quantity: qty, costAmount: mismatch ? null : cost == null ? null : Math.round(cost * 100) / 100, costSource: mismatch ? null : costSource,
+      quantity: qty, costAmount: cost == null ? null : Math.round(cost * 100) / 100, costSource,
       marketValue: pos(it.market_value), pnl: typeof it.unrealized_pnl === 'number' ? it.unrealized_pnl : null, pnlPct: typeof it.unrealized_pnl_pct === 'number' ? it.unrealized_pnl_pct : null, lastPrice: pos(it.last_price), avgCostPrice: pos(it.avg_cost_price), readCurrency: readCur, currencyMismatch: mismatch });
   }
   await audit(user.id, 'watchlist_import', 'ai', null, { model: r.model, usage: r.usage, images: images.length, read: r.data.items?.length ?? 0, matched: matched.length, withQuantity: matched.filter((x) => x.quantity != null).length, withCost: matched.filter((x) => x.costAmount != null).length, hasMessage: !!note });
