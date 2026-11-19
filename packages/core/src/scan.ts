@@ -70,7 +70,7 @@ export function scanAsset(input: ScanInput, period: ScanPeriod): ScanRow | null 
     returnPct,
     support, supportDistPct: support != null ? ((price - support) / price) * 100 : null,
     resistance, resistanceDistPct: resistance != null ? ((resistance - price) / price) * 100 : null,
-    illiquid: liquidity(bars).warning,
+    illiquid: liquidity(bars)?.warning ?? false,
   };
 }
 

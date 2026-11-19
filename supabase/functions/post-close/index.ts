@@ -40,7 +40,7 @@ Deno.serve(handler(async (req) => {
     }, { onConflict: 'asset_id,as_of,model_version' });
     const f = Object.fromEntries(c.factors.filter((x) => x.score != null).map((x) => [x.key, x.score!]));
     rows.push({ assetId: a.id, market: a.market, sector: (a.sectors as { code?: string } | null)?.code ?? null, name: a.name,
-      scores: { ...f, overall: c.forecasts[3]!.score * (0.5 + 0.5 * c.confidenceValue) }, illiquid: c.liquidity.warning, confidence: c.confidence });
+      scores: { ...f, overall: c.forecasts[3]!.score * (0.5 + 0.5 * c.confidenceValue) }, illiquid: (c.liquidity?.warning ?? false), confidence: c.confidence });
   }
 
   // Rankings: AFRICA, per market, per market×sector. Illiquid stocks are kept but flagged and ranked after liquid ones.

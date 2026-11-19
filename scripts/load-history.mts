@@ -123,7 +123,7 @@ async function main() {
     }
     const bars = rows.map((r) => ({
       asset_id: `${market}:${r.ticker}`, session_date: r.date, open: r.open, high: null, low: null, close: r.close,
-      volume: r.volume ?? 0, value: r.value, source: `official_bulletin:${market}`, verified: true,
+      volume: r.volume, value: r.value, source: `official_bulletin:${market}`, verified: true,
       adjusted_factor: factors.get(`${r.ticker}|${r.date}`) ?? 1,
     }));
     for (let i = 0; i < bars.length; i += 1000) {

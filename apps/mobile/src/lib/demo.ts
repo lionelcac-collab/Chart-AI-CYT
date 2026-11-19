@@ -165,7 +165,7 @@ export function demoDashboard(market: MarketCode): Dashboard {
   const idxVal = list.reduce((acc, s) => acc + (s.changePct ?? 0), 0) / Math.max(1, list.length);
   const opp = DEMO_ASSETS.filter((a) => a.market === market).map((a) => {
     const c = computeConsensus({ bars: demoBars(a) });
-    return { asset_id: a.id, name: a.name, score: c ? c.forecasts[3]!.score : 0, illiquid: c?.liquidity.warning ?? true, confidence: c?.confidence ?? 'low' };
+    return { asset_id: a.id, name: a.name, score: c ? c.forecasts[3]!.score : 0, illiquid: c?.liquidity?.warning ?? false, confidence: c?.confidence ?? 'low' };
   }).sort((x, y) => Number(x.illiquid) - Number(y.illiquid) || y.score - x.score);
   return {
     market,

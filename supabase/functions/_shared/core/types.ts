@@ -40,7 +40,7 @@ export interface Bar {
   high: number | null;
   low: number | null;
   close: number;
-  volume: number;        // shares traded (0 = no trade that day)
+  volume: number | null; // shares traded (0 = no trade that day, null = not published by the source)
   value?: number | null; // traded value in local currency
 }
 

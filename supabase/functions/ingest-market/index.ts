@@ -115,7 +115,7 @@ async function ingest(market: MarketCode, job: 'eod' | 'delayed', force = false)
   if (job === 'eod') {
     // Only closing prices go into the history; intraday (delayed) quotes only update quotes_latest.
     const bars = ok.filter((q) => q.provenance.status.kind === 'close').map((q) => ({
-      asset_id: q.assetId, session_date: q.provenance.asOf.slice(0, 10), close: q.last, volume: q.volume ?? 0, value: q.value,
+      asset_id: q.assetId, session_date: q.provenance.asOf.slice(0, 10), close: q.last, volume: q.volume, value: q.value,
       source: q.provenance.source, verified: verifiedIds.has(q.assetId),
     }));
     await db.from('price_bars').upsert(bars, { onConflict: 'asset_id,session_date' });

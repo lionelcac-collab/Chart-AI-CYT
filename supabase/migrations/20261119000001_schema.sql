@@ -103,7 +103,7 @@ create table price_bars (
   session_date date not null,
   open numeric, high numeric, low numeric,
   close numeric not null check (close > 0),
-  volume numeric not null default 0,
+  volume numeric,                              -- null = not published by the source (NGX official list)
   value numeric,
   source text not null,                        -- mansa | brvm_bulletin | ngx_official…
   fetched_at timestamptz not null default now(),

@@ -286,7 +286,7 @@ export interface ConsensusResult {
   forecasts: HorizonForecast[];
   factors: FactorScore[];
   topFactors: FactorContribution[];  // for 12M, sorted by |contribution|
-  liquidity: LiquidityStat;
+  liquidity: LiquidityStat | null;
   sigma: number;               // annualised, after floor & illiquidity adjustment
   dataCoverage: number;        // share of 12M factor weight with data
   analysts: AnalystConsensus | null;
@@ -370,8 +370,8 @@ export function horizonForecast(price: number, S: number, sigma: number, horizon
  *   agreement:     1 − 0.5 · (share of weight whose factor sign opposes S)
  * Label: ≥ 0.6 high · ≥ 0.35 medium · else low. Capped at medium without fundamentals.
  */
-export function confidenceOf(coverage: number, liq: LiquidityStat, sessions: number, contribs: FactorContribution[], S: number, hasFundamentals: boolean): { value: number; label: Confidence } {
-  const liqMult = { high: 1, medium: 0.85, low: 0.6, very_low: 0.4 }[liq.level];
+export function confidenceOf(coverage: number, liq: LiquidityStat | null, sessions: number, contribs: FactorContribution[], S: number, hasFundamentals: boolean): { value: number; label: Confidence } {
+  const liqMult = liq ? { high: 1, medium: 0.85, low: 0.6, very_low: 0.4 }[liq.level] : 0.85;
   const histMult = sessions >= 504 ? 1 : sessions >= 252 ? 0.85 : 0.6;
   const wTot = contribs.reduce((s, c) => s + c.weight, 0);
   const opposing = contribs.filter((c) => Math.sign(c.score) !== 0 && Math.sign(c.score) !== Math.sign(S)).reduce((s, c) => s + c.weight, 0);
@@ -391,7 +391,8 @@ export function computeConsensus(inp: ConsensusInputs, params: ModelParams = DEF
   const liq = computeLiquidity(bars, 63, inp.liquidityFloor, inp.liquidityCap);
   const rawSigma = (annualisedVolatility(bars.slice(-252)) ?? 0) / 100;
   // Illiquid stocks: observed σ underestimates true risk (stale prices) ⇒ inflate.
-  const illiqMult = { high: 1, medium: 1.1, low: 1.25, very_low: 1.5 }[liq.level];
+  // Unknown liquidity (volume not published): treated like 'medium', never as illiquid.
+  const illiqMult = liq ? { high: 1, medium: 1.1, low: 1.25, very_low: 1.5 }[liq.level] : 1.1;
   const sigma = Math.max(rawSigma, params.minSigma) * illiqMult;
 
   const factors: FactorScore[] = [

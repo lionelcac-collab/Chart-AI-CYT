@@ -136,9 +136,19 @@ describe('ranges (plus bas / plus haut)', () => {
 describe('liquidity', () => {
   it('scores illiquid series low with a warning', () => {
     const b = series(100).map((x, i) => ({ ...x, volume: i % 4 === 0 ? 10 : 0 }));
-    const l = liquidity(b);
+    const l = liquidity(b)!;
     expect(l.warning).toBe(true);
     expect(l.zeroVolumeSessions).toBeGreaterThan(40);
+  });
+});
+
+describe('liquidity with unpublished volume', () => {
+  it('returns null (unknown) instead of a zero score', () => {
+    const b = series(100).map((x) => ({ ...x, volume: null, value: null }));
+    expect(liquidity(b)).toBeNull();
+    const res = computeConsensus({ bars: series(600).map((x) => ({ ...x, volume: null, value: null })) })!;
+    expect(res.liquidity).toBeNull();
+    expect(res.confidence).not.toBe('high');
   });
 });
 

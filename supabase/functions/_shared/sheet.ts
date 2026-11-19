@@ -19,7 +19,7 @@ export async function loadBars(db: SupabaseClient, assetId: string, years = 3): 
   return (data ?? []).map((r) => {
     const f = Number(r.adjusted_factor ?? 1);
     const adj = (v: number | null) => (v == null ? null : Number(v) * f);
-    return { date: r.session_date, open: adj(r.open), high: adj(r.high), low: adj(r.low), close: Number(r.close) * f, volume: Number(r.volume), value: r.value };
+    return { date: r.session_date, open: adj(r.open), high: adj(r.high), low: adj(r.low), close: Number(r.close) * f, volume: r.volume == null ? null : Number(r.volume), value: r.value };
   });
 }
 
