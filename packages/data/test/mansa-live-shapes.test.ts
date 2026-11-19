@@ -46,6 +46,14 @@ describe('Mansa connector on live response shapes', () => {
     expect(c.sessionStatus('NGX', '2026-11-16T07:00:00Z').status).toEqual({ kind: 'close', sessionDate: '2026-11-13' });
   });
 
+  it('undefined options (unset env vars) keep the defaults', async () => {
+    const calls: Record<string, string>[] = [];
+    const f2 = (async (url: string, init?: { headers?: Record<string, string> }) => { calls.push(init!.headers!); return { ok: true, status: 200, json: async () => live.brvm, text: async () => '' }; }) as FetchLike;
+    const c2 = new MansaConnector({ apiKey: 'k', baseUrl: undefined, authHeader: undefined, delayMinutes: Number(undefined), fetch: f2 });
+    expect(await c2.getQuotes('BRVM')).toHaveLength(1);
+    expect(calls[0]!['X-API-Key']).toBe('k');
+  });
+
   it('indices and forex use Mansa field names', async () => {
     const idx = await c.getIndices('BRVM');
     expect(idx).toEqual([expect.objectContaining({ code: 'BRVM-CI Index', market: 'BRVM', value: 502.68, changePct: -1.983 })]);

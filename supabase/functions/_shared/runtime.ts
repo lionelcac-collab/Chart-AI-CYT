@@ -1,5 +1,5 @@
 // Shared helpers for edge functions (Deno).
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.45.4';
 
 export const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -38,10 +38,21 @@ export async function isPremium(userId: string | null | undefined): Promise<bool
   return !!data && data.plan === 'premium' && (!data.premium_until || new Date(data.premium_until) > new Date());
 }
 
-/** Only pg_cron (service role bearer) may call job endpoints. */
+/**
+ * Only pg_cron (service role) may call job endpoints. Accepts the function's own service key, a key
+ * listed in SUPABASE_SECRET_KEYS, or a legacy JWT whose role is service_role. The JWT signature is
+ * verified by the Supabase gateway before the function runs (verify_jwt is on for job functions).
+ */
 export function requireService(req: Request) {
-  const auth = req.headers.get('Authorization') ?? '';
-  if (auth !== `Bearer ${env('SUPABASE_SERVICE_ROLE_KEY')}`) throw new Response('forbidden', { status: 403 });
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!token) throw new Response('forbidden', { status: 403 });
+  if (token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) return;
+  if ((Deno.env.get('SUPABASE_SECRET_KEYS') ?? '').includes(token)) return;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/')));
+    if (payload.role === 'service_role' && (!payload.ref || Deno.env.get('SUPABASE_URL')?.includes(payload.ref))) return;
+  } catch { /* not a JWT */ }
+  throw new Response('forbidden', { status: 403 });
 }
 
 export async function audit(actor: string, action: string, entity: string, entityId: string | null, details: unknown) {

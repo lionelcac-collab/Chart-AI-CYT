@@ -1,6 +1,6 @@
 // Builds the complete "fiche actif" from the database + pure computations of @nyota/core.
 // Used by the `asset` endpoint, the AI analysis, the chat tools and the post-close job.
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.45.4';
 import {
   analystConsensus, computeConsensus, computePerformances, computeRanges, computeRatios, liquidity,
   median, technicalSnapshot, LIQUIDITY_THRESHOLDS, type AnalystOpinion, type Bar, type Fundamentals,

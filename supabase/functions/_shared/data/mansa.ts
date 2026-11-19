@@ -97,8 +97,10 @@ export class MansaConnector implements MarketDataConnector {
   private limiter: RateLimiter;
 
   constructor(config: MansaConfig) {
-    this.cfg = { baseUrl: 'https://mansaapi.com', authHeader: 'X-API-Key', requestsPerMinute: 30, cacheTtlSec: 900, delayMinutes: 0, ...config };
-    this.paths = { ...DEFAULT_PATHS, ...config.paths };
+    // Options explicitly set to undefined (e.g. an unset env var) must not erase the defaults.
+    const defined = Object.fromEntries(Object.entries(config).filter(([, v]) => v !== undefined && v !== null && !(typeof v === 'number' && Number.isNaN(v)))) as MansaConfig;
+    this.cfg = { baseUrl: 'https://mansaapi.com', authHeader: 'X-API-Key', requestsPerMinute: 30, cacheTtlSec: 900, delayMinutes: 0, ...defined };
+    this.paths = { ...DEFAULT_PATHS, ...defined.paths };
     this.cache = new TtlCache(this.cfg.cacheTtlSec * 1000);
     this.limiter = new RateLimiter(this.cfg.requestsPerMinute);
   }

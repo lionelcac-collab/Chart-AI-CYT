@@ -1,0 +1,7 @@
+project_id = "nyota"
+
+[functions.revenuecat-webhook]
+verify_jwt = false
+
+[functions.payment-webhook]
+verify_jwt = false

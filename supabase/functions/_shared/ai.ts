@@ -3,7 +3,7 @@
 // - Claude Sonnet 5.5: in-depth analyses, consensus narrative, chat, chart vision.
 // Every response is cached in `ai_analyses` (cache_key) and the model + prompt
 // version are written to `audit_log` for traceability.
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic from 'npm:@anthropic-ai/sdk@1.10.0';
 import { admin, audit, env } from './runtime.ts';
 
 export const MODELS = {

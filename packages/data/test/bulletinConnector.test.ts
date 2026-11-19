@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BulletinConnector, ConnectorRegistry, MansaConnector, businessDays, type FetchLike } from '../src';
+import { BulletinConnector, ConnectorRegistry, MansaConnector, PROFILES, businessDays, type FetchLike } from '../src';
 
 // BVMAC-style rows: TICKER NAME PREV CLOSE VAR% VOLUME VALUE (profile BVMAC)
 const BULLETIN = (close: string) => [
@@ -20,12 +20,12 @@ function site(published: Record<string, string>, opts: { index?: boolean } = {})
     const m = url.match(/BOC_(\d{4})(\d{2})(\d{2})\.pdf$/);
     const date = m ? `${m[1]}-${m[2]}-${m[3]}` : '';
     const body = published[date];
-    return { ok: !!body, status: body ? 200 : 404, json: async () => ({}), text: async () => '', arrayBuffer: async () => new TextEncoder().encode(body ?? '').buffer as ArrayBuffer };
+    return { ok: !!body, status: body ? 200 : 404, json: async () => ({}), text: async () => '', arrayBuffer: async () => new TextEncoder().encode('%PDF' + (body ?? '')).buffer as ArrayBuffer };
   }) as FetchLike & { urls: string[] };
   f.urls = urls;
   return f;
 }
-const extractText = async (b: Uint8Array) => new TextDecoder().decode(b);
+const extractText = async (b: Uint8Array) => new TextDecoder().decode(b).replace(/^%PDF/, '');
 
 describe('BulletinConnector (BVMAC primary source)', () => {
   it('businessDays skips weekends', () => {
@@ -34,7 +34,7 @@ describe('BulletinConnector (BVMAC primary source)', () => {
 
   it('reads the latest published bulletin via a URL template, falling back to previous sessions', async () => {
     const f = site({ '2026-11-17': BULLETIN('52 000') }); // 18th not yet published
-    const c = new BulletinConnector({ sources: { BVMAC: { urlTemplate: 'https://bourse.example/BOC_{YYYYMMDD}.pdf' } }, extractText, fetch: f });
+    const c = new BulletinConnector({ sources: { BVMAC: { urlTemplate: 'https://bourse.example/BOC_{YYYYMMDD}.pdf', profile: PROFILES.BVMAC } }, extractText, fetch: f });
     expect(c.isEnabled()).toBe(true);
     const s = await c.latestSession('BVMAC', '2026-11-18');
     expect(s.date).toBe('2026-11-17');
@@ -47,7 +47,7 @@ describe('BulletinConnector (BVMAC primary source)', () => {
 
   it('finds the bulletin link on an index page', async () => {
     const f = site({ '2026-11-18': BULLETIN('52 500') }, { index: true });
-    const c = new BulletinConnector({ sources: { BVMAC: { indexUrl: 'https://bourse.example/bulletins/', linkPattern: 'BOC_{YYYYMMDD}\\.pdf' } }, extractText, fetch: f });
+    const c = new BulletinConnector({ sources: { BVMAC: { indexUrl: 'https://bourse.example/bulletins/', linkPattern: 'BOC_{YYYYMMDD}\\.pdf', profile: PROFILES.BVMAC } }, extractText, fetch: f });
     const s = await c.getSession('BVMAC', '2026-11-18');
     expect(s!.url).toBe('https://bourse.example/wp-content/uploads/BOC_20261118.pdf');
     expect(s!.rows[0]!.close).toBe(52500);
@@ -56,7 +56,7 @@ describe('BulletinConnector (BVMAC primary source)', () => {
 
   it('rebuilds history from past bulletins and never invents missing sessions', async () => {
     const f = site({ '2026-11-16': BULLETIN('51 000'), '2026-11-18': BULLETIN('52 500') });
-    const c = new BulletinConnector({ sources: { BVMAC: { urlTemplate: 'https://bourse.example/BOC_{YYYYMMDD}.pdf' } }, extractText, fetch: f });
+    const c = new BulletinConnector({ sources: { BVMAC: { urlTemplate: 'https://bourse.example/BOC_{YYYYMMDD}.pdf', profile: PROFILES.BVMAC } }, extractText, fetch: f });
     const bars = await c.getHistory('BVMAC', 'SEMC', '2026-11-16', '2026-11-18');
     expect(bars.map((b) => [b.date, b.close])).toEqual([['2026-11-16', 51000], ['2026-11-18', 52500]]);
   });
@@ -71,7 +71,7 @@ describe('BulletinConnector (BVMAC primary source)', () => {
 
   it('a garbled bulletin is an error, not an empty market', async () => {
     const f = site({ '2026-11-18': 'texte illisible' });
-    const c = new BulletinConnector({ sources: { BVMAC: { urlTemplate: 'https://bourse.example/BOC_{YYYYMMDD}.pdf' } }, extractText, fetch: f });
+    const c = new BulletinConnector({ sources: { BVMAC: { urlTemplate: 'https://bourse.example/BOC_{YYYYMMDD}.pdf', profile: PROFILES.BVMAC } }, extractText, fetch: f });
     await expect(c.getSession('BVMAC', '2026-11-18')).rejects.toThrow(/aucune ligne/);
   });
 });

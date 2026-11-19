@@ -15,9 +15,15 @@
 import type { Asset, Bar, MarketCode, Quote } from '@nyota/core';
 import { MARKETS, localClock } from '@nyota/core';
 import { parseBulletinText, PROFILES, type BulletinProfile, type BulletinRow } from './bulletin';
+import { parseBrvmBoc, parseBvmacBoc, parseNgxDailyList, type OfficialRow } from './officialBulletins';
+
+/** Real-format readers per market (used unless a generic `profile` is configured). */
+const OFFICIAL_PARSERS: Partial<Record<MarketCode, (text: string) => OfficialRow[]>> = { BRVM: parseBrvmBoc, BVMAC: parseBvmacBoc, NGX: parseNgxDailyList };
+const toBulletinRow = (r: OfficialRow): BulletinRow => ({ ticker: r.ticker, name: r.name, previousClose: r.previousClose, open: r.open, high: null, low: null, close: r.close, changePct: r.changePct, volume: r.volume, value: r.value });
 import { ConnectorError, type ConnectorCapabilities, type FetchLike, type MarketDataConnector } from './connector';
 
 export interface BulletinSourceConfig {
+  /** One template, or several alternatives separated by "|" (tried in order, e.g. BRVM file-name variants). */
   urlTemplate?: string;
   indexUrl?: string;
   linkPattern?: string;
@@ -75,42 +81,50 @@ export class BulletinConnector implements MarketDataConnector {
 
   private get f(): FetchLike { return this.cfg.fetch ?? (globalThis.fetch as unknown as FetchLike); }
 
-  private source(market: MarketCode): BulletinSourceConfig & { profile: BulletinProfile } {
+  private source(market: MarketCode): BulletinSourceConfig & { parse: (text: string) => BulletinRow[] } {
     const s = this.cfg.sources[market];
-    const profile = s?.profile ?? PROFILES[market as keyof typeof PROFILES];
-    if (!s || !profile || !(s.urlTemplate || (s.indexUrl && s.linkPattern))) {
-      throw new ConnectorError(this.id, `bulletin non configuré pour ${market}`);
-    }
-    return { ...s, profile };
+    if (!s || !(s.urlTemplate || (s.indexUrl && s.linkPattern))) throw new ConnectorError(this.id, `bulletin non configuré pour ${market}`);
+    const official = OFFICIAL_PARSERS[market];
+    if (!s.profile && official) return { ...s, parse: (t) => official(t).map(toBulletinRow) };
+    const profile = s.profile ?? PROFILES[market as keyof typeof PROFILES];
+    if (!profile) throw new ConnectorError(this.id, `aucun lecteur de bulletin pour ${market}`);
+    return { ...s, parse: (t) => parseBulletinText(t, profile) };
   }
 
   /** Resolves the bulletin URL of a session, or null when it is not (yet) published. */
   async locate(market: MarketCode, date: string): Promise<string | null> {
+    return (await this.candidates(market, date))[0] ?? null;
+  }
+
+  /** Candidate URLs of a session's bulletin (template alternatives, or the link found on the index page). */
+  async candidates(market: MarketCode, date: string): Promise<string[]> {
     const s = this.source(market);
-    if (s.urlTemplate) return fill(s.urlTemplate, date);
+    if (s.urlTemplate) return s.urlTemplate.split('|').map((t) => fill(t.trim(), date));
     const res = await this.f(s.indexUrl!);
     if (!res.ok) throw new ConnectorError(this.id, `page des bulletins ${market} : HTTP ${res.status}`, res.status, res.status >= 500);
     const html = await res.text();
     const re = new RegExp(fill(s.linkPattern!, date), 'i');
     for (const m of html.matchAll(/href\s*=\s*["']([^"']+)["']/gi)) {
       const href = m[1]!;
-      if (re.test(href)) return new URL(href, s.indexUrl).toString();
+      if (re.test(href)) return [new URL(href.replace('https://https://', 'https://'), s.indexUrl).toString()];
     }
-    return null;
+    return [];
   }
 
   /** Downloads and parses one session's bulletin. Returns null if not published (no data is invented). */
   async getSession(market: MarketCode, date: string): Promise<BulletinSession | null> {
     const s = this.source(market);
-    const url = await this.locate(market, date);
-    if (!url) return null;
-    const res = await this.f(url);
-    if (res.status === 404) return null;
-    if (!res.ok || !res.arrayBuffer) throw new ConnectorError(this.id, `bulletin ${market} ${date} : HTTP ${res.status}`, res.status, res.status >= 500);
-    const text = await this.cfg.extractText(new Uint8Array(await res.arrayBuffer()));
-    const rows = parseBulletinText(text, s.profile);
-    if (rows.length === 0) throw new ConnectorError(this.id, `bulletin ${market} ${date} : aucune ligne reconnue (format modifié ?)`);
-    return { market, date, url, rows };
+    for (const url of await this.candidates(market, date)) {
+      const res = await this.f(url);
+      if (res.status === 404) continue;
+      if (!res.ok || !res.arrayBuffer) throw new ConnectorError(this.id, `bulletin ${market} ${date} : HTTP ${res.status}`, res.status, res.status >= 500);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.length < 5 || String.fromCharCode(...bytes.slice(0, 4)) !== '%PDF') continue; // "not found" pages served as HTML
+      const rows = s.parse(await this.cfg.extractText(bytes));
+      if (rows.length === 0) throw new ConnectorError(this.id, `bulletin ${market} ${date} : aucune ligne reconnue (format modifié ?)`);
+      return { market, date, url, rows };
+    }
+    return null;
   }
 
   /** Latest session: today (exchange local date), else up to 4 previous business days. */

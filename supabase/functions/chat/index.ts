@@ -1,6 +1,6 @@
 // POST /chat {messages:[{role,content}], lang} — expert assistant (Claude Sonnet 5.5) with tools over our DB.
 // The model only answers from tool results; every figure carries its date and source.
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic from 'npm:@anthropic-ai/sdk@1.10.0';
 import { ANALYST_SYSTEM, MODELS, claude } from '../_shared/ai.ts';
 import { admin, asUser, audit, currentUser, handler, isPremium, json } from '../_shared/runtime.ts';
 import { buildSheet, sheetForPrompt } from '../_shared/sheet.ts';

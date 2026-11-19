@@ -5,11 +5,11 @@
 //   NGX   : official NGX API (disabled) → Mansa ; official bulletin = cross-check
 // Steps: fetch → validation → cross-check with the bulletin → upsert → anomalies + admin alert.
 // Extra job: {"job":"backfill","market":"BVMAC","from":"2024-01-01","to":"2024-12-31"} rebuilds history from past bulletins.
-import { extractText as pdfText, getDocumentProxy } from 'npm:unpdf@1.4.0';
+import { getDocumentProxy } from 'npm:unpdf@1.4.0';
 import { admin, handler, json, requireService } from '../_shared/runtime.ts';
 import { MARKETS, MVP_MARKETS, isIngestionWindow, localClock, type MarketCode, type Quote } from '../_shared/core/index.ts';
 import {
-  BulletinConnector, ConnectorRegistry, LicensedRealtimeConnector, MansaConnector, NgxOfficialConnector, businessDays, crossCheck, validateQuote,
+  BulletinConnector, ConnectorRegistry, layoutText, LicensedRealtimeConnector, MansaConnector, NgxOfficialConnector, businessDays, crossCheck, validateQuote,
   type Anomaly, type BulletinSourceConfig, type MarketDataConnector,
 } from '../_shared/data/index.ts';
 
@@ -31,7 +31,8 @@ const bulletinSource = (m: MarketCode): BulletinSourceConfig => ({
 });
 const bulletin = new BulletinConnector({
   sources: Object.fromEntries(MVP_MARKETS.map((m) => [m, bulletinSource(m)])),
-  extractText: async (bytes) => (await pdfText(await getDocumentProxy(bytes), { mergePages: true })).text as string,
+  // Layout-preserving extraction: the bulletin readers rely on column alignment.
+  extractText: async (bytes) => layoutText(await getDocumentProxy(bytes)),
   backfillDelayMs: 1500,
 });
 
@@ -59,12 +60,12 @@ async function bulletinCloses(market: MarketCode, date: string) {
   return s ? s.rows.map((r) => ({ assetId: `${market}:${r.ticker}`, close: r.close })) : null;
 }
 
-async function ingest(market: MarketCode, job: 'eod' | 'delayed') {
+async function ingest(market: MarketCode, job: 'eod' | 'delayed', force = false) {
   const db = admin();
   const info = MARKETS[market as 'BRVM'];
   const today = localClock(info.timezone).date;
   if (job === 'eod') {
-    if (!isIngestionWindow(info)) return { market, skipped: 'hors fenêtre' };
+    if (!force && !isIngestionWindow(info)) return { market, skipped: 'hors fenêtre' };
     const { data: done } = await db.from('ingestion_runs').select('id').eq('job', 'eod').eq('market', market).eq('status', 'ok').gte('started_at', `${today}T00:00:00Z`).limit(1);
     if (done?.length) return { market, skipped: 'déjà collecté' };
   }
@@ -112,7 +113,8 @@ async function ingest(market: MarketCode, job: 'eod' | 'delayed') {
   }));
   await db.from('quotes_latest').upsert(quoteRows, { onConflict: 'asset_id' });
   if (job === 'eod') {
-    const bars = ok.map((q) => ({
+    // Only closing prices go into the history; intraday (delayed) quotes only update quotes_latest.
+    const bars = ok.filter((q) => q.provenance.status.kind === 'close').map((q) => ({
       asset_id: q.assetId, session_date: q.provenance.asOf.slice(0, 10), close: q.last, volume: q.volume ?? 0, value: q.value,
       source: q.provenance.source, verified: verifiedIds.has(q.assetId),
     }));
@@ -165,7 +167,8 @@ Deno.serve(handler(async (req) => {
     return json(await backfill(body.market, body.from, body.to));
   }
   const results = [];
-  for (const m of markets as MarketCode[]) results.push(await ingest(m, job).catch((e) => ({ market: m, error: (e as Error).message })));
+  // force: manual run outside the post-close window (admin / first run).
+  for (const m of markets as MarketCode[]) results.push(await ingest(m, job, body.force === true).catch((e) => ({ market: m, error: (e as Error).message })));
   // FX once per EOD run
   if (job === 'eod' && mansa.isEnabled()) {
     const fx = await mansa.getForex().catch(() => []);

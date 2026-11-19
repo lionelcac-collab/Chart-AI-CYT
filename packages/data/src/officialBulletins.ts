@@ -61,29 +61,35 @@ export const BVMAC_TICKERS: Record<string, string> = {
   GQ0000010050: 'BANGE', GA0000010066: 'SCGRE', GA0000010074: 'BGFIHC',
 };
 
-/** BVMAC equities. Anchor: ISIN, short name, last price + date, …, traded volume, value, nb trades, status, open, close. */
+/**
+ * BVMAC equities. Anchor: ISIN (may be split by the PDF text layer, e.g. "CM 000001 0025"), then
+ * last price + its date, …, traded volume, value, number of trades, status (NC, PEq…), open, close.
+ * Equity ISINs have a "1" as 6th digit (CM0000010025); bonds have a "2" (CM0000020305) and are skipped.
+ */
 export function parseBvmacBoc(text: string): OfficialRow[] {
   const re = new RegExp(
-    String.raw`([A-Z]{2}) ?(\d{10})\s+(\S+)\s+(.+?)\s{2,}(${FR})\s+(\d{2}/\d{2}/\d{4})\s+.*?(${FR})\s{2,}(${FR})\s{2,}(\d+)\s+([A-Za-z]{1,4})\s+(${FR})\s+(${FR})\s+(${FR})\s+(${FR})\s+(${PCT}|-?\d+,\d+%)`,
+    String.raw`\b([A-Z]{2})\s?((?:\d\s?){9}\d)\s+(.*?)\s+(${FR})\s+(\d{2}/\d{2}/\d{4})\s+.*?(${FR})\s{2,}(${FR})\s{2,}(\d+)\s+([A-Za-z]{1,4})\s+(${FR})\s+(${FR})\s+(${FR})\s+(${FR})\s+(${PCT}|-?\d+,\d+%)`,
   );
   const out: OfficialRow[] = [];
   const seen = new Set<string>();
   for (const line of text.split(/\r?\n/)) {
     const m = line.match(re);
     if (!m) continue;
-    const isin = `${m[1]}${m[2]}`;
-    const shortName = m[4]!.trim();
-    const ticker = BVMAC_TICKERS[isin] ?? shortName.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    if (seen.has(ticker)) continue;
-    const close = frNum(m[12]);
+    const digits = m[2]!.replace(/\s/g, '');
+    if (digits[5] !== '1') continue; // bonds
+    const isin = `${m[1]}${digits}`;
+    const label = m[3]!.trim();
+    const ticker = BVMAC_TICKERS[isin] ?? label.split(/\s{2,}/).pop()!.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (!ticker || seen.has(ticker)) continue;
+    const close = frNum(m[11]);
     if (close == null || close <= 0) continue;
     seen.add(ticker);
-    const prev = frNum(m[5]);
+    const prev = frNum(m[4]);
     out.push({
-      ticker, isin, name: shortName.replace(/(\S) (\S)$/, '$1$2'),
-      previousClose: prev, open: frNum(m[11]), close,
+      ticker, isin, name: ticker,
+      previousClose: prev, open: frNum(m[10]), close,
       changePct: prev ? Math.round(((close - prev) / prev) * 1e6) / 1e4 : null,
-      volume: frNum(m[7]), value: frNum(m[8]),
+      volume: frNum(m[6]), value: frNum(m[7]),
     });
   }
   return out;

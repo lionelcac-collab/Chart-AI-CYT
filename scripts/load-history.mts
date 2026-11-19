@@ -2,6 +2,8 @@
 // after detecting corporate actions (splits, bonus shares) so that the history can be adjusted.
 //
 //   SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SERVICE_ROLE_KEY=... npx tsx scripts/load-history.mts [--dir data/history] [--dry-run]
+//   or, with a Supabase personal access token (Management API, SQL upserts):
+//   SUPABASE_ACCESS_TOKEN=sbp_... npx tsx scripts/load-history.mts --management-ref <project-ref> [--dir data/history,data/history-ngx2]
 //
 // Corporate actions: the BRVM/BVMAC bulletins print a previous close that is already adjusted on the day
 // of a split. When close(t-1) / prev_close(t) differs by more than 20 %, factor f = prev_close(t) / close(t-1)
@@ -14,6 +16,28 @@ import { createClient } from '@supabase/supabase-js';
 const arg = (k: string, d: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1]! : d; };
 const DIR = arg('dir', 'data/history');
 const DRY = process.argv.includes('--dry-run');
+const MGMT_REF = arg('management-ref', '');
+
+const sqlLit = (v: unknown) => (v == null || (typeof v === 'number' && !Number.isFinite(v)) ? 'null' : typeof v === 'number' ? String(v) : typeof v === 'boolean' ? String(v) : `'${String(v).replaceAll("'", "''")}'`);
+async function mgmtSql(query: string) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (process.env.SUPABASE_ACCESS_TOKEN) headers.Authorization = `Bearer ${process.env.SUPABASE_ACCESS_TOKEN}`;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch(`https://api.supabase.com/v1/projects/${MGMT_REF}/database/query`, { method: 'POST', headers, body: JSON.stringify({ query }) });
+    if (res.ok) return;
+    const txt = await res.text();
+    if (res.status < 500 && res.status !== 429) throw new Error(`SQL ${res.status}: ${txt.slice(0, 300)}`);
+    await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+  }
+  throw new Error('SQL: too many retries');
+}
+async function upsertSql(table: string, rows: Record<string, unknown>[], conflict: string, updateCols: string[]) {
+  if (!rows.length) return;
+  const cols = Object.keys(rows[0]!);
+  const values = rows.map((r) => `(${cols.map((c) => sqlLit(r[c])).join(',')})`).join(',\n');
+  const upd = updateCols.map((c) => `${c} = excluded.${c}`).join(', ');
+  await mgmtSql(`insert into ${table} (${cols.join(',')}) values ${values} on conflict (${conflict}) do update set ${upd};`);
+}
 const CURRENCY: Record<string, string> = { BRVM: 'XOF', BVMAC: 'XAF', NGX: 'NGN' };
 
 interface Row { date: string; ticker: string; name: string; isin: string; prev: number | null; open: number | null; close: number; pct: number | null; volume: number | null; value: number | null; url: string }
@@ -63,22 +87,29 @@ export function detectActions(market: string, rows: Row[]): { actions: Corporate
 }
 
 async function main() {
-  const db = DRY ? null : createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
-  if (!DRY && (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)) throw new Error('SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing');
+  const db = DRY || MGMT_REF ? null : createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  if (!DRY && !MGMT_REF && (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)) throw new Error('SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing');
   const report: CorporateAction[] = [];
   for (const market of ['BRVM', 'BVMAC', 'NGX']) {
-    const p = join(DIR, `${market}.csv`);
-    if (!existsSync(p)) continue;
-    const rows = parseCsv(readFileSync(p, 'utf8'));
+    // Several directories may hold parts of the same market (parallel backfills): merge, last file wins per session.
+    const merged = new Map<string, Row>();
+    for (const d of DIR.split(',')) {
+      const p = join(d, `${market}.csv`);
+      if (!existsSync(p)) continue;
+      for (const r of parseCsv(readFileSync(p, 'utf8'))) if (r.date && r.ticker && r.close > 0) merged.set(`${r.ticker}|${r.date}`, r);
+    }
+    const rows = [...merged.values()].sort((a, b) => a.date.localeCompare(b.date));
+    if (!rows.length) continue;
     const { actions, factors } = detectActions(market, rows);
     report.push(...actions);
     const tickers = new Map<string, Row>();
     for (const r of rows) tickers.set(r.ticker, r); // latest name wins (rows are chronological per file)
     console.log(`${market}: ${rows.length} bars, ${tickers.size} stocks, ${actions.length} corporate-action candidates`);
-    if (!db) continue;
+    if (!db && !MGMT_REF) continue;
     const assets = [...tickers.values()].map((r) => ({ id: `${market}:${r.ticker}`, market, ticker: r.ticker, name: r.name || r.ticker, isin: r.isin || null, currency: CURRENCY[market] }));
     for (let i = 0; i < assets.length; i += 500) {
-      const { error } = await db.from('assets').upsert(assets.slice(i, i + 500), { onConflict: 'id', ignoreDuplicates: false });
+      if (MGMT_REF) { await upsertSql('assets', assets.slice(i, i + 500), 'id', ['name', 'isin']); continue; }
+      const { error } = await db!.from('assets').upsert(assets.slice(i, i + 500), { onConflict: 'id', ignoreDuplicates: false });
       if (error) throw error;
     }
     const bars = rows.map((r) => ({
@@ -87,14 +118,18 @@ async function main() {
       adjusted_factor: factors.get(`${r.ticker}|${r.date}`) ?? 1,
     }));
     for (let i = 0; i < bars.length; i += 1000) {
-      const { error } = await db.from('price_bars').upsert(bars.slice(i, i + 1000), { onConflict: 'asset_id,session_date' });
-      if (error) throw error;
+      if (MGMT_REF) {
+        await upsertSql('price_bars', bars.slice(i, i + 1000), 'asset_id,session_date', ['open', 'close', 'volume', 'value', 'source', 'verified', 'adjusted_factor']);
+      } else {
+        const { error } = await db!.from('price_bars').upsert(bars.slice(i, i + 1000), { onConflict: 'asset_id,session_date' });
+        if (error) throw error;
+      }
       process.stdout.write(`\r  ${market}: ${Math.min(i + 1000, bars.length)}/${bars.length}`);
     }
     process.stdout.write('\n');
   }
-  writeFileSync(join(DIR, 'corporate-actions.csv'), 'market,ticker,date,factor,before,after,note\n' + report.map((a) => [a.market, a.ticker, a.date, a.factor ?? '', a.before, a.after, `"${a.note}"`].join(',')).join('\n') + '\n');
-  console.log(`corporate actions report: ${join(DIR, 'corporate-actions.csv')} (${report.length} lines)`);
+  writeFileSync(join(DIR.split(',')[0]!, 'corporate-actions.csv'), 'market,ticker,date,factor,before,after,note\n' + report.map((a) => [a.market, a.ticker, a.date, a.factor ?? '', a.before, a.after, `"${a.note}"`].join(',')).join('\n') + '\n');
+  console.log(`corporate actions report: ${join(DIR.split(',')[0]!, 'corporate-actions.csv')} (${report.length} lines)`);
 }
 
 if (process.argv[1]?.endsWith('load-history.mts')) await main();
