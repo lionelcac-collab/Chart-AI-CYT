@@ -12,8 +12,9 @@ import { LineChart } from './LineChart';
 import { Rich } from './Rich';
 import { Button, Card, ErrorBox, Loading, Pill, Row, Txt } from './ui';
 
-const PERIODS = ['1W', '1M', '3M', '6M', 'YTD', '1Y', '3Y'] as const;
-const PERIOD_LABEL: Record<(typeof PERIODS)[number], { fr: string; en: string; longFr: string; longEn: string }> = {
+export const PERIODS = ['1W', '1M', '3M', '6M', 'YTD', '1Y', '3Y'] as const;
+export type PfPeriod = (typeof PERIODS)[number];
+export const PERIOD_LABEL: Record<(typeof PERIODS)[number], { fr: string; en: string; longFr: string; longEn: string }> = {
   '1W': { fr: '1S', en: '1W', longFr: 'sur 1 semaine', longEn: 'over 1 week' },
   '1M': { fr: '1M', en: '1M', longFr: 'sur 1 mois', longEn: 'over 1 month' },
   '3M': { fr: '3M', en: '3M', longFr: 'sur 3 mois', longEn: 'over 3 months' },
@@ -26,14 +27,20 @@ const PERIOD_LABEL: Record<(typeof PERIODS)[number], { fr: string; en: string; l
 const money = (v: number | null | undefined, cur: string, lang: 'fr' | 'en') => (v == null ? '—' : formatMoney(v, (cur === 'XAF' ? 'XAF' : cur) as CurrencyCode, lang));
 const signed = (s: string, v: number | null | undefined) => (v != null && v > 0 ? `+${s}` : s);
 
-/** Portfolio evolution over a period + contribution of each line. */
-export function PortfolioPanel({ count }: { count: number }) {
+/** Portfolio query (shared by the evolution card and the merged "Mes titres & contributions" list). */
+export function usePortfolio(count: number) {
+  const { listCurrency: base } = useSettings();
+  const [period, setPeriod] = useState<PfPeriod>('3M');
+  const q = useQuery({ queryKey: ['portfolio', period, base, count], queryFn: () => api.portfolio(period, base), enabled: count > 0 });
+  return { period, setPeriod, q };
+}
+
+/** Portfolio evolution over a period. */
+export function PortfolioPanel({ count, pf }: { count: number; pf: ReturnType<typeof usePortfolio> }) {
   const th = useTheme();
   const { lang } = useT();
   const fr = lang === 'fr';
-  const { listCurrency: base } = useSettings();
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]>('3M');
-  const q = useQuery({ queryKey: ['portfolio', period, base, count], queryFn: () => api.portfolio(period, base), enabled: count > 0 });
+  const { period, setPeriod, q } = pf;
   const d = q.data;
   const lbl = PERIOD_LABEL[period];
 
@@ -85,48 +92,20 @@ export function PortfolioPanel({ count }: { count: number }) {
         )}
       </Card>
 
-      {d && !d.empty && d.lines.length ? <ContributionCard lines={d.lines} mode={d.mode} end={d.end} period={fr ? lbl.longFr : lbl.longEn} currency={d.currency} /> : null}
     </>
   );
 }
 
-function ContributionCard({ lines, mode, end, period, currency }: { lines: PortfolioLine[]; mode: 'value' | 'equal'; end: string; period: string; currency: string }) {
+/** Contribution bar centred on zero (green right / red left), scaled on the largest absolute contribution. */
+export function ContributionBar({ value, maxAbs }: { value: number | null | undefined; maxAbs: number }) {
   const th = useTheme();
-  const { lang } = useT();
-  const fr = lang === 'fr';
-  const maxAbs = Math.max(0.0001, ...lines.map((l) => Math.abs(l.contributionPts ?? 0)));
-  const staleCut = new Date(Date.parse(`${end}T12:00:00Z`) - 10 * 86400_000).toISOString().slice(0, 10);
+  const w = Math.min(100, (Math.abs(value ?? 0) / Math.max(0.0001, maxAbs)) * 100);
   return (
-    <Card title={fr ? 'Contribution par titre' : 'Contribution by stock'} collapsible badge={lines.length}>
-      <Txt size="xs" muted>{fr
-        ? `Part de chaque titre dans le portefeuille et sa contribution à la performance ${period}, en points de % (la somme donne la performance totale).`
-        : `Weight of each stock and its contribution to the performance ${period}, in % points (they add up to the total).`}</Txt>
-      {lines.map((l) => {
-        const c = l.contributionPts;
-        const wPct = Math.min(100, (Math.abs(c ?? 0) / maxAbs) * 100);
-        const stale = l.lastDate != null && l.lastDate < staleCut;
-        return (
-          <Pressable key={l.assetId} onPress={() => router.push(`/asset/${encodeURIComponent(l.assetId)}`)} style={{ paddingVertical: 6, gap: 4, borderBottomWidth: 1, borderBottomColor: th.grid }}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <View style={{ flex: 1 }}>
-                <Txt weight="700">{l.ticker} <Txt size="xs" muted>{l.market}</Txt></Txt>
-                <Txt size="xs" muted numberOfLines={1}>
-                  {fr ? 'Poids' : 'Weight'} {l.weightPct != null ? `${fmtNum(l.weightPct, lang, 1)} %` : (fr ? 'n.c. (quantité non renseignée)' : 'n/a (no shares)')} · {fr ? 'Var.' : 'Chg'} {fmtPct(l.returnPct, lang)}
-                  {mode === 'value' && l.valueEnd != null ? ` · ${money(l.valueEnd, currency, lang)}` : ''}
-                </Txt>
-                {stale ? <Txt size="xs" color={th.warn}>{fr ? `Dernière cotation le ${fmtDate(l.lastDate, lang)}` : `Last traded ${fmtDate(l.lastDate, lang)}`}</Txt> : null}
-              </View>
-              <Txt weight="800" color={changeColor(th, c)}>{c == null ? '—' : `${c > 0 ? '+' : ''}${fmtNum(c, lang, 2)} pt${Math.abs(c) >= 2 ? 's' : ''}`}</Txt>
-            </Row>
-            <View style={{ flexDirection: 'row', height: 6 }}>
-              <View style={{ flex: 1, alignItems: 'flex-end' }}>{c != null && c < 0 ? <View style={{ width: `${wPct}%`, height: 6, borderRadius: 3, backgroundColor: th.down }} /> : null}</View>
-              <View style={{ width: 1, backgroundColor: th.border }} />
-              <View style={{ flex: 1 }}>{c != null && c > 0 ? <View style={{ width: `${wPct}%`, height: 6, borderRadius: 3, backgroundColor: th.up }} /> : null}</View>
-            </View>
-          </Pressable>
-        );
-      })}
-    </Card>
+    <View style={{ flexDirection: 'row', height: 6 }}>
+      <View style={{ flex: 1, alignItems: 'flex-end' }}>{value != null && value < 0 ? <View style={{ width: `${w}%`, height: 6, borderRadius: 3, backgroundColor: th.down }} /> : null}</View>
+      <View style={{ width: 1, backgroundColor: th.border }} />
+      <View style={{ flex: 1 }}>{value != null && value > 0 ? <View style={{ width: `${w}%`, height: 6, borderRadius: 3, backgroundColor: th.up }} /> : null}</View>
+    </View>
   );
 }
 

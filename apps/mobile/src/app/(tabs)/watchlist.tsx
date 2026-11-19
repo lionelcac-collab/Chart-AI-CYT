@@ -5,12 +5,12 @@ import { useState } from 'react';
 import { Image, Pressable, TextInput, View } from 'react-native';
 import { ENTITLEMENTS } from '@chart-boursafrikia/core';
 import { ImportReview } from '../../components/ImportReview';
-import { PortfolioAsk, PortfolioPanel, PositionEditor } from '../../components/Portfolio';
+import { ContributionBar, PERIOD_LABEL, PortfolioAsk, PortfolioPanel, PositionEditor, usePortfolio } from '../../components/Portfolio';
 import { Button, Card, Loading, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { ApiError, api, type ImportCandidate } from '../../lib/api';
 import { prepImage } from '../../lib/imagePrep';
-import { fmtNum, fmtPct, fmtPrice } from '../../lib/format';
+import { fmtDate, fmtNum, fmtPct, fmtPrice } from '../../lib/format';
 import { DEMO_MODE, supabase } from '../../lib/supabase';
 import { useSettings } from '../../settings';
 import { changeColor, radius, space, useTheme } from '../../theme';
@@ -33,6 +33,14 @@ export default function Watchlist() {
   const rows = (all.data ?? []).filter((a) => ids.data?.includes(a.id));
   const pos = useQuery({ queryKey: ['positions', ids.data?.length ?? 0], queryFn: api.positions, enabled: !!ids.data?.length });
   const [editing, setEditing] = useState<string | null>(null);
+  const pf = usePortfolio(ids.data?.length ?? 0);
+  const pd = pf.q.data && !pf.q.data.empty ? pf.q.data : null;
+  const contrib = new Map((pd?.lines ?? []).map((l) => [l.assetId, l]));
+  const maxAbs = Math.max(0.0001, ...(pd?.lines ?? []).map((l) => Math.abs(l.contributionPts ?? 0)));
+  const staleCut = pd ? new Date(Date.parse(`${pd.end}T12:00:00Z`) - 10 * 86400_000).toISOString().slice(0, 10) : '';
+  const periodLong = fr ? PERIOD_LABEL[pf.period].longFr : PERIOD_LABEL[pf.period].longEn;
+  // Lines sorted by contribution over the period (largest first), then the others.
+  const sortedRows = [...rows].sort((x, y) => (contrib.get(y.id)?.contributionPts ?? -1e9) - (contrib.get(x.id)?.contributionPts ?? -1e9));
 
   const [reading, setReading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -153,13 +161,19 @@ export default function Watchlist() {
           onDone={(m) => { setFound(null); setMsg(m); }} onCancel={() => setFound(null)} />
       ) : null}
 
-      <PortfolioPanel count={ids.data?.length ?? 0} />
+      <PortfolioPanel count={ids.data?.length ?? 0} pf={pf} />
       {ids.data?.length ? <PortfolioAsk hasQuantities={Object.values(pos.data ?? {}).some((p) => p.quantity != null)} /> : null}
 
       {ids.isLoading ? <Loading /> : !ids.data?.length ? <Card><Txt muted>{fr ? 'Votre liste est vide. Ajoutez des titres depuis leur fiche (☆) ou importez une capture d’écran ci-dessus.' : t.watchlist.empty}</Txt></Card> : (
-        <Card title={fr ? `Mes titres (${rows.length})` : `My stocks (${rows.length})`}>
-          <Txt size="xs" muted>{fr ? 'Touchez ✎ pour indiquer (facultatif) le nombre d’actions et le montant investi.' : 'Tap ✎ to enter (optional) the number of shares and amount invested.'}</Txt>
-          {rows.map((a) => {
+        <Card title={fr ? `Mes titres & contributions (${rows.length})` : `My stocks & contributions (${rows.length})`}>
+          <Txt size="xs" muted>{fr
+            ? `Classés par contribution à la performance ${periodLong} (en points de %, la somme donne la performance totale). Touchez ✎ pour indiquer le nombre d’actions et le montant investi (facultatif).`
+            : `Sorted by contribution to performance ${periodLong} (in % points). Tap ✎ to enter shares and amount invested (optional).`}</Txt>
+          {sortedRows.map((a) => {
+            const l = contrib.get(a.id);
+            const c0 = l?.contributionPts ?? null;
+            const c = c0 != null && Math.abs(c0) < 0.005 ? 0 : c0;
+            const stale = !!(l?.lastDate && staleCut && l.lastDate < staleCut);
             const p = pos.data?.[a.id];
             const value = p?.quantity != null && a.last != null ? p.quantity * a.last : null;
             const pnl = value != null && p?.cost != null ? value - p.cost : null;
@@ -172,14 +186,15 @@ export default function Watchlist() {
                       <Txt size="xs" muted numberOfLines={1}>{a.name}</Txt>
                       {p?.quantity != null ? (
                         <Txt size="xs" color={th.textMuted}>
-                          {fmtNum(p.quantity, lang, p.quantity % 1 ? 2 : 0)} {fr ? 'actions' : 'shares'}{value != null ? ` · ${money(value, a.currency)}` : ''}
+                          {fmtNum(p.quantity, lang, p.quantity % 1 ? 2 : 0)} {fr ? (p.quantity > 1 ? 'actions' : 'action') : p.quantity > 1 ? 'shares' : 'share'}{value != null ? ` · ${money(value, a.currency)}` : ''}
                           {pnl != null ? <Txt size="xs" weight="700" color={changeColor(th, pnl)}> · {pnl > 0 ? '+' : ''}{money(pnl, a.currency)} ({fmtPct(p!.cost ? (pnl / p!.cost) * 100 : null, lang)})</Txt> : null}
                         </Txt>
                       ) : null}
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Txt size="sm">{money(a.last, a.currency)}</Txt>
-                      <Txt size="sm" weight="700" color={changeColor(th, a.changePct)}>{fmtPct(a.changePct, lang)}</Txt>
+                      <Txt size="xs" weight="700" color={changeColor(th, a.changePct)}>{fmtPct(a.changePct, lang)} {fr ? 'jour' : 'day'}</Txt>
+                      {pd ? <Txt weight="800" color={changeColor(th, c)}>{c == null ? '—' : `${c > 0 ? '+' : ''}${fmtNum(c, lang, 2)} pt${Math.abs(c) >= 2 ? 's' : ''}`}</Txt> : null}
                     </View>
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel={fr ? `Modifier la position ${a.ticker}` : `Edit position ${a.ticker}`} hitSlop={8}
@@ -188,6 +203,15 @@ export default function Watchlist() {
                     <Txt size="sm" color={p?.quantity != null ? th.accent : th.textMuted}>✎</Txt>
                   </Pressable>
                 </View>
+                {pd && l ? (
+                  <View style={{ gap: 4, paddingBottom: space.sm }}>
+                    <Txt size="xs" muted>
+                      {fr ? 'Poids' : 'Weight'} {l.weightPct != null ? `${fmtNum(l.weightPct, lang, 1)} %` : (fr ? 'n.c. (quantité non renseignée)' : 'n/a (no shares)')} · {fr ? 'Var.' : 'Chg'} {periodLong} {fmtPct(l.returnPct, lang)}
+                    </Txt>
+                    <ContributionBar value={c} maxAbs={maxAbs} />
+                    {stale ? <Txt size="xs" color={th.warn}>{fr ? `Dernière cotation le ${fmtDate(l.lastDate, lang)}` : `Last traded ${fmtDate(l.lastDate, lang)}`}</Txt> : null}
+                  </View>
+                ) : null}
                 {editing === a.id ? <PositionEditor assetId={a.id} currency={a.currency} quantity={p?.quantity ?? null} cost={p?.cost ?? null} onDone={() => setEditing(null)} /> : null}
               </View>
             );
