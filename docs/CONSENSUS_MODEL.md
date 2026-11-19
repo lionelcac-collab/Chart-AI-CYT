@@ -1,7 +1,7 @@
-# Consensus Nyota — spécification du modèle (v1.0.0)
+# Consensus Chart-BoursafrikIA — spécification du modèle (v1.0.0)
 
 Implémentation : `packages/core/src/consensus.ts` (fonctions pures, testées dans `packages/core/test`).
-Version affichée dans l'app : `nyota-consensus-1.0.0`. Toute modification des formules ⇒ nouvelle version + nouveau backtest.
+Version affichée dans l'app : `chart-boursafrikia-consensus-1.0.0`. Toute modification des formules ⇒ nouvelle version + nouveau backtest.
 
 > Mention obligatoire affichée partout : « Estimations statistiques, pas une garantie ni un conseil en investissement. »
 

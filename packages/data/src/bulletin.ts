@@ -11,7 +11,7 @@
  * must be checked against a few real bulletins before go-live — the defaults
  * below match the typical "TICKER  Name  Prev  Open  High  Low  Close  Var%  Volume  Value" row.
  */
-import type { MarketCode } from '@nyota/core';
+import type { MarketCode } from '@chart-boursafrikia/core';
 
 export interface BulletinRow {
   ticker: string;

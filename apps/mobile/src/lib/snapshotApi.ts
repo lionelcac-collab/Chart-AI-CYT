@@ -1,9 +1,9 @@
 // Data provider for the real-data snapshot mode (see snapshot.ts). Only what the snapshot
 // really contains is returned; the rest is empty / null so the UI shows "data unavailable".
-import type { Bar, CurrencyCode, MarketCode, ScanPeriod, ScanRow } from '@nyota/core';
+import type { Bar, CurrencyCode, MarketCode, ScanPeriod, ScanRow } from '@chart-boursafrikia/core';
 import {
   LIQUIDITY_THRESHOLDS, MARKETS, computeConsensus, computePerformances, computeRanges, liquidity, scanMarket, technicalSnapshot,
-} from '@nyota/core';
+} from '@chart-boursafrikia/core';
 import { SNAPSHOT, type LatestRow, type SnapshotQuote } from './snapshot';
 import type { AssetSheet, AssetSummary, Dashboard } from './types';
 
@@ -72,7 +72,7 @@ export function snapSearch(query: string, market?: MarketCode): AssetSummary[] {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Database export (kind: 'db'): full history → same computations as the server (@nyota/core).
+// Database export (kind: 'db'): full history → same computations as the server (@chart-boursafrikia/core).
 // ---------------------------------------------------------------------------------------------
 export const IS_DB = SNAPSHOT?.kind === 'db';
 const num = (v: unknown) => (v == null || v === '' ? null : Number(v));

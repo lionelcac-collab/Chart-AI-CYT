@@ -33,7 +33,7 @@ Légende : ✅ fait et vérifié · 🟡 fait, à valider avec vos accès/donné
 
 ## Étape 4 — Stores
 - ✅ Configuration EAS, permissions, conformité (voir `docs/STORE_PUBLISHING.md`)
-- ⏳ Icône et écran de lancement Nyota (les fichiers d'`assets/` sont ceux du modèle Expo), captures, fiches
+- ⏳ Icône et écran de lancement Chart-BoursafrikIA (les fichiers d'`assets/` sont ceux du modèle Expo), captures, fiches
 
 ## Étape 5 — Phase 2 (JSE, EGX, Casablanca, NSE, GSE…)
 - ✅ Codes marchés, horaires/fuseaux des principales bourses, connecteur Mansa déjà multi-marchés
@@ -54,5 +54,5 @@ Légende : ✅ fait et vérifié · 🟡 fait, à valider avec vos accès/donné
 8. **Mansa** : passer au plan **Pro (50 $/mois)** pour l'historique OHLCV (Starter 20 $ pour dividendes et avis de courtiers) ; confirmer par écrit le droit d'afficher les cours dans une app payante (leur grille ne mentionne la « redistribution » qu'au plan Business, 200 $/mois).
 9. **Validation juridique** : statut d'outil d'information vs conseil (AMF-UMOA, COSUMAF, SEC Nigeria), politique de
    confidentialité, CGU, licence de réutilisation des bulletins.
-10. **Nom et marque** : confirmer « Nyota » (ou me donner le nom définitif) et l'identité visuelle (icône).
+10. **Nom et marque** : confirmer « Chart-BoursafrikIA » (ou me donner le nom définitif) et l'identité visuelle (icône).
 11. **Prix** : valider la grille (`PRICING` dans `packages/core/src/entitlements.ts`).

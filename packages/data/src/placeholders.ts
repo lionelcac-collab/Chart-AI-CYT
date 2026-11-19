@@ -3,7 +3,7 @@
  * until a contract + credentials exist. They throw if called, so they can never
  * silently produce data.
  */
-import type { Asset, Bar, MarketCode, Quote } from '@nyota/core';
+import type { Asset, Bar, MarketCode, Quote } from '@chart-boursafrikia/core';
 import { ConnectorError, type ConnectorCapabilities, type MarketDataConnector } from './connector';
 
 abstract class DisabledConnector implements MarketDataConnector {

@@ -1,4 +1,4 @@
-project_id = "nyota"
+project_id = "chart-boursafrikia"
 
 [functions.revenuecat-webhook]
 verify_jwt = false

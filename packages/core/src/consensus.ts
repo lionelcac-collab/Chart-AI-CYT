@@ -1,5 +1,5 @@
 /**
- * Consensus model — "Consensus Nyota".
+ * Consensus model — "Consensus Chart-BoursafrikIA".
  *
  * Part A: analyst consensus (public research notes from SGI / brokers / banks).
  * Part B: in-house quantitative model. Seven factor scores in [-1, 1] are
@@ -293,7 +293,7 @@ export interface ConsensusResult {
   disclaimer: { fr: string; en: string };
 }
 
-export const MODEL_VERSION = 'nyota-consensus-1.0.0';
+export const MODEL_VERSION = 'chart-boursafrikia-consensus-1.0.0';
 export const DISCLAIMER = {
   fr: 'Estimations statistiques, pas une garantie ni un conseil en investissement.',
   en: 'Statistical estimates, not a guarantee nor investment advice.',

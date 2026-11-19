@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { APP_NAME, MVP_MARKETS, MARKETS, sessionState, type MarketCode } from '@nyota/core';
+import { APP_NAME, MVP_MARKETS, MARKETS, sessionState, type MarketCode } from '@chart-boursafrikia/core';
 import { MarketScan } from '../../components/MarketScan';
 import { NewsList } from '../../components/NewsList';
 import { Button, Card, ErrorBox, Loading, Pill, ProvenanceBadge, Row, Screen, Txt } from '../../components/ui';

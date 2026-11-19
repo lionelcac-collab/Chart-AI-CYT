@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { View } from 'react-native';
-import { ENTITLEMENTS } from '@nyota/core';
+import { ENTITLEMENTS } from '@chart-boursafrikia/core';
 import { useT } from '../i18n';
 import { ApiError, api } from '../lib/api';
 import { fmtNum } from '../lib/format';

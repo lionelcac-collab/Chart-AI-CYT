@@ -2,7 +2,7 @@
  * Data access. Real mode: Supabase tables (RLS) + edge functions.
  * Demo mode: local fictional data (see demo.ts), clearly labelled in the UI.
  */
-import type { MarketCode, ScanPeriod, ScanRow } from '@nyota/core';
+import type { MarketCode, ScanPeriod, ScanRow } from '@chart-boursafrikia/core';
 import { DEMO_ASSETS, demoDashboard, demoNews, demoScan, demoSheet, demoSummary, demoTrackRecord } from './demo';
 import { SNAPSHOT } from './snapshot';
 import { IS_DB, dbDashboard, dbScan, dbSearch, dbSheet, snapDashboard, snapScan, snapSearch, snapSheet } from './snapshotApi';

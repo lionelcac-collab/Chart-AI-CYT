@@ -1,5 +1,5 @@
 -- =============================================================================
--- Nyota — schéma principal (Supabase / PostgreSQL 15+)
+-- Chart-BoursafrikIA — schéma principal (Supabase / PostgreSQL 15+)
 -- Principe : chaque donnée de marché garde sa source, son horodatage et son statut.
 -- =============================================================================
 
@@ -389,7 +389,7 @@ create table subscriptions (
   user_id uuid not null references auth.users(id) on delete cascade,
   provider text not null check (provider in ('revenuecat', 'cinetpay', 'notchpay', 'flutterwave')),
   provider_ref text not null,
-  product_id text not null,                    -- nyota_premium_monthly | nyota_premium_yearly
+  product_id text not null,                    -- chart_boursafrikia_premium_monthly | chart_boursafrikia_premium_yearly
   status text not null,                        -- trialing | active | grace | expired | refunded
   current_period_end timestamptz,
   raw jsonb,

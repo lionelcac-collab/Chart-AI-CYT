@@ -1,4 +1,4 @@
-import { convert, formatMoney, type CurrencyCode, type DataStatus } from '@nyota/core';
+import { convert, formatMoney, type CurrencyCode, type DataStatus } from '@chart-boursafrikia/core';
 import type { Lang } from '../settings';
 
 const nf = (lang: Lang, digits = 2) => new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });

@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Defs, LinearGradient, Line, Path, Stop, Text as SvgText } from 'react-native-svg';
-import { sma, type Bar } from '@nyota/core';
+import { sma, type Bar } from '@chart-boursafrikia/core';
 import { useTheme } from '../theme';
 
 export interface PriceChartProps { bars: Bar[]; height?: number; showSma?: boolean; levels?: { price: number; kind: 'support' | 'resistance' }[] }

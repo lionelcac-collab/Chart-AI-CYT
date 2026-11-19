@@ -6,11 +6,11 @@
       publiée par un particulier est plus souvent refusée.
 - [ ] Compte **Google Play Console** (25 $) — vérification d'identité de l'organisation.
 - [ ] Compte **Expo** (EAS) + `npx eas-cli@latest init` pour obtenir le `projectId` (à mettre dans `app.json > extra.eas.projectId`).
-- [ ] **RevenueCat** : projet, apps iOS/Android, produits `nyota_premium_monthly` / `nyota_premium_yearly` avec essai de
+- [ ] **RevenueCat** : projet, apps iOS/Android, produits `chart_boursafrikia_premium_monthly` / `chart_boursafrikia_premium_yearly` avec essai de
       7 jours, droit (« entitlement ») **`premium`**, clés publiques SDK → `.env`, webhook → `revenuecat-webhook`.
 - [ ] Produits d'abonnement créés dans App Store Connect et Play Console (même groupe d'abonnement, essai 7 jours).
 - [ ] URL publiques : politique de confidentialité, conditions, support (page web ou site vitrine).
-- [ ] Icône 1024×1024 et écran de lancement à l'identité Nyota (les fichiers actuels d'`assets/` sont ceux du modèle Expo).
+- [ ] Icône 1024×1024 et écran de lancement à l'identité Chart-BoursafrikIA (les fichiers actuels d'`assets/` sont ceux du modèle Expo).
 
 ## 2. Build & soumission
 
@@ -23,13 +23,13 @@ npx eas-cli@latest submit --platform android --latest   # piste « internal » d
 
 ## 3. Fiche (FR / EN)
 
-- **Nom** : Nyota — Bourses africaines & IA · *Nyota — African Stocks & AI*
+- **Nom** : Chart-BoursafrikIA — Bourses africaines & IA · *Chart-BoursafrikIA — African Stocks & AI*
 - **Sous-titre** : BRVM, BVMAC, NGX : analyses et alertes · *BRVM, BVMAC, NGX: analysis & alerts*
 - **Catégorie** : Finance
 - **Description courte (Play)** : Cours, plus bas/plus hauts, analyses IA et consensus des bourses africaines.
 - **Mots-clés (iOS)** : BRVM,bourse,Abidjan,NGX,Nigeria,BVMAC,actions,dividende,FCFA,analyse,investir,Afrique
 - **Description** : présenter les fonctions (tableau de bord multi-marchés, fiches complètes, plus bas/plus hauts sur
-  7 périodes, consensus, assistant IA, alertes) **sans promesse de gains**, et inclure la mention : « Nyota est un outil
+  7 périodes, consensus, assistant IA, alertes) **sans promesse de gains**, et inclure la mention : « Chart-BoursafrikIA est un outil
   d'information. Il ne fournit pas de conseil en investissement et ne passe pas d'ordres. Investir comporte un risque de
   perte en capital. Les cours sont des cours de clôture ou différés. »
 

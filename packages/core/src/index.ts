@@ -11,5 +11,5 @@ export * from './markets';
 export * from './entitlements';
 export * from './scan';
 
-/** Product name in one place (placeholder « [NOM DE L'APPLI] » resolved here). */
-export const APP_NAME = 'Nyota';
+/** Product name in one place. Domain: chart-boursafrikia.com */
+export const APP_NAME = 'Chart-BoursafrikIA';

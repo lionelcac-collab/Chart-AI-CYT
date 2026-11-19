@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Nyota",
-    "slug": "nyota",
-    "scheme": "nyota",
+    "name": "Chart-BoursafrikIA",
+    "slug": "chart-boursafrikia",
+    "scheme": "chart-boursafrikia",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,15 +10,15 @@
     "backgroundColor": "#0B0F1E",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nyota.markets",
+      "bundleIdentifier": "com.chartboursafrikia.app",
       "config": { "usesNonExemptEncryption": false },
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Nyota accède à vos photos uniquement pour analyser la capture d'écran de graphique que vous choisissez.",
-        "NSCameraUsageDescription": "Nyota utilise l'appareil photo uniquement si vous photographiez un graphique à analyser."
+        "NSPhotoLibraryUsageDescription": "Chart-BoursafrikIA accède à vos photos uniquement pour analyser la capture d'écran de graphique que vous choisissez.",
+        "NSCameraUsageDescription": "Chart-BoursafrikIA utilise l'appareil photo uniquement si vous photographiez un graphique à analyser."
       }
     },
     "android": {
-      "package": "com.nyota.markets",
+      "package": "com.chartboursafrikia.app",
       "adaptiveIcon": {
         "backgroundColor": "#0B0F1E",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -39,7 +39,7 @@
       "expo-secure-store",
       "expo-web-browser",
       ["expo-notifications", { "color": "#F2B544" }],
-      ["expo-image-picker", { "photosPermission": "Nyota accède à vos photos uniquement pour analyser la capture d'écran de graphique que vous choisissez." }]
+      ["expo-image-picker", { "photosPermission": "Chart-BoursafrikIA accède à vos photos uniquement pour analyser la capture d'écran de graphique que vous choisissez." }]
     ],
     "experiments": { "typedRoutes": false },
     "extra": { "eas": { "projectId": "" } }

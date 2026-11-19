@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { MVP_MARKETS, type MarketCode } from '@nyota/core';
+import { MVP_MARKETS, type MarketCode } from '@chart-boursafrikia/core';
 import { NewsList } from '../components/NewsList';
 import { Card, ErrorBox, Loading, Pill, Row, Screen, Txt } from '../components/ui';
 import { useT } from '../i18n';

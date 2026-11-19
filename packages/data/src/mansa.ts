@@ -16,8 +16,8 @@
  * commercial app / redistribution must be confirmed in writing (pricing page lists
  * "Redistribution-lite" only on the Business plan).
  */
-import type { Asset, Bar, CurrencyCode, MarketCode, Quote } from '@nyota/core';
-import { MARKETS, localClock } from '@nyota/core';
+import type { Asset, Bar, CurrencyCode, MarketCode, Quote } from '@chart-boursafrikia/core';
+import { MARKETS, localClock } from '@chart-boursafrikia/core';
 import { ConnectorError, type ConnectorCapabilities, type FetchLike, type FxRate, type IndexQuote, type MarketDataConnector } from './connector';
 import { RateLimiter, TtlCache } from './cache';
 

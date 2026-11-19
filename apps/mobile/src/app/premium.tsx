@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Platform, View } from 'react-native';
-import { PRICING } from '@nyota/core';
+import { PRICING } from '@chart-boursafrikia/core';
 import { Button, Card, Pill, Row, Screen, Txt } from '../components/ui';
 import { useT } from '../i18n';
 import { api } from '../lib/api';

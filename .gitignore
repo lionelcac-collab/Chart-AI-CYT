@@ -16,3 +16,4 @@ data/history*/*.csv
 data/history*/.tmp/
 # Backfill working data (CSV + logs); final history lives in Supabase
 data/
+supabase/.temp/

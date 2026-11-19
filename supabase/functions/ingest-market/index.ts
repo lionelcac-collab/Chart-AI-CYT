@@ -156,7 +156,7 @@ async function backfill(market: MarketCode, from: string, to: string) {
 async function alertAdmin(subject: string, details: unknown) {
   const hook = Deno.env.get('ADMIN_ALERT_WEBHOOK'); // Slack/Discord/email relay
   console.warn(subject, JSON.stringify(details).slice(0, 2000));
-  if (hook) await fetch(hook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: `[Nyota] ${subject}` }) }).catch(() => {});
+  if (hook) await fetch(hook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: `[Chart-BoursafrikIA] ${subject}` }) }).catch(() => {});
 }
 
 Deno.serve(handler(async (req) => {

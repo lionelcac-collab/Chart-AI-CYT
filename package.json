@@ -1,9 +1,9 @@
 {
-  "name": "nyota-monorepo",
+  "name": "chart-boursafrikia-monorepo",
   "private": true,
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
-    "test": "npm run test -w @nyota/core -w @nyota/data",
+    "test": "npm run test -w @chart-boursafrikia/core -w @chart-boursafrikia/data",
     "typecheck": "npm run typecheck --workspaces --if-present"
   }
 }

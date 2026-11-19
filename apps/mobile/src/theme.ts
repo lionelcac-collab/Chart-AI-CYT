@@ -1,7 +1,7 @@
 import { useColorScheme } from 'react-native';
 import { useSettings } from './settings';
 
-/** Nyota identity: night indigo + star gold. Positive/negative colours tuned for both modes (WCAG AA on cards). */
+/** Chart-BoursafrikIA identity: night indigo + gold. Positive/negative colours tuned for both modes (WCAG AA on cards). */
 const palette = {
   dark: {
     bg: '#0B0F1E', card: '#141A2E', cardAlt: '#1B2240', border: '#26304F',

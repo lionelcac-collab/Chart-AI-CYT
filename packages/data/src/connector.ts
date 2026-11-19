@@ -1,4 +1,4 @@
-import type { Asset, Bar, MarketCode, Provenance, Quote } from '@nyota/core';
+import type { Asset, Bar, MarketCode, Provenance, Quote } from '@chart-boursafrikia/core';
 
 /**
  * Common interface for every market-data source. Connectors are interchangeable:

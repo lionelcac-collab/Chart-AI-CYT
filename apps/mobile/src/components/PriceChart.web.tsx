@@ -2,7 +2,7 @@
 import { useEffect, useRef, type ComponentRef } from 'react';
 import { View } from 'react-native';
 import { AreaSeries, ColorType, LineSeries, LineStyle, createChart, type IChartApi, type UTCTimestamp } from 'lightweight-charts';
-import { sma } from '@nyota/core';
+import { sma } from '@chart-boursafrikia/core';
 import { useTheme } from '../theme';
 import type { PriceChartProps } from './PriceChart';
 

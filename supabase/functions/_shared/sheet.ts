@@ -1,4 +1,4 @@
-// Builds the complete "fiche actif" from the database + pure computations of @nyota/core.
+// Builds the complete "fiche actif" from the database + pure computations of @chart-boursafrikia/core.
 // Used by the `asset` endpoint, the AI analysis, the chat tools and the post-close job.
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.45.4';
 import {

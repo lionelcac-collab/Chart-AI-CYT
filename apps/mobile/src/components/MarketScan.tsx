@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { SCAN_PERIODS, scanView, type MarketCode, type ScanPeriod, type ScanRow } from '@nyota/core';
+import { SCAN_PERIODS, scanView, type MarketCode, type ScanPeriod, type ScanRow } from '@chart-boursafrikia/core';
 import { useT } from '../i18n';
 import { api } from '../lib/api';
 import { fmtDate, fmtNum, fmtPct } from '../lib/format';

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { CurrencyCode, Plan } from '@nyota/core';
+import type { CurrencyCode, Plan } from '@chart-boursafrikia/core';
 
 export type Lang = 'fr' | 'en';
 export type ThemePref = 'system' | 'dark' | 'light';
@@ -24,7 +24,7 @@ const Ctx = createContext<SettingsState>({
   setLang() {}, setThemePref() {}, setDisplayCurrency() {}, setPlan() {},
 });
 
-const KEY = 'nyota.settings.v1';
+const KEY = 'chart-boursafrikia.settings.v1';
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>(defaultLang);

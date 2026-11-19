@@ -1,6 +1,6 @@
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
-import { explainFactor, type ConsensusResult, type CurrencyCode, type LiquidityStat, type PerformanceStat, type RangeStat, type Ratios, type TechnicalSnapshot, type AnalystConsensus } from '@nyota/core';
+import { explainFactor, type ConsensusResult, type CurrencyCode, type LiquidityStat, type PerformanceStat, type RangeStat, type Ratios, type TechnicalSnapshot, type AnalystConsensus } from '@chart-boursafrikia/core';
 import { useT } from '../i18n';
 import { fmtDate, fmtNum, fmtPct, fmtPrice, fmtCompact } from '../lib/format';
 import { isFullConsensus, type AssetSheet } from '../lib/types';

@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Alert, Platform } from 'react-native';
 import { Pressable } from 'react-native';
-import { APP_NAME } from '@nyota/core';
+import { APP_NAME } from '@chart-boursafrikia/core';
 import { Card, Pill, Row, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { SNAPSHOT } from '../../lib/snapshot';

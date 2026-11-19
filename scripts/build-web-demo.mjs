@@ -12,7 +12,7 @@ const snapshot = snapIdx > 0 ? readFileSync(process.argv[snapIdx + 1], 'utf8') :
 if (snapshot) JSON.parse(snapshot); // fail early on a broken file
 const build = join(out, 'expo-build');
 const app = new URL('../apps/mobile', import.meta.url).pathname;
-execSync(`npx expo export --platform web --output-dir ${build}`, {
+execSync(`npx expo export --platform web --clear --output-dir ${build}`, {
   cwd: app, stdio: 'inherit',
   env: { ...process.env, WEB_SINGLE_BUNDLE: '1', EXPO_PUBLIC_DEMO: '1', CI: '1' },
 });
@@ -21,8 +21,8 @@ const files = readdirSync(dir).filter((f) => f.endsWith('.js'));
 if (files.length !== 1) throw new Error(`expected 1 bundle, got ${files.length}`);
 const js = readFileSync(join(dir, files[0]), 'utf8').replace(/<\/script/gi, '<\\/script');
 
-const page = `<title>Nyota Démo</title>
-<meta name="description" content="Démo web de Nyota, analyse des bourses africaines (données fictives).">
+const page = `<title>Chart-BoursafrikIA Démo</title>
+<meta name="description" content="Démo web de Chart-BoursafrikIA, analyse des bourses africaines (données fictives).">
 <style>
   :root { --bg: #F5F6FB; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0B0F1E; color-scheme: dark; } }
@@ -33,7 +33,7 @@ const page = `<title>Nyota Démo</title>
 </style>
 <noscript>JavaScript est nécessaire pour afficher la démo.</noscript>
 <div id="root"></div>
-<div id="boot" style="font:15px -apple-system,Segoe UI,sans-serif;color:#9AA4C2;padding:24px;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center">Chargement de la démo Nyota…</div>
+<div id="boot" style="font:15px -apple-system,Segoe UI,sans-serif;color:#9AA4C2;padding:24px;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center">Chargement de la démo Chart-BoursafrikIA…</div>
 <script>
   // The app router reads the URL path: start the demo on its home screen whatever path hosts this page.
   try { if (location.pathname !== '/') history.replaceState(null, '', '/'); } catch (e) {}
@@ -52,8 +52,8 @@ const page = `<title>Nyota Démo</title>
     }
   }, 10000);
 </script>
-${snapshot ? `<script>window.__NYOTA_SNAPSHOT__ = ${snapshot.replace(/</g, '\\u003c')};</script>\n` : ''}<script>${js}</script>
+${snapshot ? `<script>window.__CHART_BOURSAFRIKIA_SNAPSHOT__ = ${snapshot.replace(/</g, '\\u003c')};</script>\n` : ''}<script>${js}</script>
 `;
 mkdirSync(out, { recursive: true });
-writeFileSync(join(out, 'nyota-demo.html'), page);
-console.log(`wrote ${join(out, 'nyota-demo.html')} (${(page.length / 1e6).toFixed(2)} MB)`);
+writeFileSync(join(out, 'chart-boursafrikia-demo.html'), page);
+console.log(`wrote ${join(out, 'chart-boursafrikia-demo.html')} (${(page.length / 1e6).toFixed(2)} MB)`);

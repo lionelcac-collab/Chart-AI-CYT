@@ -12,8 +12,8 @@
  * The PDF → text step is injected (`extractText`) so the connector runs in Deno
  * (unpdf), Node (tests) or anywhere else.
  */
-import type { Asset, Bar, MarketCode, Quote } from '@nyota/core';
-import { MARKETS, localClock } from '@nyota/core';
+import type { Asset, Bar, MarketCode, Quote } from '@chart-boursafrikia/core';
+import { MARKETS, localClock } from '@chart-boursafrikia/core';
 import { parseBulletinText, PROFILES, type BulletinProfile, type BulletinRow } from './bulletin';
 import { bulletinDate, parseBrvmBoc, parseBvmacBoc, parseNgxDailyList, type OfficialRow } from './officialBulletins';
 

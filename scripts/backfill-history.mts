@@ -21,10 +21,10 @@ const MARKETS = arg('markets', 'BRVM,BVMAC,NGX').split(',');
 const PAUSE_MS = Number(arg('pause', '1000'));
 mkdirSync(OUT, { recursive: true });
 // Private temp dir per process (several backfills may share the same output folder).
-const TMP = mkdtempSync(join(tmpdir(), 'nyota-backfill-'));
+const TMP = mkdtempSync(join(tmpdir(), 'chart-boursafrikia-backfill-'));
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const UA = { 'User-Agent': 'NyotaHistoryBackfill/1.0 (official bulletins, polite crawl)' };
+const UA = { 'User-Agent': 'ChartBoursafrikIAHistoryBackfill/1.0 (official bulletins, polite crawl)' };
 
 async function fetchPdf(url: string): Promise<Uint8Array | null> {
   for (let attempt = 0; attempt < 3; attempt++) {

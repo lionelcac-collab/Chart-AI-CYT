@@ -1,4 +1,4 @@
-// Exports a compact snapshot of the Nyota database (latest closes, indices, 3 years of split-adjusted
+// Exports a compact snapshot of the Chart-BoursafrikIA database (latest closes, indices, 3 years of split-adjusted
 // daily history) for the offline web demo. Uses the Supabase Management API (SQL), token injected by
 // the session proxy or SUPABASE_ACCESS_TOKEN.
 //   npx tsx scripts/export-db-snapshot.mts --ref <project-ref> --out snapshot-db.json [--years 3]
@@ -32,7 +32,7 @@ const hist = await sql<{ asset_id: string; d: number[]; c: number[]; v: (number 
 const out = {
   kind: 'db',
   fetchedAt: new Date().toISOString(),
-  source: 'Base Nyota (bulletins officiels BRVM/BVMAC/NGX + Mansa Markets)',
+  source: 'Base Chart-BoursafrikIA (bulletins officiels BRVM/BVMAC/NGX + Mansa Markets)',
   sourceUrl: 'https://mansamarkets.com',
   plan: 'snapshot',
   base,

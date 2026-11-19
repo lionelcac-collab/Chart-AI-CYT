@@ -1,6 +1,6 @@
-# Nyota — Architecture
+# Chart-BoursafrikIA — Architecture
 
-> **Nyota** (« étoile » en swahili) est le nom retenu pour « [NOM DE L'APPLI] ». Il est défini à un seul endroit
+> **Chart-BoursafrikIA** est le nom de l'application (domaine prévu : **chart-boursafrikia.com**). Il est défini à un seul endroit
 > (`APP_NAME` dans `packages/core/src/index.ts`, `name`/`slug` dans `apps/mobile/app.json`) et se change en 2 minutes.
 > Vérifiez sa disponibilité (marques OAPI/INPI/EUIPO, noms de domaine, App Store) avant tout dépôt.
 

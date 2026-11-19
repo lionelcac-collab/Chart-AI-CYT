@@ -1,4 +1,4 @@
-import type { Bar, MarketCode, Quote } from '@nyota/core';
+import type { Bar, MarketCode, Quote } from '@chart-boursafrikia/core';
 
 export type AnomalyKind = 'price_jump' | 'non_positive' | 'source_divergence' | 'stale' | 'volume_spike' | 'ohlc_inconsistent';
 

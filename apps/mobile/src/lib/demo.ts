@@ -2,12 +2,12 @@
  * DEMO data provider — used only when no backend is configured (or EXPO_PUBLIC_DEMO=1).
  * All names are FICTIONAL ("Démo …") and every screen shows a "MODE DÉMO — données
  * fictives" banner, so no synthetic number can be mistaken for a real price.
- * Indicators, highs/lows and the consensus are computed by the real @nyota/core code.
+ * Indicators, highs/lows and the consensus are computed by the real @chart-boursafrikia/core code.
  */
 import {
   computeConsensus, computePerformances, computeRanges, liquidity, scanMarket, technicalSnapshot, type Bar, type CurrencyCode, type MarketCode,
   type ScanPeriod, type ScanRow,
-} from '@nyota/core';
+} from '@chart-boursafrikia/core';
 import type { AssetSheet, AssetSummary, Dashboard, NewsItem, TrackRecordRow } from './types';
 
 interface DemoAsset { id: string; ticker: string; name: string; market: MarketCode; sector: string; currency: CurrencyCode; start: number; drift: number; vol: number; tradeProb: number }

@@ -1,4 +1,4 @@
-import type { Bar, MarketCode, Quote } from '@nyota/core';
+import type { Bar, MarketCode, Quote } from '@chart-boursafrikia/core';
 import { ConnectorError, type MarketDataConnector } from './connector';
 
 export interface SourceAttempt { connector: string; ok: boolean; error?: string; ms: number }

@@ -1,4 +1,4 @@
-# Nyota ✦ — Bourses africaines & IA
+# Chart-BoursafrikIA ✦ — Bourses africaines & IA
 
 Application d'analyse des marchés boursiers africains (BRVM, BVMAC, NGX, puis JSE, EGX, Casablanca…) assistée par IA,
 sur **web, iOS et Android** à partir d'un seul code, en offres **Gratuit** et **Premium**, en français et en anglais.

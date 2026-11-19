@@ -1,12 +1,12 @@
 /**
  * REAL-DATA SNAPSHOT mode: a dated snapshot of the Mansa API (current quotes, indices, FX),
- * injected into the web page at build time as `window.__NYOTA_SNAPSHOT__`
+ * injected into the web page at build time as `window.__CHART_BOURSAFRIKIA_SNAPSHOT__`
  * (scripts/fetch-snapshot.mts + scripts/build-web-demo.mjs --snapshot).
  * Everything that needs price history (charts, highs/lows, technicals, consensus, period
  * movers, supports/resistances) is shown as "data unavailable": nothing is simulated.
  */
-import type { IndexQuote } from '@nyota/data';
-import type { MarketCode, Quote } from '@nyota/core';
+import type { IndexQuote } from '@chart-boursafrikia/data';
+import type { MarketCode, Quote } from '@chart-boursafrikia/core';
 
 export interface SnapshotQuote extends Quote { name: string }
 export interface LatestRow {
@@ -15,7 +15,7 @@ export interface LatestRow {
   volume: number | string | null; value: number | string | null; source: string;
 }
 export interface Snapshot {
-  /** 'db' = export of the Nyota database (history included); absent = Mansa quotes only. */
+  /** 'db' = export of the Chart-BoursafrikIA database (history included); absent = Mansa quotes only. */
   kind?: 'db';
   base?: string;
   latest?: LatestRow[];
@@ -29,4 +29,4 @@ export interface Snapshot {
   fx: { quote: string; rate: number }[];
 }
 
-export const SNAPSHOT: Snapshot | null = (globalThis as { __NYOTA_SNAPSHOT__?: Snapshot }).__NYOTA_SNAPSHOT__ ?? null;
+export const SNAPSHOT: Snapshot | null = (globalThis as { __CHART_BOURSAFRIKIA_SNAPSHOT__?: Snapshot }).__CHART_BOURSAFRIKIA_SNAPSHOT__ ?? null;

@@ -1,7 +1,7 @@
 import type {
   AnalystConsensus, Bar, ConsensusResult, Confidence, CurrencyCode, DataStatus, LiquidityStat, MarketCode,
   Orientation, PerformanceStat, RangeStat, Ratios, TechnicalSnapshot,
-} from '@nyota/core';
+} from '@chart-boursafrikia/core';
 
 export interface AssetSummary {
   id: string;
