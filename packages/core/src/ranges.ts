@@ -1,0 +1,128 @@
+import type { Bar } from './types';
+
+/**
+ * PLUS BAS / PLUS HAUT and performance over standard look-back windows.
+ * Windows are calendar based (1W = 7 days, 1M = 1 month…) anchored on the last
+ * session date, which is how African exchanges' bulletins express them.
+ */
+export type RangePeriod = '1W' | '1M' | '3M' | '6M' | '1Y' | '2Y' | '3Y' | 'YTD';
+
+export const RANGE_PERIODS: RangePeriod[] = ['1W', '1M', '3M', '6M', '1Y', '2Y', '3Y'];
+export const PERF_PERIODS: RangePeriod[] = ['1W', '1M', '3M', '6M', 'YTD', '1Y', '2Y', '3Y'];
+
+export interface RangeStat {
+  period: RangePeriod;
+  /** Lowest low (or close when intraday low is missing) in the window. */
+  low: number;
+  lowDate: string;
+  high: number;
+  highDate: string;
+  /** Position of the current price in [low, high], 0–100 %. */
+  positionPct: number;
+  /** (last - high) / high, negative or zero, in %. */
+  distanceFromHighPct: number;
+  /** (last - low) / low, positive or zero, in %. */
+  distanceFromLowPct: number;
+  /** Number of sessions (with a price) in the window. */
+  sessions: number;
+  /** True when the history does not fully cover the window. */
+  partial: boolean;
+}
+
+export function windowStart(lastDate: string, period: RangePeriod): string {
+  const d = new Date(lastDate + 'T00:00:00Z');
+  switch (period) {
+    case '1W': d.setUTCDate(d.getUTCDate() - 7); break;
+    case '1M': d.setUTCMonth(d.getUTCMonth() - 1); break;
+    case '3M': d.setUTCMonth(d.getUTCMonth() - 3); break;
+    case '6M': d.setUTCMonth(d.getUTCMonth() - 6); break;
+    case '1Y': d.setUTCFullYear(d.getUTCFullYear() - 1); break;
+    case '2Y': d.setUTCFullYear(d.getUTCFullYear() - 2); break;
+    case '3Y': d.setUTCFullYear(d.getUTCFullYear() - 3); break;
+    case 'YTD': return `${lastDate.slice(0, 4)}-01-01`;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+/** Bars must be sorted ascending by date. */
+function sliceWindow(bars: Bar[], period: RangePeriod): { slice: Bar[]; partial: boolean } {
+  const last = bars[bars.length - 1];
+  if (!last) return { slice: [], partial: true };
+  const start = windowStart(last.date, period);
+  const first = bars[0]!;
+  const partial = first.date > start;
+  // For performance we need the reference close *before or at* the window start.
+  const slice = bars.filter((b) => b.date > start || (period === 'YTD' && b.date >= start));
+  return { slice, partial };
+}
+
+export function computeRange(bars: Bar[], period: RangePeriod): RangeStat | null {
+  const { slice, partial } = sliceWindow(bars, period);
+  if (slice.length === 0) return null;
+  const last = bars[bars.length - 1]!.close;
+  let low = Infinity, high = -Infinity, lowDate = '', highDate = '';
+  for (const b of slice) {
+    const l = b.low ?? b.close;
+    const h = b.high ?? b.close;
+    if (l < low) { low = l; lowDate = b.date; }
+    if (h > high) { high = h; highDate = b.date; }
+  }
+  const span = high - low;
+  return {
+    period,
+    low, lowDate, high, highDate,
+    positionPct: span > 0 ? ((last - low) / span) * 100 : 50,
+    distanceFromHighPct: high > 0 ? ((last - high) / high) * 100 : 0,
+    distanceFromLowPct: low > 0 ? ((last - low) / low) * 100 : 0,
+    sessions: slice.length,
+    partial,
+  };
+}
+
+export function computeRanges(bars: Bar[], periods: RangePeriod[] = RANGE_PERIODS): RangeStat[] {
+  return periods.map((p) => computeRange(bars, p)).filter((r): r is RangeStat => r !== null);
+}
+
+export interface PerformanceStat {
+  period: RangePeriod;
+  /** Simple price return in %, null when history is too short. */
+  returnPct: number | null;
+  /** Annualised volatility of daily log returns in %, null when < 5 returns. */
+  volatilityPct: number | null;
+  referenceDate: string | null;
+}
+
+/** Reference close = last close on or before the window start. */
+export function computePerformance(bars: Bar[], period: RangePeriod): PerformanceStat {
+  const last = bars[bars.length - 1];
+  if (!last) return { period, returnPct: null, volatilityPct: null, referenceDate: null };
+  const start = windowStart(last.date, period);
+  let ref: Bar | undefined;
+  for (const b of bars) {
+    if (period === 'YTD' ? b.date < start : b.date <= start) ref = b; else break;
+  }
+  const inWindow = bars.filter((b) => (ref ? b.date >= ref.date : false));
+  return {
+    period,
+    returnPct: ref && ref.close > 0 ? ((last.close - ref.close) / ref.close) * 100 : null,
+    volatilityPct: annualisedVolatility(inWindow),
+    referenceDate: ref?.date ?? null,
+  };
+}
+
+export function computePerformances(bars: Bar[], periods: RangePeriod[] = PERF_PERIODS): PerformanceStat[] {
+  return periods.map((p) => computePerformance(bars, p));
+}
+
+/** Annualised (252 sessions) stdev of daily log returns, in %. */
+export function annualisedVolatility(bars: Bar[]): number | null {
+  const r: number[] = [];
+  for (let i = 1; i < bars.length; i++) {
+    const a = bars[i - 1]!.close, b = bars[i]!.close;
+    if (a > 0 && b > 0) r.push(Math.log(b / a));
+  }
+  if (r.length < 5) return null;
+  const mean = r.reduce((s, x) => s + x, 0) / r.length;
+  const variance = r.reduce((s, x) => s + (x - mean) ** 2, 0) / (r.length - 1);
+  return Math.sqrt(variance) * Math.sqrt(252) * 100;
+}

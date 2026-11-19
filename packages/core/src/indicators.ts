@@ -1,0 +1,214 @@
+import type { Bar } from './types';
+
+/** All series are aligned with the input: index i corresponds to closes[i]; null before warm-up. */
+export type Series = (number | null)[];
+
+export function sma(values: number[], period: number): Series {
+  const out: Series = new Array(values.length).fill(null);
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) {
+    sum += values[i]!;
+    if (i >= period) sum -= values[i - period]!;
+    if (i >= period - 1) out[i] = sum / period;
+  }
+  return out;
+}
+
+export function ema(values: number[], period: number): Series {
+  const out: Series = new Array(values.length).fill(null);
+  if (values.length < period) return out;
+  const k = 2 / (period + 1);
+  let prev = values.slice(0, period).reduce((s, x) => s + x, 0) / period;
+  out[period - 1] = prev;
+  for (let i = period; i < values.length; i++) {
+    prev = values[i]! * k + prev * (1 - k);
+    out[i] = prev;
+  }
+  return out;
+}
+
+/** Wilder's RSI. */
+export function rsi(values: number[], period = 14): Series {
+  const out: Series = new Array(values.length).fill(null);
+  if (values.length <= period) return out;
+  let gain = 0, loss = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = values[i]! - values[i - 1]!;
+    if (d >= 0) gain += d; else loss -= d;
+  }
+  let avgG = gain / period, avgL = loss / period;
+  out[period] = avgL === 0 ? 100 : 100 - 100 / (1 + avgG / avgL);
+  for (let i = period + 1; i < values.length; i++) {
+    const d = values[i]! - values[i - 1]!;
+    avgG = (avgG * (period - 1) + Math.max(d, 0)) / period;
+    avgL = (avgL * (period - 1) + Math.max(-d, 0)) / period;
+    out[i] = avgL === 0 ? 100 : 100 - 100 / (1 + avgG / avgL);
+  }
+  return out;
+}
+
+export interface MacdResult { macd: Series; signal: Series; histogram: Series }
+
+export function macd(values: number[], fast = 12, slow = 26, signalPeriod = 9): MacdResult {
+  const ef = ema(values, fast), es = ema(values, slow);
+  const line: Series = values.map((_, i) => (ef[i] != null && es[i] != null ? ef[i]! - es[i]! : null));
+  const firstIdx = line.findIndex((x) => x !== null);
+  const signal: Series = new Array(values.length).fill(null);
+  if (firstIdx >= 0) {
+    const compact = line.slice(firstIdx) as number[];
+    const sig = ema(compact, signalPeriod);
+    sig.forEach((v, j) => { signal[firstIdx + j] = v; });
+  }
+  const histogram: Series = line.map((m, i) => (m != null && signal[i] != null ? m - signal[i]! : null));
+  return { macd: line, signal, histogram };
+}
+
+export interface BollingerResult { middle: Series; upper: Series; lower: Series }
+
+export function bollinger(values: number[], period = 20, mult = 2): BollingerResult {
+  const middle = sma(values, period);
+  const upper: Series = new Array(values.length).fill(null);
+  const lower: Series = new Array(values.length).fill(null);
+  for (let i = period - 1; i < values.length; i++) {
+    const m = middle[i]!;
+    let v = 0;
+    for (let j = i - period + 1; j <= i; j++) v += (values[j]! - m) ** 2;
+    const sd = Math.sqrt(v / period);
+    upper[i] = m + mult * sd;
+    lower[i] = m - mult * sd;
+  }
+  return { middle, upper, lower };
+}
+
+export interface Level { price: number; touches: number; kind: 'support' | 'resistance' }
+
+/**
+ * Support / resistance from swing pivots clustered within `tolerancePct`.
+ * Pivots: local extrema over ±`lookaround` sessions.
+ */
+export function supportResistance(bars: Bar[], lookaround = 3, tolerancePct = 1.5, maxLevels = 3): Level[] {
+  const pivots: { price: number; type: 'high' | 'low' }[] = [];
+  for (let i = lookaround; i < bars.length - lookaround; i++) {
+    const hi = bars[i]!.high ?? bars[i]!.close;
+    const lo = bars[i]!.low ?? bars[i]!.close;
+    let isHigh = true, isLow = true;
+    for (let j = i - lookaround; j <= i + lookaround; j++) {
+      if (j === i) continue;
+      if ((bars[j]!.high ?? bars[j]!.close) > hi) isHigh = false;
+      if ((bars[j]!.low ?? bars[j]!.close) < lo) isLow = false;
+    }
+    if (isHigh) pivots.push({ price: hi, type: 'high' });
+    if (isLow) pivots.push({ price: lo, type: 'low' });
+  }
+  const clusters: { price: number; touches: number }[] = [];
+  for (const p of pivots.sort((a, b) => a.price - b.price)) {
+    const c = clusters[clusters.length - 1];
+    if (c && Math.abs(p.price - c.price) / c.price * 100 <= tolerancePct) {
+      c.price = (c.price * c.touches + p.price) / (c.touches + 1);
+      c.touches++;
+    } else clusters.push({ price: p.price, touches: 1 });
+  }
+  const last = bars[bars.length - 1]?.close ?? 0;
+  const supports = clusters.filter((c) => c.price < last)
+    .sort((a, b) => b.price - a.price).slice(0, maxLevels)
+    .map((c) => ({ ...c, kind: 'support' as const }));
+  const resistances = clusters.filter((c) => c.price >= last)
+    .sort((a, b) => a.price - b.price).slice(0, maxLevels)
+    .map((c) => ({ ...c, kind: 'resistance' as const }));
+  return [...supports, ...resistances];
+}
+
+export type Trend = 'up' | 'down' | 'sideways';
+
+/** Trend from MA alignment and the slope of the 50-session MA. */
+export function trend(values: number[]): Trend {
+  const n = values.length;
+  if (n < 50) {
+    if (n < 10) return 'sideways';
+    const chg = (values[n - 1]! - values[0]!) / values[0]!;
+    return chg > 0.05 ? 'up' : chg < -0.05 ? 'down' : 'sideways';
+  }
+  const m20 = sma(values, 20), m50 = sma(values, 50);
+  const last = values[n - 1]!;
+  const a = m20[n - 1]!, b = m50[n - 1]!, bPrev = m50[n - 11] ?? b;
+  const slope = (b - bPrev) / bPrev;
+  if (last > a && a > b && slope > 0.005) return 'up';
+  if (last < a && a < b && slope < -0.005) return 'down';
+  return 'sideways';
+}
+
+export type PatternName = 'double_top' | 'double_bottom' | 'breakout_up' | 'breakdown' | 'golden_cross' | 'death_cross';
+
+export interface Pattern { name: PatternName; date: string; confidence: 'low' | 'medium' }
+
+/** Lightweight, deterministic pattern detection. The AI layer only *explains* these. */
+export function detectPatterns(bars: Bar[]): Pattern[] {
+  const out: Pattern[] = [];
+  const closes = bars.map((b) => b.close);
+  const n = closes.length;
+  if (n < 60) return out;
+  const lastDate = bars[n - 1]!.date;
+
+  // MA crosses within the last 10 sessions
+  const m50 = sma(closes, 50), m200 = sma(closes, 200);
+  for (let i = Math.max(n - 10, 1); i < n; i++) {
+    if (m50[i] == null || m200[i] == null || m50[i - 1] == null || m200[i - 1] == null) continue;
+    if (m50[i - 1]! <= m200[i - 1]! && m50[i]! > m200[i]!) out.push({ name: 'golden_cross', date: bars[i]!.date, confidence: 'medium' });
+    if (m50[i - 1]! >= m200[i - 1]! && m50[i]! < m200[i]!) out.push({ name: 'death_cross', date: bars[i]!.date, confidence: 'medium' });
+  }
+
+  // 55-session channel breakout (Donchian)
+  const prior = closes.slice(n - 56, n - 1);
+  const maxP = Math.max(...prior), minP = Math.min(...prior);
+  if (closes[n - 1]! > maxP) out.push({ name: 'breakout_up', date: lastDate, confidence: 'medium' });
+  if (closes[n - 1]! < minP) out.push({ name: 'breakdown', date: lastDate, confidence: 'medium' });
+
+  // Double top / bottom on the last 60 sessions: two extremes within 2 %, separated by ≥ 10 sessions
+  const w = closes.slice(n - 60);
+  const idxMax = w.indexOf(Math.max(...w));
+  const idxMin = w.indexOf(Math.min(...w));
+  const near = (a: number, b: number) => Math.abs(a - b) / b <= 0.02;
+  for (let j = 0; j < w.length; j++) {
+    if (Math.abs(j - idxMax) >= 10 && near(w[j]!, w[idxMax]!) && closes[n - 1]! < w[idxMax]! * 0.95) {
+      out.push({ name: 'double_top', date: lastDate, confidence: 'low' });
+      break;
+    }
+  }
+  for (let j = 0; j < w.length; j++) {
+    if (Math.abs(j - idxMin) >= 10 && near(w[j]!, w[idxMin]!) && closes[n - 1]! > w[idxMin]! * 1.05) {
+      out.push({ name: 'double_bottom', date: lastDate, confidence: 'low' });
+      break;
+    }
+  }
+  return out;
+}
+
+export interface TechnicalSnapshot {
+  last: number;
+  sma20: number | null; sma50: number | null; sma200: number | null;
+  rsi14: number | null;
+  macd: number | null; macdSignal: number | null; macdHist: number | null;
+  bbUpper: number | null; bbMiddle: number | null; bbLower: number | null;
+  trend: Trend;
+  levels: Level[];
+  patterns: Pattern[];
+}
+
+export function technicalSnapshot(bars: Bar[]): TechnicalSnapshot | null {
+  if (bars.length === 0) return null;
+  const c = bars.map((b) => b.close);
+  const i = c.length - 1;
+  const m = macd(c), bb = bollinger(c);
+  return {
+    last: c[i]!,
+    sma20: sma(c, 20)[i] ?? null,
+    sma50: sma(c, 50)[i] ?? null,
+    sma200: sma(c, 200)[i] ?? null,
+    rsi14: rsi(c)[i] ?? null,
+    macd: m.macd[i] ?? null, macdSignal: m.signal[i] ?? null, macdHist: m.histogram[i] ?? null,
+    bbUpper: bb.upper[i] ?? null, bbMiddle: bb.middle[i] ?? null, bbLower: bb.lower[i] ?? null,
+    trend: trend(c),
+    levels: supportResistance(bars),
+    patterns: detectPatterns(bars),
+  };
+}

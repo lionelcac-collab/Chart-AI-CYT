@@ -1,0 +1,9 @@
+{
+  "name": "nyota-monorepo",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "test": "npm run test -w @nyota/core -w @nyota/data",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}

@@ -1,0 +1,44 @@
+/** Single source of truth for Free vs Premium. Enforced server-side too (RLS + edge functions). */
+export type Plan = 'free' | 'premium';
+
+export interface Entitlements {
+  dataMode: 'close' | 'delayed';
+  aiAnalysesPerDay: number;      // Infinity = unlimited
+  watchlists: number;
+  watchlistItems: number;
+  alerts: number;
+  fullConsensus: boolean;        // scenarios, probabilities, invalidation
+  chartImageAnalysis: boolean;
+  advancedScreener: boolean;
+  pdfReports: boolean;
+  earlyIpoAnalyses: boolean;
+  ads: boolean;
+  chatMessagesPerDay: number;
+}
+
+export const ENTITLEMENTS: Record<Plan, Entitlements> = {
+  free: {
+    dataMode: 'close', aiAnalysesPerDay: 3, watchlists: 1, watchlistItems: 20, alerts: 3,
+    fullConsensus: false, chartImageAnalysis: false, advancedScreener: false, pdfReports: false,
+    earlyIpoAnalyses: false, ads: true, chatMessagesPerDay: 5,
+  },
+  premium: {
+    dataMode: 'delayed', aiAnalysesPerDay: Infinity, watchlists: 20, watchlistItems: 200, alerts: Infinity,
+    fullConsensus: true, chartImageAnalysis: true, advancedScreener: true, pdfReports: true,
+    earlyIpoAnalyses: true, ads: false, chatMessagesPerDay: 200, // fair-use cap to bound AI costs
+  },
+};
+
+export const TRIAL_DAYS = 7;
+
+/**
+ * Indicative purchasing-power-adjusted pricing (to validate with the user).
+ * Store prices must be picked from Apple/Google price tiers per country.
+ */
+export const PRICING = {
+  XOF: { monthly: 2500, yearly: 25000 },
+  XAF: { monthly: 2500, yearly: 25000 },
+  NGN: { monthly: 4500, yearly: 45000 },
+  EUR: { monthly: 4.99, yearly: 49.99 },
+  USD: { monthly: 4.99, yearly: 49.99 },
+} as const;
