@@ -15,16 +15,16 @@ const SCHEMA = {
     portfolio_total_value: { type: ['number', 'null'] },
     portfolio_currency: { type: ['string', 'null'] },
     items: { type: 'array', items: { type: 'object', additionalProperties: false,
-      required: ['ticker', 'name', 'exchange', 'isin', 'quantity', 'avg_cost_price', 'total_cost', 'market_value', 'unrealized_pnl', 'last_price', 'currency'],
+      required: ['ticker', 'name', 'exchange', 'isin', 'quantity', 'avg_cost_price', 'total_cost', 'market_value', 'unrealized_pnl', 'unrealized_pnl_pct', 'last_price', 'currency'],
       properties: {
         ticker: { type: ['string', 'null'] }, name: { type: ['string', 'null'] }, exchange: { type: ['string', 'null'] }, isin: { type: ['string', 'null'] },
         quantity: { type: ['number', 'null'] }, avg_cost_price: { type: ['number', 'null'] }, total_cost: { type: ['number', 'null'] },
-        market_value: { type: ['number', 'null'] }, unrealized_pnl: { type: ['number', 'null'] }, last_price: { type: ['number', 'null'] }, currency: { type: ['string', 'null'] },
+        market_value: { type: ['number', 'null'] }, unrealized_pnl: { type: ['number', 'null'] }, unrealized_pnl_pct: { type: ['number', 'null'] }, last_price: { type: ['number', 'null'] }, currency: { type: ['string', 'null'] },
       } } },
   },
 };
 
-type Item = { ticker: string | null; name: string | null; exchange: string | null; isin: string | null; quantity: number | null; avg_cost_price: number | null; total_cost: number | null; market_value: number | null; unrealized_pnl: number | null; last_price: number | null; currency: string | null };
+type Item = { ticker: string | null; name: string | null; exchange: string | null; isin: string | null; quantity: number | null; avg_cost_price: number | null; total_cost: number | null; market_value: number | null; unrealized_pnl: number | null; unrealized_pnl_pct: number | null; last_price: number | null; currency: string | null };
 const CUR: Record<string, string> = { FCFA: 'XOF', CFA: 'XOF', XOF: 'XOF', XAF: 'XAF', NGN: 'NGN', NAIRA: 'NGN', '₦': 'NGN', N: 'NGN' };
 type Asset = { id: string; ticker: string; name: string; market: string; isin: string | null; currency: string };
 
@@ -91,7 +91,7 @@ Deno.serve(handler(async (req) => {
         'et la bourse (BRVM, BVMAC ou NGX) si elle est écrite OU déductible du contexte immédiat (ville : Abidjan → BRVM, Douala/Libreville → BVMAC, Lagos → NGX ; devise : FCFA/XOF → BRVM, XAF → BVMAC, naira/NGN → NGX), sinon null. ' +
         'Ne relève que ce qui est réellement lisible sur l’image : n’invente aucun titre, ne complète pas une liste. Ignore les indices, devises, cryptomonnaies et matières premières. ' +
         'Pour chaque titre, relève aussi quand ils sont lisibles : quantity = nombre de titres détenus. Il peut être libellé « Unités », « Unité(s) », « Qté », « Quantité », « Nombre », « Nb titres », « Titres », « Actions », « Position », « Solde », « Avoir », « Détenu(s) », « Units », « Shares », « Holdings », « Qty », ou apparaître sans libellé à côté du nom (ex. « 120 unités », « x 120 »). Ce n’est PAS un volume échangé du marché ; avg_cost_price = prix de revient unitaire (PRU, prix moyen d’achat) ; ' +
-        'total_cost = montant total investi (coût d’acquisition) ; market_value = valorisation de la ligne ; unrealized_pnl = plus/moins-value latente en montant (négative si perte) ; last_price = dernier cours affiché ; ' +
+        'total_cost = montant total investi (coût d’acquisition) ; market_value = valorisation de la ligne ; unrealized_pnl = plus/moins-value latente en montant (négative si perte) ; unrealized_pnl_pct = plus/moins-value latente en POURCENTAGE (ex. « +12,5 % » → 12.5, « -8 % » → -8 ; ce n’est PAS la variation du jour) ; last_price = dernier cours affiché ; ' +
         'currency = devise des montants de la ligne (FCFA/XOF, XAF, NGN…). Recopie les nombres exactement (sans séparateurs de milliers, point décimal). Ne calcule rien toi-même, mets null si absent. ' +
         'portfolio_total_value = valorisation totale du portefeuille si elle est affichée. ' +
         'Une seule entrée par titre, même s’il apparaît plusieurs fois (additionne les quantités seulement s’il s’agit clairement de lignes distinctes du même titre). Si aucune liste de titres n’est lisible, readable=false et items vide.' +
@@ -102,7 +102,7 @@ Deno.serve(handler(async (req) => {
   const { data: assets } = await admin().from('assets').select('id, ticker, name, market, isin, currency').eq('is_active', true);
   const seen = new Set<string>();
   type Out = { qtySource: string | null; assetId: string; ticker: string; name: string; market: string; currency: string; confidence: number; read: string;
-    quantity: number | null; costAmount: number | null; costSource: string | null; marketValue: number | null; pnl: number | null; lastPrice: number | null; avgCostPrice: number | null; readCurrency: string | null; currencyMismatch: boolean };
+    quantity: number | null; costAmount: number | null; costSource: string | null; marketValue: number | null; pnl: number | null; pnlPct: number | null; lastPrice: number | null; avgCostPrice: number | null; readCurrency: string | null; currencyMismatch: boolean };
   const matched: Out[] = [];
   const unmatched: string[] = [];
   for (const it of r.data.items ?? []) {
@@ -126,9 +126,14 @@ Deno.serve(handler(async (req) => {
     if (pos(it.total_cost)) { cost = it.total_cost; costSource = 'total'; }
     else if (qty && pos(it.avg_cost_price)) { cost = qty * it.avg_cost_price!; costSource = 'pru'; }
     else if (pos(it.market_value) && typeof it.unrealized_pnl === 'number') { const c = it.market_value! - it.unrealized_pnl; if (c > 0) { cost = c; costSource = 'value_minus_pnl'; } }
+    // Gain/loss in %: invested = current value ÷ (1 + %/100), value as shown or shares × price shown.
+    if (cost == null && typeof it.unrealized_pnl_pct === 'number' && it.unrealized_pnl_pct > -100) {
+      const value = pos(it.market_value) ?? (qty && pos(it.last_price) ? qty * it.last_price! : null);
+      if (value) { cost = value / (1 + it.unrealized_pnl_pct / 100); costSource = 'value_div_pnl_pct'; }
+    }
     matched.push({ qtySource, assetId: m.asset.id, ticker: m.asset.ticker, name: m.asset.name, market: m.asset.market, currency: m.asset.currency, confidence: Math.round(m.score * 100) / 100, read,
       quantity: qty, costAmount: mismatch ? null : cost == null ? null : Math.round(cost * 100) / 100, costSource: mismatch ? null : costSource,
-      marketValue: pos(it.market_value), pnl: typeof it.unrealized_pnl === 'number' ? it.unrealized_pnl : null, lastPrice: pos(it.last_price), avgCostPrice: pos(it.avg_cost_price), readCurrency: readCur, currencyMismatch: mismatch });
+      marketValue: pos(it.market_value), pnl: typeof it.unrealized_pnl === 'number' ? it.unrealized_pnl : null, pnlPct: typeof it.unrealized_pnl_pct === 'number' ? it.unrealized_pnl_pct : null, lastPrice: pos(it.last_price), avgCostPrice: pos(it.avg_cost_price), readCurrency: readCur, currencyMismatch: mismatch });
   }
   await audit(user.id, 'watchlist_import', 'ai', null, { model: r.model, usage: r.usage, images: images.length, read: r.data.items?.length ?? 0, matched: matched.length, withQuantity: matched.filter((x) => x.quantity != null).length, withCost: matched.filter((x) => x.costAmount != null).length, hasMessage: !!note });
   return json({ readable: r.data.readable, matched, unmatched, totalValue: r.data.portfolio_total_value ?? null, totalCurrency: r.data.portfolio_currency ?? null, lang });

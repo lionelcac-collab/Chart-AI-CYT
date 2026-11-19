@@ -44,7 +44,7 @@ const dropStale = (rows: AssetSummary[]) => {
 
 
 export type ImportCandidate = { qtySource?: 'read' | 'value_div_price' | null; assetId: string; ticker: string; name: string; market: string; currency: string; confidence: number; read: string;
-  quantity: number | null; costAmount: number | null; costSource: 'total' | 'pru' | 'value_minus_pnl' | null; marketValue: number | null; pnl: number | null;
+  quantity: number | null; costAmount: number | null; costSource: 'total' | 'pru' | 'value_minus_pnl' | 'value_div_pnl_pct' | null; marketValue: number | null; pnl: number | null; pnlPct?: number | null;
   lastPrice: number | null; avgCostPrice: number | null; readCurrency: string | null; currencyMismatch: boolean };
 export type PortfolioLine = { assetId: string; ticker: string; name: string; market: string; currency: string; quantity: number | null; cost: number | null;
   priceStart: number | null; priceEnd: number | null; returnPct: number | null; valueStart: number | null; valueEnd: number | null; lastDate: string | null;

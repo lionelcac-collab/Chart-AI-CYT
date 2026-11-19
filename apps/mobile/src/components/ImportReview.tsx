@@ -101,6 +101,7 @@ export function ImportReview({ matched, unmatched, totalValue, totalCurrency, wa
           c.avgCostPrice != null ? `PRU ${fmtNum(c.avgCostPrice, lang, c.avgCostPrice < 100 ? 2 : 0)}` : null,
           c.marketValue != null ? `${fr ? 'valo.' : 'value'} ${fmtNum(c.marketValue, lang, 0)}` : null,
           c.pnl != null ? `${c.pnl > 0 ? '+' : ''}${fmtNum(c.pnl, lang, 0)}` : null,
+          c.pnlPct != null ? `${c.pnlPct > 0 ? '+' : ''}${fmtNum(c.pnlPct, lang, 2)} %` : null,
         ].filter(Boolean);
         return (
           <View key={c.assetId} style={{ paddingVertical: space.sm, gap: 6, borderBottomWidth: 1, borderBottomColor: th.grid }}>
@@ -126,7 +127,7 @@ export function ImportReview({ matched, unmatched, totalValue, totalCurrency, wa
               </Row>
             ) : null}
             {d.on && c.qtySource === 'value_div_price' ? <Txt size="xs" muted>{fr ? 'Nombre de titres déduit : valeur ÷ cours affichés.' : 'Shares deduced: value ÷ price shown.'}</Txt> : null}
-            {d.on && c.costSource ? <Txt size="xs" muted>{fr ? { total: 'Montant investi lu sur la capture.', pru: 'Montant investi = nombre de titres × PRU.', value_minus_pnl: 'Montant investi = valorisation − plus/moins-value.' }[c.costSource] : ''}</Txt> : null}
+            {d.on && c.costSource ? <Txt size="xs" muted>{fr ? { total: 'Montant investi lu sur la capture.', pru: 'Montant investi = nombre de titres × PRU.', value_minus_pnl: 'Montant investi = valorisation − plus/moins-value.', value_div_pnl_pct: 'Montant investi = valorisation ÷ (1 + plus/moins-value en %).' }[c.costSource] : ''}</Txt> : null}
           </View>
         );
       })}

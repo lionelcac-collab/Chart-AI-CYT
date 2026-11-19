@@ -110,20 +110,27 @@ export function ContributionBar({ value, maxAbs }: { value: number | null | unde
 }
 
 /** Inline editor for the optional position details of a line. */
-export function PositionEditor({ assetId, currency, quantity, cost, onDone }: { assetId: string; currency: string; quantity: number | null; cost: number | null; onDone: () => void }) {
+export function PositionEditor({ assetId, currency, quantity, cost, lastPrice, onDone }: { assetId: string; currency: string; quantity: number | null; cost: number | null; lastPrice?: number | null; onDone: () => void }) {
   const th = useTheme();
   const { lang } = useT();
   const fr = lang === 'fr';
   const qc = useQueryClient();
   const [qty, setQty] = useState(quantity != null ? String(quantity) : '');
   const [amt, setAmt] = useState(cost != null ? String(cost) : '');
+  const [pct, setPct] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const parse = (s: string) => { const t = s.replace(/\s| | /g, '').replace(',', '.'); return t === '' ? null : Number(t); };
   const cur = currency === 'XOF' || currency === 'XAF' ? 'FCFA' : currency;
 
+  // Amount invested deduced from a gain/loss in %: current value (shares × last close) ÷ (1 + %/100).
+  const qNow = parse(qty), pNow = parse(pct);
+  const derived = qNow != null && qNow > 0 && pNow != null && Number.isFinite(pNow) && pNow > -100 && lastPrice ? (qNow * lastPrice) / (1 + pNow / 100) : null;
+  const onPct = (v: string) => { setPct(v); };
+
   async function save(clear = false) {
-    const q = clear ? null : parse(qty), a = clear ? null : parse(amt);
+    const q = clear ? null : parse(qty);
+    const a = clear ? null : (amt.trim() === '' && derived != null ? Math.round(derived * 100) / 100 : parse(amt));
     if (q != null && (!Number.isFinite(q) || q <= 0)) { setErr(fr ? 'Nombre d’actions invalide.' : 'Invalid number of shares.'); return; }
     if (a != null && (!Number.isFinite(a) || a < 0)) { setErr(fr ? 'Montant invalide.' : 'Invalid amount.'); return; }
     setBusy(true); setErr(null);
@@ -146,6 +153,20 @@ export function PositionEditor({ assetId, currency, quantity, cost, onDone }: { 
           <TextInput value={amt} onChangeText={setAmt} keyboardType="decimal-pad" placeholder={fr ? 'facultatif' : 'optional'} placeholderTextColor={th.textMuted} style={input} accessibilityLabel={fr ? 'Montant investi' : 'Amount invested'} />
         </View>
       </Row>
+      <View style={{ gap: 4 }}>
+        <Txt size="xs" muted>{fr ? 'ou plus/moins-value en % (calcule le montant investi)' : 'or gain/loss in % (computes the amount invested)'}</Txt>
+        <TextInput value={pct} onChangeText={onPct} keyboardType="numbers-and-punctuation" placeholder={fr ? 'ex. +12,5 ou -8' : 'e.g. +12.5 or -8'} placeholderTextColor={th.textMuted} style={input} accessibilityLabel={fr ? 'Plus ou moins-value en pourcentage' : 'Gain or loss in percent'} />
+        {pct.trim() !== '' ? (
+          derived != null ? (
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Txt size="xs" color={th.info}>{fr ? 'Montant investi calculé' : 'Computed amount invested'} : {fmtNum(derived, lang, currency === 'XOF' || currency === 'XAF' ? 0 : 2)} {cur}</Txt>
+              <Pressable onPress={() => setAmt(String(Math.round(derived * 100) / 100))}><Txt size="xs" weight="700" color={th.accent}>{fr ? 'Utiliser' : 'Use'}</Txt></Pressable>
+            </Row>
+          ) : <Txt size="xs" color={th.warn}>{fr ? (lastPrice ? 'Indiquez d’abord le nombre d’actions.' : 'Cours indisponible : calcul impossible.') : 'Enter the number of shares first.'}</Txt>
+        ) : null}
+        {pct.trim() !== '' && derived != null && amt.trim() !== '' ? <Txt size="xs" muted>{fr ? 'Le montant saisi ci-dessus sera conservé ; touchez « Utiliser » pour le remplacer.' : 'The amount typed above is kept; tap “Use” to replace it.'}</Txt> : null}
+        {lastPrice ? <Txt size="xs" muted>{fr ? `Calcul : nombre d’actions × dernier cours (${fmtNum(lastPrice, lang, lastPrice < 100 ? 2 : 0)} ${cur}) ÷ (1 + % ÷ 100).` : 'Shares × last price ÷ (1 + % ÷ 100).'}</Txt> : null}
+      </View>
       <Txt size="xs" muted>{fr ? 'Facultatif. Montant total payé pour ces actions (frais compris si vous le souhaitez), dans la devise du titre.' : 'Optional. Total amount paid for these shares, in the stock’s currency.'}</Txt>
       {err ? <Txt size="xs" color={th.warn}>{err}</Txt> : null}
       <Row gap={space.sm}>

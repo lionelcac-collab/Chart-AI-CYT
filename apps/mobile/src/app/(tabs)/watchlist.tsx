@@ -142,7 +142,7 @@ export default function Watchlist() {
                     {stale ? <Txt size="xs" color={th.warn}>{fr ? `Dernière cotation le ${fmtDate(l.lastDate, lang)}` : `Last traded ${fmtDate(l.lastDate, lang)}`}</Txt> : null}
                   </View>
                 ) : null}
-                {editing === a.id ? <PositionEditor assetId={a.id} currency={a.currency} quantity={p?.quantity ?? null} cost={p?.cost ?? null} onDone={() => setEditing(null)} /> : null}
+                {editing === a.id ? <PositionEditor assetId={a.id} currency={a.currency} quantity={p?.quantity ?? null} cost={p?.cost ?? null} lastPrice={a.last} onDone={() => setEditing(null)} /> : null}
               </View>
             );
   };
