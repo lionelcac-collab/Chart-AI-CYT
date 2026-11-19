@@ -31,8 +31,7 @@ export function PortfolioPanel({ count }: { count: number }) {
   const th = useTheme();
   const { lang } = useT();
   const fr = lang === 'fr';
-  const { displayCurrency } = useSettings();
-  const base = displayCurrency === 'EUR' || displayCurrency === 'USD' ? displayCurrency : 'XOF';
+  const { listCurrency: base } = useSettings();
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>('3M');
   const q = useQuery({ queryKey: ['portfolio', period, base, count], queryFn: () => api.portfolio(period, base), enabled: count > 0 });
   const d = q.data;

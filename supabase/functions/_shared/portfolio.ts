@@ -6,7 +6,7 @@ import { computePortfolio, type Period } from './portfolioCompute.ts';
 export type { Period };
 
 export async function loadPortfolio(db: SupabaseClient, userId: string, period: Period, currency: string) {
-  const base = ['XOF', 'EUR', 'USD'].includes(currency) ? currency : 'XOF';
+  const base = ['XOF', 'XAF', 'EUR', 'USD'].includes(currency) ? currency : 'XOF';
   const { data: items } = await db.from('watchlist_items')
     .select('asset_id, quantity, cost_amount, watchlists!inner(user_id), assets!inner(ticker, name, market, currency)')
     .eq('watchlists.user_id', userId);
@@ -22,7 +22,7 @@ export async function loadPortfolio(db: SupabaseClient, userId: string, period: 
   for (const r of fxRows ?? []) if (!fx.has(r.quote)) fx.set(r.quote, { rate: Number(r.rate), asOf: r.as_of });
   const per = (c: string) => (c === 'XAF' ? fx.get('XOF') ?? fx.get('XAF') : fx.get(c));
   const conv = (v: number, from: string): number | null => {
-    if (from === base || (['XOF', 'XAF'].includes(from) && base === 'XOF')) return v;
+    if (from === base || (['XOF', 'XAF'].includes(from) && ['XOF', 'XAF'].includes(base))) return v; // FCFA UEMOA = FCFA CEMAC (same EUR parity)
     const a = per(from), b = per(base);
     return a && b ? (v / a.rate) * b.rate : null;
   };

@@ -2,7 +2,7 @@
  * Data access. Real mode: Supabase tables (RLS) + edge functions.
  * Demo mode: local fictional data (see demo.ts), clearly labelled in the UI.
  */
-import type { MarketCode, ScanPeriod, ScanRow } from '@chart-boursafrikia/core';
+import type { CurrencyCode, MarketCode, ScanPeriod, ScanRow } from '@chart-boursafrikia/core';
 import { DEMO_ASSETS, demoDashboard, demoNews, demoScan, demoSheet, demoSummary, demoTrackRecord } from './demo';
 import { SNAPSHOT } from './snapshot';
 import { IS_DB, dbDashboard, dbScan, dbSearch, dbSheet, snapDashboard, snapScan, snapSearch, snapSheet } from './snapshotApi';
@@ -200,6 +200,15 @@ export const api = {
     if (!supabase) return;
     const { error } = await supabase.from('watchlist_items').update({ quantity, cost_amount: cost }).eq('asset_id', assetId);
     if (error) throw new ApiError('SAVE_FAILED', error.message);
+  },
+
+  /** Latest FX rates (units per 1 USD) for display conversions. */
+  async fxRates(): Promise<Partial<Record<CurrencyCode, number>>> {
+    if (!supabase) return {};
+    const { data } = await supabase.from('fx_rates').select('quote, rate, as_of').in('quote', ['EUR', 'XOF', 'XAF', 'NGN', 'USD']).order('as_of', { ascending: false }).limit(50);
+    const out: Partial<Record<CurrencyCode, number>> = {};
+    for (const r of data ?? []) if (out[r.quote as CurrencyCode] == null) out[r.quote as CurrencyCode] = Number(r.rate);
+    return out;
   },
 
   async portfolio(period: string, currency: string) {

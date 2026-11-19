@@ -23,7 +23,9 @@ export default function Watchlist() {
   const th = useTheme();
   const { t, lang } = useT();
   const fr = lang === 'fr';
-  const { plan } = useSettings();
+  const { plan, listCurrency, setListCurrency } = useSettings();
+  const fx = useQuery({ queryKey: ['fx'], queryFn: api.fxRates, staleTime: 3600_000 });
+  const money = (v: number | null | undefined, cur: string) => fmtPrice(v, cur as never, lang, listCurrency, fx.data);
   const qc = useQueryClient();
   const ids = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist });
   const all = useQuery({ queryKey: ['search', '', undefined], queryFn: () => api.search(''), enabled: !!ids.data?.length });
@@ -89,6 +91,22 @@ export default function Watchlist() {
   return (
     <Screen refreshing={ids.isRefetching} onRefresh={() => ids.refetch()}>
       <Txt size="xl" weight="800">{t.watchlist.title}</Txt>
+      <View style={{ gap: 4 }}>
+        <Txt size="xs" muted>{fr ? 'Devise d’affichage' : 'Display currency'}</Txt>
+        <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: space.sm }}>
+          {([['XOF', 'FCFA', 'XOF · UEMOA'], ['XAF', 'FCFA', 'XAF · CEMAC'], ['EUR', '€', 'EUR'], ['USD', '$', 'USD']] as const).map(([c, sym, sub]) => {
+            const on = listCurrency === c;
+            return (
+              <Pressable key={c} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => setListCurrency(c)}
+                style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: radius.md, borderWidth: 1, borderColor: on ? th.accent : th.border, backgroundColor: on ? th.accent : th.card }}>
+                <Txt weight="800" color={on ? th.accentText : th.text}>{sym}</Txt>
+                <Txt size="xs" color={on ? th.accentText : th.textMuted}>{sub}</Txt>
+              </Pressable>
+            );
+          })}
+        </View>
+        {listCurrency === 'USD' || rows.some((a) => a.currency === 'NGN') ? <Txt size="xs" muted>{fr ? 'Conversion au dernier taux de change disponible. FCFA ↔ euro : parité fixe (1 € = 655,957 FCFA).' : 'Converted at the latest available rate. FCFA ↔ euro: fixed parity.'}</Txt> : null}
+      </View>
       {plan === 'free' ? <Txt size="xs" muted>{t.watchlist.limit}</Txt> : null}
       {DEMO_MODE ? <Txt size="sm" muted>{fr ? 'Les listes de suivi sont enregistrées dans votre compte (backend requis).' : 'Watchlists are saved to your account (backend required).'}</Txt> : null}
 
@@ -154,13 +172,13 @@ export default function Watchlist() {
                       <Txt size="xs" muted numberOfLines={1}>{a.name}</Txt>
                       {p?.quantity != null ? (
                         <Txt size="xs" color={th.textMuted}>
-                          {fmtNum(p.quantity, lang, p.quantity % 1 ? 2 : 0)} {fr ? 'actions' : 'shares'}{value != null ? ` · ${fmtPrice(value, a.currency, lang)}` : ''}
-                          {pnl != null ? <Txt size="xs" weight="700" color={changeColor(th, pnl)}> · {pnl > 0 ? '+' : ''}{fmtPrice(pnl, a.currency, lang)} ({fmtPct(p!.cost ? (pnl / p!.cost) * 100 : null, lang)})</Txt> : null}
+                          {fmtNum(p.quantity, lang, p.quantity % 1 ? 2 : 0)} {fr ? 'actions' : 'shares'}{value != null ? ` · ${money(value, a.currency)}` : ''}
+                          {pnl != null ? <Txt size="xs" weight="700" color={changeColor(th, pnl)}> · {pnl > 0 ? '+' : ''}{money(pnl, a.currency)} ({fmtPct(p!.cost ? (pnl / p!.cost) * 100 : null, lang)})</Txt> : null}
                         </Txt>
                       ) : null}
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Txt size="sm">{fmtPrice(a.last, a.currency, lang)}</Txt>
+                      <Txt size="sm">{money(a.last, a.currency)}</Txt>
                       <Txt size="sm" weight="700" color={changeColor(th, a.changePct)}>{fmtPct(a.changePct, lang)}</Txt>
                     </View>
                   </Pressable>
