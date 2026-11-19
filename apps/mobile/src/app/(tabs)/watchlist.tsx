@@ -2,11 +2,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 import { ENTITLEMENTS } from '@chart-boursafrikia/core';
 import { Button, Card, Loading, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { ApiError, api } from '../../lib/api';
+import { prepImage } from '../../lib/imagePrep';
 import { fmtPct, fmtPrice } from '../../lib/format';
 import { DEMO_MODE, supabase } from '../../lib/supabase';
 import { useSettings } from '../../settings';
@@ -14,6 +15,8 @@ import { changeColor, radius, space, useTheme } from '../../theme';
 
 type Candidate = { assetId: string; ticker: string; name: string; market: string; confidence: number; read: string };
 const ALLOWED = ['image/png', 'image/jpeg', 'image/webp'];
+const MAX_IMAGES = 4;
+type Picked = { key: string; base64: string; mediaType: string };
 
 export default function Watchlist() {
   const th = useTheme();
@@ -31,32 +34,47 @@ export default function Watchlist() {
   const [msg, setMsg] = useState<string | null>(null);
   const [found, setFound] = useState<{ matched: Candidate[]; unmatched: string[] } | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [tray, setTray] = useState<Picked[]>([]);
 
   const max = plan === 'premium' ? ENTITLEMENTS.premium.watchlistItems : ENTITLEMENTS.free.watchlistItems;
   const current = ids.data?.length ?? 0;
 
-  async function importFromImages() {
+  async function pickImages() {
     setMsg(null);
     if (user.isFetched && !user.data) { router.push('/auth'); return; }
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.6, allowsMultipleSelection: true, selectionLimit: 4 });
+    const room = MAX_IMAGES - tray.length;
+    if (room <= 0) return;
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.6, allowsMultipleSelection: true, selectionLimit: room, orderedSelection: true });
     if (res.canceled || !res.assets.length) return;
-    const images: { base64: string; mediaType: string }[] = [];
-    for (const a of res.assets.slice(0, 4)) {
+    const added: Picked[] = [];
+    let skipped = 0;
+    for (const a of res.assets) {
       let b64 = a.base64 ?? null;
       let mt = a.mimeType ?? null;
       if ((!b64 || !mt) && a.uri.startsWith('data:')) { const m = /^data:([^;]+);base64,(.*)$/.exec(a.uri); if (m) { mt = mt ?? m[1]!; b64 = b64 ?? m[2]!; } }
       if (!b64) continue;
       mt = mt === 'image/jpg' ? 'image/jpeg' : mt ?? 'image/jpeg';
-      if (!ALLOWED.includes(mt)) { setMsg(fr ? 'Format d’image non pris en charge : utilisez une capture PNG ou JPEG.' : 'Unsupported image format: use a PNG or JPEG screenshot.'); return; }
-      images.push({ base64: b64, mediaType: mt });
+      if (!ALLOWED.includes(mt)) { skipped++; continue; }
+      const p = await prepImage(b64, mt);
+      added.push({ key: `${Date.now()}-${added.length}-${a.assetId ?? a.uri.slice(-12)}`, ...p });
     }
-    if (!images.length) return;
+    const next = [...tray, ...added];
+    if (next.length > MAX_IMAGES) setMsg(fr ? `4 images maximum : seules les 4 premières sont gardées.` : '4 images max: only the first 4 are kept.');
+    else if (skipped) setMsg(fr ? 'Format non pris en charge pour certaines images : utilisez des captures PNG ou JPEG.' : 'Some images have an unsupported format: use PNG or JPEG.');
+    setTray(next.slice(0, MAX_IMAGES));
+  }
+
+  async function importFromImages() {
+    if (!tray.length) return;
+    setMsg(null);
+    const images = tray.map(({ base64, mediaType }) => ({ base64, mediaType }));
     setReading(true); setFound(null);
     try {
       const r = await api.importWatchlistFromImages(images, lang);
       const already = new Set(ids.data ?? []);
       setFound({ matched: r.matched, unmatched: r.unmatched });
       setPicked(new Set(r.matched.filter((c) => !already.has(c.assetId) && c.confidence >= 0.6).map((c) => c.assetId)));
+      setTray([]);
       if (!r.matched.length) setMsg(r.readable
         ? (fr ? 'Aucun titre de la BRVM, de la BVMAC ou de la NGX n’a été reconnu sur ces images.' : 'No BRVM, BVMAC or NGX stock was recognised on these images.')
         : (fr ? 'Aucune liste de titres lisible sur ces images. Essayez une capture plus nette.' : 'No readable list of stocks on these images. Try a sharper screenshot.'));
@@ -97,7 +115,25 @@ export default function Watchlist() {
         <Txt size="sm" muted>{fr
           ? 'Capture de votre application de courtier, d’un portefeuille, d’un journal ou d’une liste : l’IA reconnaît les titres de la BRVM, de la BVMAC et de la NGX. Jusqu’à 4 images.'
           : 'Screenshot of your broker app, a portfolio, a newspaper or a list: the AI recognises BRVM, BVMAC and NGX stocks. Up to 4 images.'}</Txt>
-        <Button label={fr ? 'Choisir des images' : 'Choose images'} icon="✦" loading={reading} onPress={importFromImages} />
+        {tray.length ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+            {tray.map((im, i) => (
+              <View key={im.key} style={{ width: 72, height: 96, borderRadius: radius.sm, overflow: 'hidden', borderWidth: 1, borderColor: th.border, backgroundColor: th.cardAlt }}>
+                <Image source={{ uri: `data:${im.mediaType};base64,${im.base64}` }} style={{ width: '100%', height: '100%' }} resizeMode="cover" accessibilityLabel={`${fr ? 'Image' : 'Image'} ${i + 1}`} />
+                <Pressable accessibilityRole="button" accessibilityLabel={fr ? `Retirer l’image ${i + 1}` : `Remove image ${i + 1}`} hitSlop={8} disabled={reading}
+                  onPress={() => setTray((tr) => tr.filter((x) => x.key !== im.key))}
+                  style={{ position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Txt size="xs" weight="900" color="#FFFFFF">✕</Txt>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        <Txt size="xs" muted>{fr ? `${tray.length} / ${MAX_IMAGES} image(s) sélectionnée(s) — vous pouvez en choisir plusieurs à la fois.` : `${tray.length} / ${MAX_IMAGES} image(s) selected — you can pick several at once.`}</Txt>
+        {tray.length < MAX_IMAGES ? (
+          <Button label={tray.length ? (fr ? 'Ajouter d’autres images' : 'Add more images') : (fr ? 'Choisir jusqu’à 4 images' : 'Choose up to 4 images')} variant={tray.length ? 'secondary' : 'primary'} icon="📷" disabled={reading} onPress={pickImages} />
+        ) : null}
+        {tray.length ? <Button label={fr ? `Lire ${tray.length > 1 ? `les ${tray.length} images` : 'l’image'} avec l’IA` : `Read ${tray.length} image(s) with AI`} icon="✦" loading={reading} onPress={importFromImages} /> : null}
         {reading ? <Txt size="sm" muted>✦ {fr ? 'L’IA lit vos images… (5 à 20 secondes)' : 'The AI is reading your images… (5 to 20 seconds)'}</Txt> : null}
         {msg ? <Txt size="sm" color={msg.startsWith('✓') ? th.up : th.warn}>{msg}</Txt> : null}
       </Card>
