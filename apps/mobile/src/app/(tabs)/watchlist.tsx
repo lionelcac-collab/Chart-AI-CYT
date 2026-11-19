@@ -6,10 +6,11 @@ import { Image, Pressable, TextInput, View } from 'react-native';
 import { ENTITLEMENTS } from '@chart-boursafrikia/core';
 import { ImportReview } from '../../components/ImportReview';
 import { ContributionBar, PERIOD_LABEL, PortfolioAsk, PortfolioPanel, PositionEditor, usePortfolio } from '../../components/Portfolio';
-import { Button, Card, Loading, Screen, Txt } from '../../components/ui';
+import { Button, Card, Loading, Pill, Row, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { ApiError, api, type ImportCandidate } from '../../lib/api';
 import { prepImage } from '../../lib/imagePrep';
+import { sectorLabel } from '../../lib/demo';
 import { fmtDate, fmtNum, fmtPct, fmtPrice } from '../../lib/format';
 import { DEMO_MODE, supabase } from '../../lib/supabase';
 import { useSettings } from '../../settings';
@@ -96,6 +97,80 @@ export default function Watchlist() {
     } finally { setReading(false); }
   }
 
+  const [organize, setOrganize] = useState<'contribution' | 'weight' | 'performance' | 'sector' | 'market'>('contribution');
+  const [minWeight, setMinWeight] = useState<0 | 1 | 5 | 10>(0);
+  const renderRow = (a: (typeof rows)[number]) => {
+            const l = contrib.get(a.id);
+            const c0 = l?.contributionPts ?? null;
+            const c = c0 != null && Math.abs(c0) < 0.005 ? 0 : c0;
+            const stale = !!(l?.lastDate && staleCut && l.lastDate < staleCut);
+            const p = pos.data?.[a.id];
+            const value = p?.quantity != null && a.last != null ? p.quantity * a.last : null;
+            const pnl = value != null && p?.cost != null ? value - p.cost : null;
+            return (
+              <View key={a.id} style={{ borderBottomWidth: 1, borderBottomColor: th.grid }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, gap: space.sm }}>
+                  <Pressable onPress={() => router.push(`/asset/${encodeURIComponent(a.id)}`)} style={{ flex: 1, flexDirection: 'row', borderRadius: radius.sm }}>
+                    <View style={{ flex: 1 }}>
+                      <Txt weight="700">{a.ticker} <Txt size="xs" muted>{a.market}</Txt></Txt>
+                      <Txt size="xs" muted numberOfLines={1}>{a.name}</Txt>
+                      {p?.quantity != null ? (
+                        <Txt size="xs" color={th.textMuted}>
+                          {fmtNum(p.quantity, lang, p.quantity % 1 ? 2 : 0)} {fr ? (p.quantity > 1 ? 'actions' : 'action') : p.quantity > 1 ? 'shares' : 'share'}{value != null ? ` · ${money(value, a.currency)}` : ''}
+                          {pnl != null ? <Txt size="xs" weight="700" color={changeColor(th, pnl)}> · {pnl > 0 ? '+' : ''}{money(pnl, a.currency)} ({fmtPct(p!.cost ? (pnl / p!.cost) * 100 : null, lang)})</Txt> : null}
+                        </Txt>
+                      ) : null}
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Txt size="sm">{money(a.last, a.currency)}</Txt>
+                      <Txt size="xs" weight="700" color={changeColor(th, a.changePct)}>{fmtPct(a.changePct, lang)} {fr ? 'jour' : 'day'}</Txt>
+                      {pd ? <Txt weight="800" color={changeColor(th, c)}>{c == null ? '—' : `${c > 0 ? '+' : ''}${fmtNum(c, lang, 2)} pt${Math.abs(c) >= 2 ? 's' : ''}`}</Txt> : null}
+                    </View>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={fr ? `Modifier la position ${a.ticker}` : `Edit position ${a.ticker}`} hitSlop={8}
+                    onPress={() => setEditing(editing === a.id ? null : a.id)}
+                    style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: p?.quantity != null ? th.accent : th.border, alignItems: 'center', justifyContent: 'center' }}>
+                    <Txt size="sm" color={p?.quantity != null ? th.accent : th.textMuted}>✎</Txt>
+                  </Pressable>
+                </View>
+                {pd && l ? (
+                  <View style={{ gap: 4, paddingBottom: space.sm }}>
+                    <Txt size="xs" muted>
+                      {fr ? 'Poids' : 'Weight'} {l.weightPct != null ? `${fmtNum(l.weightPct, lang, 1)} %` : (fr ? 'n.c. (quantité non renseignée)' : 'n/a (no shares)')} · {fr ? 'Var.' : 'Chg'} {periodLong} {fmtPct(l.returnPct, lang)}
+                    </Txt>
+                    <ContributionBar value={c} maxAbs={maxAbs} />
+                    {stale ? <Txt size="xs" color={th.warn}>{fr ? `Dernière cotation le ${fmtDate(l.lastDate, lang)}` : `Last traded ${fmtDate(l.lastDate, lang)}`}</Txt> : null}
+                  </View>
+                ) : null}
+                {editing === a.id ? <PositionEditor assetId={a.id} currency={a.currency} quantity={p?.quantity ?? null} cost={p?.cost ?? null} onDone={() => setEditing(null)} /> : null}
+              </View>
+            );
+  };
+  const num = (v: number | null | undefined) => (v == null ? -1e9 : v);
+  const visible = sortedRows.filter((a) => minWeight === 0 || (contrib.get(a.id)?.weightPct ?? -1) >= minWeight);
+  const hiddenByWeight = sortedRows.length - visible.length;
+  const byKey = (a: (typeof rows)[number]) => (organize === 'weight' ? num(contrib.get(a.id)?.weightPct) : organize === 'performance' ? num(contrib.get(a.id)?.returnPct) : num(contrib.get(a.id)?.contributionPts));
+  const ordered = [...visible].sort((x, y) => byKey(y) - byKey(x));
+  type Group = { key: string; title: string | null; items: typeof rows; weight: number | null; contribution: number | null };
+  const groups: Group[] = (() => {
+    if (organize !== 'sector' && organize !== 'market') return [{ key: 'all', title: null, items: ordered, weight: null, contribution: null }];
+    const m = new Map<string, typeof rows>();
+    for (const a of ordered) {
+      const k = organize === 'market' ? a.market : a.sector ?? '_none';
+      m.set(k, [...(m.get(k) ?? []), a]);
+    }
+    const sum = (items: typeof rows, f: (l: NonNullable<ReturnType<typeof contrib.get>>) => number | null | undefined) => {
+      const vals = items.map((a) => { const l = contrib.get(a.id); return l ? f(l) : null; }).filter((v): v is number => v != null);
+      return vals.length ? vals.reduce((s2, v) => s2 + v, 0) : null;
+    };
+    const MARKET_NAME: Record<string, string> = { BRVM: 'BRVM · UEMOA', BVMAC: 'BVMAC · CEMAC', NGX: 'NGX · Nigeria' };
+    return [...m.entries()].map(([k, items]) => ({
+      key: k, items,
+      title: organize === 'market' ? MARKET_NAME[k] ?? k : k === '_none' ? (fr ? 'Secteur non renseigné' : 'Sector not available') : sectorLabel(k, lang),
+      weight: sum(items, (l) => l.weightPct), contribution: ((v) => (v != null && Math.abs(v) < 0.005 ? 0 : v))(sum(items, (l) => l.contributionPts)),
+    })).sort((x, y) => num(y.contribution ?? (y.weight ?? null)) - num(x.contribution ?? (x.weight ?? null)));
+  })();
+
   return (
     <Screen refreshing={ids.isRefetching} onRefresh={() => ids.refetch()}>
       <Txt size="xl" weight="800">{t.watchlist.title}</Txt>
@@ -167,55 +242,35 @@ export default function Watchlist() {
       {ids.isLoading ? <Loading /> : !ids.data?.length ? <Card><Txt muted>{fr ? 'Votre liste est vide. Ajoutez des titres depuis leur fiche (☆) ou importez une capture d’écran ci-dessus.' : t.watchlist.empty}</Txt></Card> : (
         <Card title={fr ? `Mes titres & contributions (${rows.length})` : `My stocks & contributions (${rows.length})`}>
           <Txt size="xs" muted>{fr
-            ? `Classés par contribution à la performance ${periodLong} (en points de %, la somme donne la performance totale). Touchez ✎ pour indiquer le nombre d’actions et le montant investi (facultatif).`
+            ? `${{ contribution: 'Classés par contribution', weight: 'Classés par poids', performance: 'Classés par performance', sector: 'Regroupés par secteur d’activité', market: 'Regroupés par bourse' }[organize]} — contribution à la performance ${periodLong} en points de % (la somme donne la performance totale). Touchez ✎ pour indiquer le nombre d’actions et le montant investi (facultatif).`
             : `Sorted by contribution to performance ${periodLong} (in % points). Tap ✎ to enter shares and amount invested (optional).`}</Txt>
-          {sortedRows.map((a) => {
-            const l = contrib.get(a.id);
-            const c0 = l?.contributionPts ?? null;
-            const c = c0 != null && Math.abs(c0) < 0.005 ? 0 : c0;
-            const stale = !!(l?.lastDate && staleCut && l.lastDate < staleCut);
-            const p = pos.data?.[a.id];
-            const value = p?.quantity != null && a.last != null ? p.quantity * a.last : null;
-            const pnl = value != null && p?.cost != null ? value - p.cost : null;
-            return (
-              <View key={a.id} style={{ borderBottomWidth: 1, borderBottomColor: th.grid }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, gap: space.sm }}>
-                  <Pressable onPress={() => router.push(`/asset/${encodeURIComponent(a.id)}`)} style={{ flex: 1, flexDirection: 'row', borderRadius: radius.sm }}>
-                    <View style={{ flex: 1 }}>
-                      <Txt weight="700">{a.ticker} <Txt size="xs" muted>{a.market}</Txt></Txt>
-                      <Txt size="xs" muted numberOfLines={1}>{a.name}</Txt>
-                      {p?.quantity != null ? (
-                        <Txt size="xs" color={th.textMuted}>
-                          {fmtNum(p.quantity, lang, p.quantity % 1 ? 2 : 0)} {fr ? (p.quantity > 1 ? 'actions' : 'action') : p.quantity > 1 ? 'shares' : 'share'}{value != null ? ` · ${money(value, a.currency)}` : ''}
-                          {pnl != null ? <Txt size="xs" weight="700" color={changeColor(th, pnl)}> · {pnl > 0 ? '+' : ''}{money(pnl, a.currency)} ({fmtPct(p!.cost ? (pnl / p!.cost) * 100 : null, lang)})</Txt> : null}
-                        </Txt>
-                      ) : null}
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Txt size="sm">{money(a.last, a.currency)}</Txt>
-                      <Txt size="xs" weight="700" color={changeColor(th, a.changePct)}>{fmtPct(a.changePct, lang)} {fr ? 'jour' : 'day'}</Txt>
-                      {pd ? <Txt weight="800" color={changeColor(th, c)}>{c == null ? '—' : `${c > 0 ? '+' : ''}${fmtNum(c, lang, 2)} pt${Math.abs(c) >= 2 ? 's' : ''}`}</Txt> : null}
-                    </View>
-                  </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel={fr ? `Modifier la position ${a.ticker}` : `Edit position ${a.ticker}`} hitSlop={8}
-                    onPress={() => setEditing(editing === a.id ? null : a.id)}
-                    style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: p?.quantity != null ? th.accent : th.border, alignItems: 'center', justifyContent: 'center' }}>
-                    <Txt size="sm" color={p?.quantity != null ? th.accent : th.textMuted}>✎</Txt>
-                  </Pressable>
-                </View>
-                {pd && l ? (
-                  <View style={{ gap: 4, paddingBottom: space.sm }}>
-                    <Txt size="xs" muted>
-                      {fr ? 'Poids' : 'Weight'} {l.weightPct != null ? `${fmtNum(l.weightPct, lang, 1)} %` : (fr ? 'n.c. (quantité non renseignée)' : 'n/a (no shares)')} · {fr ? 'Var.' : 'Chg'} {periodLong} {fmtPct(l.returnPct, lang)}
-                    </Txt>
-                    <ContributionBar value={c} maxAbs={maxAbs} />
-                    {stale ? <Txt size="xs" color={th.warn}>{fr ? `Dernière cotation le ${fmtDate(l.lastDate, lang)}` : `Last traded ${fmtDate(l.lastDate, lang)}`}</Txt> : null}
+          <View style={{ gap: 6 }}>
+            <Txt size="xs" muted>{fr ? 'Organiser par' : 'Organise by'}</Txt>
+            <Row style={{ flexWrap: 'wrap' }} gap={6}>
+              {([['contribution', fr ? 'Contribution' : 'Contribution'], ['weight', fr ? 'Poids' : 'Weight'], ['performance', fr ? 'Performance' : 'Performance'], ['sector', fr ? 'Secteur' : 'Sector'], ['market', fr ? 'Bourse' : 'Exchange']] as const)
+                .map(([k, l]) => <Pill key={k} label={l} active={organize === k} onPress={() => setOrganize(k)} />)}
+            </Row>
+            <Txt size="xs" muted>{fr ? 'Poids minimum dans le portefeuille' : 'Minimum weight in portfolio'}</Txt>
+            <Row style={{ flexWrap: 'wrap' }} gap={6}>
+              {([0, 1, 5, 10] as const).map((w) => <Pill key={w} label={w === 0 ? (fr ? 'Tous' : 'All') : `≥ ${w} %`} active={minWeight === w} onPress={() => setMinWeight(w)} />)}
+            </Row>
+            {minWeight > 0 && pd?.mode === 'equal' ? <Txt size="xs" color={th.info}>{fr ? 'Sans nombre d’actions renseigné, chaque titre pèse le même poids.' : 'Without share counts, every stock has the same weight.'}</Txt> : null}
+            {minWeight > 0 && hiddenByWeight ? <Txt size="xs" muted>{fr ? `${hiddenByWeight} titre(s) masqué(s) (poids inférieur ou non renseigné).` : `${hiddenByWeight} stock(s) hidden.`}</Txt> : null}
+          </View>
+          {groups.map((g) => (
+            <View key={g.key} style={{ gap: 0 }}>
+              {g.title ? (
+                <View style={{ marginTop: space.md, paddingVertical: 6, paddingHorizontal: space.sm, borderRadius: radius.sm, backgroundColor: th.cardAlt, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.sm }}>
+                  <Txt weight="800" style={{ flex: 1 }} numberOfLines={2}>{g.title} <Txt size="xs" muted>({g.items.length})</Txt></Txt>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    {g.weight != null ? <Txt size="xs" muted>{fr ? 'Poids' : 'Weight'} {fmtNum(g.weight, lang, 1)} %</Txt> : null}
+                    {g.contribution != null ? <Txt size="sm" weight="800" color={changeColor(th, g.contribution)}>{g.contribution > 0 ? '+' : ''}{fmtNum(g.contribution, lang, 2)} pt{Math.abs(g.contribution) >= 2 ? 's' : ''}</Txt> : null}
                   </View>
-                ) : null}
-                {editing === a.id ? <PositionEditor assetId={a.id} currency={a.currency} quantity={p?.quantity ?? null} cost={p?.cost ?? null} onDone={() => setEditing(null)} /> : null}
-              </View>
-            );
-          })}
+                </View>
+              ) : null}
+              {g.items.map((a) => renderRow(a))}
+            </View>
+          ))}
         </Card>
       )}
     </Screen>

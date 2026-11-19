@@ -12,9 +12,17 @@ import type { AssetSheet, AssetSummary, Dashboard, NewsItem, TrackRecordRow } fr
 
 interface DemoAsset { id: string; ticker: string; name: string; market: MarketCode; sector: string; currency: CurrencyCode; start: number; drift: number; vol: number; tradeProb: number }
 
+// Same taxonomy as the `sectors` table (aligned with the BRVM and NGX official classifications).
 const sectorNames: Record<string, { fr: string; en: string }> = {
-  banks: { fr: 'Banques', en: 'Banks' }, telecom: { fr: 'Télécoms', en: 'Telecoms' }, consumer: { fr: 'Consommation', en: 'Consumer' },
-  agri: { fr: 'Agro-industrie', en: 'Agribusiness' }, energy: { fr: 'Énergie', en: 'Energy' }, industry: { fr: 'Industrie', en: 'Industrials' },
+  banks: { fr: 'Banques & services financiers', en: 'Banks & financial services' }, insurance: { fr: 'Assurances', en: 'Insurance' },
+  telecom: { fr: 'Télécoms & technologies', en: 'Telecoms & technology' }, consumer: { fr: 'Consommation de base', en: 'Consumer staples' },
+  distribution: { fr: 'Consommation discrétionnaire & distribution', en: 'Consumer discretionary & retail' },
+  agri: { fr: 'Agriculture & agro-industrie', en: 'Agriculture & agribusiness' }, energy: { fr: 'Énergie & services publics', en: 'Energy & utilities' },
+  industry: { fr: 'Industrie', en: 'Industrials' }, transport: { fr: 'Transport & logistique', en: 'Transport & logistics' },
+  oil_gas: { fr: 'Pétrole & gaz', en: 'Oil & gas' }, materials: { fr: 'Ressources naturelles & matériaux', en: 'Natural resources & materials' },
+  conglomerates: { fr: 'Conglomérats', en: 'Conglomerates' }, real_estate: { fr: 'Construction & immobilier', en: 'Construction & real estate' },
+  healthcare: { fr: 'Santé', en: 'Healthcare' }, services: { fr: 'Services', en: 'Services' }, investment: { fr: 'Sociétés d’investissement', en: 'Investment companies' },
+  other: { fr: 'Autres', en: 'Other' },
 };
 
 export const DEMO_ASSETS: DemoAsset[] = [
