@@ -2,10 +2,10 @@
  * Data access. Real mode: Supabase tables (RLS) + edge functions.
  * Demo mode: local fictional data (see demo.ts), clearly labelled in the UI.
  */
-import type { MarketCode } from '@nyota/core';
-import { DEMO_ASSETS, demoDashboard, demoSheet, demoSummary, demoTrackRecord } from './demo';
+import type { MarketCode, ScanPeriod, ScanRow } from '@nyota/core';
+import { DEMO_ASSETS, demoDashboard, demoNews, demoScan, demoSheet, demoSummary, demoTrackRecord } from './demo';
 import { DEMO_MODE, supabase } from './supabase';
-import type { AiAnalysis, AssetSheet, AssetSummary, Dashboard, TrackRecordRow } from './types';
+import type { AiAnalysis, AssetSheet, AssetSummary, Dashboard, NewsItem, TrackRecordRow } from './types';
 
 export class ApiError extends Error {
   constructor(public code: string, message?: string) { super(message ?? code); }
@@ -92,6 +92,37 @@ export const api = {
   async chartVision(imageBase64: string, mediaType: string, lang: 'fr' | 'en') {
     if (!supabase) throw new ApiError('DEMO_NO_AI');
     return invoke<{ content: Record<string, unknown> }>('chart-vision', { imageBase64, mediaType, lang });
+  },
+
+  /** Movers + support/resistance distances for a period (precomputed after each session). */
+  async scan(market: MarketCode, period: ScanPeriod): Promise<{ rows: ScanRow[]; sessionDate: string | null }> {
+    if (!supabase) {
+      const rows = demoScan(market, period);
+      return { rows, sessionDate: rows[0]?.lastDate ?? null };
+    }
+    const { data, error } = await supabase.from('market_scans').select('rows, session_date').eq('market', market).eq('period', period)
+      .order('session_date', { ascending: false }).limit(1).maybeSingle();
+    if (error) throw new ApiError('NETWORK', error.message);
+    return { rows: (data?.rows as ScanRow[]) ?? [], sessionDate: data?.session_date ?? null };
+  },
+
+  /** Latest classified news, optionally for one market. */
+  async news(market?: MarketCode, limit = 30): Promise<NewsItem[]> {
+    if (!supabase) return demoNews(market).slice(0, limit);
+    let q = supabase.from('news_asset_links')
+      .select('asset_id, assets!inner(market), news_articles!inner(id, title, url, source, published_at, sentiment, materiality, category, summary_fr, summary_en)')
+      .order('published_at', { referencedTable: 'news_articles', ascending: false }).limit(limit * 2);
+    if (market) q = q.eq('assets.market', market);
+    const { data, error } = await q;
+    if (error) throw new ApiError('NETWORK', error.message);
+    const byId = new Map<number, NewsItem>();
+    for (const r of data ?? []) {
+      const n = r.news_articles as unknown as NewsItem & { id: number };
+      const prev = byId.get(n.id);
+      if (prev) prev.asset_ids!.push(r.asset_id);
+      else byId.set(n.id, { ...n, asset_ids: [r.asset_id] });
+    }
+    return [...byId.values()].sort((a, b) => String(b.published_at).localeCompare(String(a.published_at))).slice(0, limit);
   },
 
   async trackRecord(): Promise<TrackRecordRow[]> {

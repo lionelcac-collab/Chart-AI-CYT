@@ -33,6 +33,8 @@ export interface AssetSheet {
   asset: {
     id: string; ticker: string; isin?: string | null; name: string; market: MarketCode; country?: string | null; currency: CurrencyCode;
     listing_date?: string | null; share_capital?: number | null; shares_outstanding?: number | null; free_float_pct?: number | null; website?: string | null;
+    description_fr?: string | null; description_en?: string | null; activity_fr?: string | null; activity_en?: string | null;
+    headquarters?: string | null; employees?: number | null; founded_year?: number | null;
     sectors?: { code: string; name_fr: string; name_en: string } | null;
   };
   quote: { last: number; change_pct: number | null; volume: number | null; value: number | null; market_cap: number | null; status: DataStatus['kind']; delay_minutes: number | null; as_of: string; source: string } | null;
@@ -48,8 +50,9 @@ export interface AssetSheet {
   executives: { person: string; role: string; source: string }[];
   events: { kind: string; event_date: string; title_fr: string | null; title_en: string | null }[];
   peers: { id: string; ticker: string; name: string; market: string }[];
+  documents?: { kind: string; title: string | null; url: string; published_at: string | null }[];
   technical: TechnicalSnapshot | null;
-  news: { id: number; title: string; url: string; source: string; published_at: string | null; sentiment: number | null; summary_fr: string | null; summary_en: string | null }[];
+  news: NewsItem[];
   analysts: AnalystConsensus | null;
   consensus: ConsensusResult | MaskedConsensus | null;
 }
@@ -74,3 +77,17 @@ export interface AiAnalysis {
 }
 
 export interface TrackRecordRow { scope: string; horizon: string; samples: number; calls: number; hits: number; hit_rate: number | null; range_coverage: number | null; base_rate_up: number | null; period_start: string; period_end: string }
+
+export interface NewsItem {
+  id: number | string;
+  title: string;
+  url: string | null;
+  source: string;
+  published_at: string | null;
+  sentiment: number | null;
+  materiality?: number | null;
+  category?: string | null;
+  summary_fr: string | null;
+  summary_en: string | null;
+  asset_ids?: string[];
+}

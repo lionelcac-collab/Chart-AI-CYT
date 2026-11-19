@@ -2,8 +2,8 @@
 // closing report per market (Claude Haiku 5.5), alerts + push notifications.
 import { MODELS, cached, generateJson } from '../_shared/ai.ts';
 import { admin, handler, json, requireService } from '../_shared/runtime.ts';
-import { buildSheet } from '../_shared/sheet.ts';
-import { MVP_MARKETS, type FactorKey } from '../_shared/core/index.ts';
+import { buildSheet, loadBars } from '../_shared/sheet.ts';
+import { MVP_MARKETS, SCAN_PERIODS, scanMarket, type FactorKey, type ScanInput } from '../_shared/core/index.ts';
 
 type Row = { assetId: string; market: string; sector: string | null; name: string; scores: Partial<Record<FactorKey | 'overall', number>>; illiquid: boolean; confidence: string };
 
@@ -60,6 +60,18 @@ Deno.serve(handler(async (req) => {
     }
   }
   if (rankingRows.length) await db.from('rankings').upsert(rankingRows, { onConflict: 'scope,style,session_date' });
+
+  // Market scans: movers per period + proximity to supports / resistances (dashboard).
+  for (const m of MVP_MARKETS) {
+    const inputs: ScanInput[] = [];
+    for (const a of (assets ?? []).filter((x) => x.market === m)) {
+      const bars = await loadBars(db, a.id, 2);
+      if (bars.length >= 2) inputs.push({ assetId: a.id, ticker: a.id.split(':')[1]!, name: a.name, bars });
+    }
+    if (!inputs.length) continue;
+    const date = inputs.map((i) => i.bars[i.bars.length - 1]!.date).sort().pop()!;
+    await db.from('market_scans').upsert(SCAN_PERIODS.map((period) => ({ market: m, period, session_date: date, rows: scanMarket(inputs, period) })), { onConflict: 'market,period,session_date' });
+  }
 
   // Closing report per market (cached per market × session).
   for (const m of MVP_MARKETS) {

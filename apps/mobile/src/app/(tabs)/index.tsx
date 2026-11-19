@@ -3,30 +3,14 @@ import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { APP_NAME, MVP_MARKETS, MARKETS, sessionState, type MarketCode } from '@nyota/core';
-import { Card, ErrorBox, Loading, Pill, ProvenanceBadge, Row, Screen, Txt } from '../../components/ui';
+import { MarketScan } from '../../components/MarketScan';
+import { NewsList } from '../../components/NewsList';
+import { Button, Card, ErrorBox, Loading, Pill, ProvenanceBadge, Row, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { api } from '../../lib/api';
 import { sectorLabel } from '../../lib/demo';
 import { fmtCompact, fmtNum, fmtPct, fmtPrice, statusLabel } from '../../lib/format';
-import type { AssetSummary } from '../../lib/types';
 import { changeColor, radius, space, useTheme } from '../../theme';
-
-function MoverRow({ a }: { a: AssetSummary }) {
-  const th = useTheme();
-  const { lang } = useT();
-  return (
-    <Pressable accessibilityRole="link" onPress={() => router.push(`/asset/${encodeURIComponent(a.id)}`)} style={{ paddingVertical: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <View style={{ flex: 1, paddingRight: space.sm }}>
-        <Txt weight="700">{a.ticker}</Txt>
-        <Txt size="xs" muted numberOfLines={1}>{a.name}</Txt>
-      </View>
-      <View style={{ alignItems: 'flex-end' }}>
-        <Txt size="sm" weight="600">{fmtPrice(a.last, a.currency, lang)}</Txt>
-        <Txt size="sm" weight="700" color={changeColor(th, a.changePct)}>{fmtPct(a.changePct, lang)}</Txt>
-      </View>
-    </Pressable>
-  );
-}
 
 export default function Dashboard() {
   const th = useTheme();
@@ -36,10 +20,8 @@ export default function Dashboard() {
   const state = sessionState(MARKETS[market as 'BRVM']);
   const stateLabel = { fr: { open: 'Séance en cours', closed: 'Séance terminée', pre_open: 'Avant ouverture', weekend: 'Marché fermé' }, en: { open: 'Session open', closed: 'Session closed', pre_open: 'Pre-open', weekend: 'Market closed' } }[lang][state];
 
+  const news = useQuery({ queryKey: ['news', market], queryFn: () => api.news(market, 5) });
   const d = q.data;
-  const movers = d?.movers.filter((m) => m.changePct != null) ?? [];
-  const top = [...movers].sort((a, b) => b.changePct! - a.changePct!).slice(0, 5);
-  const flop = [...movers].sort((a, b) => a.changePct! - b.changePct!).slice(0, 5);
   const traded = [...(d?.movers ?? [])].sort((a, b) => (b.value ?? 0) - (a.value ?? 0)).slice(0, 5);
 
   return (
@@ -93,8 +75,12 @@ export default function Dashboard() {
             </View>
           </Card>
 
-          <Card title={t.dashboard.top}>{top.map((a) => <MoverRow key={a.id} a={a} />)}</Card>
-          <Card title={t.dashboard.flop}>{flop.map((a) => <MoverRow key={a.id} a={a} />)}</Card>
+          <MarketScan market={market} />
+
+          <Card title={t.dashboard.news}>
+            {news.isLoading ? <Loading /> : news.data?.length ? <NewsList items={news.data} /> : <Txt muted>{t.common.unavailable}</Txt>}
+            <Button label={t.dashboard.allNews} variant="secondary" onPress={() => router.push({ pathname: '/news', params: { market } })} />
+          </Card>
           <Card title={t.dashboard.volume}>
             {traded.map((a) => (
               <Row key={a.id} style={{ justifyContent: 'space-between' }}>

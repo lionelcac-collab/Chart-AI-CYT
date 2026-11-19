@@ -5,9 +5,10 @@
  * Indicators, highs/lows and the consensus are computed by the real @nyota/core code.
  */
 import {
-  computeConsensus, computePerformances, computeRanges, liquidity, technicalSnapshot, type Bar, type CurrencyCode, type MarketCode,
+  computeConsensus, computePerformances, computeRanges, liquidity, scanMarket, technicalSnapshot, type Bar, type CurrencyCode, type MarketCode,
+  type ScanPeriod, type ScanRow,
 } from '@nyota/core';
-import type { AssetSheet, AssetSummary, Dashboard, TrackRecordRow } from './types';
+import type { AssetSheet, AssetSummary, Dashboard, NewsItem, TrackRecordRow } from './types';
 
 interface DemoAsset { id: string; ticker: string; name: string; market: MarketCode; sector: string; currency: CurrencyCode; start: number; drift: number; vol: number; tradeProb: number }
 
@@ -66,6 +67,46 @@ export function demoBars(a: DemoAsset): Bar[] {
   return out;
 }
 
+/** Fictional company profiles (demo only). */
+const DEMO_PROFILES: Record<string, { fr: string; en: string; hq: string; founded: number; employees: number }> = {
+  banks: { fr: 'Banque commerciale fictive : crédit aux entreprises et aux particuliers, mobile banking, transferts régionaux.', en: 'Fictional commercial bank: corporate and retail lending, mobile banking, regional transfers.', hq: 'Ville Démo', founded: 1978, employees: 1450 },
+  telecom: { fr: 'Opérateur télécom fictif : mobile, internet fixe et mobile money dans plusieurs pays.', en: 'Fictional telecom operator: mobile, fixed internet and mobile money in several countries.', hq: 'Ville Démo', founded: 1985, employees: 2900 },
+  agri: { fr: 'Agro-industrie fictive : plantations de palmiers à huile et transformation.', en: 'Fictional agribusiness: oil-palm plantations and processing.', hq: 'Ville Démo', founded: 1969, employees: 3800 },
+  energy: { fr: 'Producteur et distributeur d’électricité fictif.', en: 'Fictional power producer and distributor.', hq: 'Ville Démo', founded: 1990, employees: 2100 },
+  consumer: { fr: 'Brasseur et embouteilleur fictif de boissons.', en: 'Fictional brewer and beverage bottler.', hq: 'Ville Démo', founded: 1958, employees: 1200 },
+  industry: { fr: 'Industriel fictif : ciment et matériaux de construction.', en: 'Fictional industrial group: cement and building materials.', hq: 'Ville Démo', founded: 1963, employees: 950 },
+};
+
+const NEWS_TEMPLATES: { fr: string; en: string; cat: string; sent: number }[] = [
+  { fr: '{name} publie un chiffre d’affaires semestriel en hausse', en: '{name} reports higher half-year revenue', cat: 'results', sent: 0.5 },
+  { fr: '{name} convoque son assemblée générale et propose un dividende', en: '{name} calls its AGM and proposes a dividend', cat: 'dividend', sent: 0.3 },
+  { fr: 'Changement de direction générale chez {name}', en: 'CEO change at {name}', cat: 'management', sent: -0.1 },
+  { fr: '{name} : résultat trimestriel en recul sur la hausse des coûts', en: '{name}: quarterly profit down on higher costs', cat: 'results', sent: -0.4 },
+];
+
+/** Fictional news (demo only): no link, source "Démo". */
+export function demoNews(market?: MarketCode, assetId?: string): NewsItem[] {
+  const list = DEMO_ASSETS.filter((a) => (!market || a.market === market) && (!assetId || a.id === assetId));
+  const out: NewsItem[] = [];
+  list.forEach((a, i) => {
+    const last = demoBars(a)[demoBars(a).length - 1]!.date;
+    [0, 1].forEach((k) => {
+      const tpl = NEWS_TEMPLATES[(i + k * 2) % NEWS_TEMPLATES.length]!;
+      const d = new Date(`${last}T09:00:00Z`); d.setUTCDate(d.getUTCDate() - (i * 3 + k * 9));
+      out.push({
+        id: `${a.id}-${k}`, title: `${tpl.fr.replace('{name}', a.name)} (exemple fictif)`, url: null, source: 'Démo',
+        published_at: d.toISOString(), sentiment: tpl.sent, category: tpl.cat, materiality: 2,
+        summary_fr: 'Actualité fictive générée pour la démonstration.', summary_en: `${tpl.en.replace('{name}', a.name)} (fictional example).`, asset_ids: [a.id],
+      });
+    });
+  });
+  return out.sort((x, y) => String(y.published_at).localeCompare(String(x.published_at)));
+}
+
+export function demoScan(market: MarketCode, period: ScanPeriod): ScanRow[] {
+  return scanMarket(DEMO_ASSETS.filter((a) => a.market === market).map((a) => ({ assetId: a.id, ticker: a.ticker, name: a.name, bars: demoBars(a) })), period);
+}
+
 const demoStatus = (bars: Bar[]) => ({ kind: 'close' as const, sessionDate: bars[bars.length - 1]!.date });
 
 export function demoSummary(a: DemoAsset): AssetSummary {
@@ -87,7 +128,12 @@ export function demoSheet(id: string, premium: boolean): AssetSheet | null {
   const consensus = computeConsensus({ bars, sentiment: null });
   return {
     plan: premium ? 'premium' : 'free',
-    asset: { id: a.id, ticker: a.ticker, name: a.name, market: a.market, currency: a.currency, isin: null, sectors: { code: a.sector, name_fr: sectorNames[a.sector]!.fr, name_en: sectorNames[a.sector]!.en } },
+    asset: {
+      id: a.id, ticker: a.ticker, name: a.name, market: a.market, currency: a.currency, isin: null,
+      sectors: { code: a.sector, name_fr: sectorNames[a.sector]!.fr, name_en: sectorNames[a.sector]!.en },
+      activity_fr: DEMO_PROFILES[a.sector]?.fr ?? null, activity_en: DEMO_PROFILES[a.sector]?.en ?? null,
+      headquarters: DEMO_PROFILES[a.sector]?.hq ?? null, founded_year: DEMO_PROFILES[a.sector]?.founded ?? null, employees: DEMO_PROFILES[a.sector]?.employees ?? null,
+    },
     quote: { last: last.close, change_pct: s.changePct, volume: last.volume, value: last.value ?? null, market_cap: null, status: 'close', delay_minutes: null, as_of: last.date, source: 'demo' },
     lastClose: { price: last.close, date: last.date },
     bars,
@@ -95,10 +141,15 @@ export function demoSheet(id: string, premium: boolean): AssetSheet | null {
     performance: computePerformances(bars),
     liquidity: liquidity(bars),
     ratios: { netMarginPct: null, roePct: null, debtToEquity: null, per: null, pb: null, dividendYieldPct: null, payoutPct: null, revenueCagr3yPct: null, netIncomeCagr3yPct: null },
-    fundamentals: [], dividends: [], shareholders: [], executives: [], events: [],
+    fundamentals: [], dividends: [], shareholders: [], executives: [],
+    events: [
+      { kind: 'agm', event_date: new Date(Date.parse(`${last.date}T00:00:00Z`) + 21 * 86400_000).toISOString().slice(0, 10), title_fr: 'Assemblée générale ordinaire (exemple fictif)', title_en: 'Annual general meeting (fictional example)' },
+      { kind: 'results', event_date: new Date(Date.parse(`${last.date}T00:00:00Z`) + 45 * 86400_000).toISOString().slice(0, 10), title_fr: 'Publication des résultats annuels (exemple fictif)', title_en: 'Full-year results (fictional example)' },
+    ],
+    documents: [],
     peers: DEMO_ASSETS.filter((x) => x.sector === a.sector && x.id !== a.id).map((x) => ({ id: x.id, ticker: x.ticker, name: x.name, market: x.market })),
     technical: technicalSnapshot(bars),
-    news: [],
+    news: demoNews(undefined, a.id),
     analysts: null,
     consensus: !consensus ? null : premium ? consensus : {
       orientation: consensus.orientation, confidence: consensus.confidence, asOf: consensus.asOf, modelVersion: consensus.modelVersion,

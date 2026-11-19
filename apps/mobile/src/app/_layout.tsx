@@ -52,6 +52,7 @@ function Shell() {
         <Stack.Screen name="premium" options={{ presentation: 'modal', title: 'Premium' }} />
         <Stack.Screen name="track-record" options={{ title: '' }} />
         <Stack.Screen name="auth" options={{ presentation: 'modal', title: '' }} />
+        <Stack.Screen name="news" options={{ title: '' }} />
         <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
       </Stack>
     </>

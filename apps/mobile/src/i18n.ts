@@ -8,7 +8,8 @@ const fr = {
     loading: 'Chargement…', retry: 'Réessayer', error: 'Une erreur est survenue', premium: 'Premium', free: 'Gratuit',
     seeAll: 'Tout voir', search: 'Rechercher un titre, un ticker, un ISIN…', cancel: 'Annuler', save: 'Enregistrer',
   },
-  dashboard: { title: 'Marchés africains', indices: 'Indices', top: 'Plus fortes hausses', flop: 'Plus fortes baisses', volume: 'Plus échangés', heatmap: 'Carte sectorielle', opportunities: 'Meilleures opportunités (modèle)', report: 'Synthèse de clôture' },
+  dashboard: { title: 'Marchés africains', indices: 'Indices', top: 'Plus fortes hausses', flop: 'Plus fortes baisses', volume: 'Plus échangés', heatmap: 'Carte sectorielle', opportunities: 'Meilleures opportunités (modèle)', report: 'Synthèse de clôture',
+    period: 'Période', nearSupport: 'Proches d’un support', nearResistance: 'Proches d’une résistance', threshold: 'Écart maximal', levelsHelp: 'Supports et résistances calculés sur la période choisie (points de retournement et plus bas / plus haut de la période).', noneNear: 'Aucun titre à moins de {n} % d’un niveau.', news: 'Actualités', allNews: 'Toutes les actualités', distance: 'à {n} %', noResistance: 'au plus haut de la période' },
   asset: {
     overview: 'Aperçu', ranges: 'Plus bas / plus hauts', performance: 'Performance', liquidity: 'Liquidité', fundamentals: 'Fondamentaux',
     technical: 'Technique', consensus: 'Consensus Nyota', identity: 'Identité', news: 'Actualités', dividends: 'Dividendes', peers: 'Pairs',
@@ -20,6 +21,10 @@ const fr = {
     trend: { up: 'Haussière', down: 'Baissière', sideways: 'Sans tendance' },
     lastPrice: 'Dernier cours', change: 'Variation', volumeDay: 'Volume', valueDay: 'Valeur échangée', marketCap: 'Capitalisation',
     supports: 'Supports', resistances: 'Résistances', patterns: 'Figures détectées',
+    tabs: { analysis: 'Analyse', company: 'Société', news: 'Actualités' },
+    about: 'Présentation', activity: 'Activité', keyFacts: 'Chiffres clés', hq: 'Siège', founded: 'Création', employees: 'Effectifs',
+    shareholders: 'Actionnaires principaux', management: 'Dirigeants', calendar: 'Agenda', documents: 'Documents officiels', financials: 'Comptes résumés',
+    revenue: 'Chiffre d’affaires', netIncome: 'Résultat net', noNews: 'Aucune actualité récente pour ce titre.', noInfo: 'Information non publiée',
   },
   consensus: {
     analysts: 'Consensus des analystes', noAnalysts: 'Aucun analyste ne publie de recommandation suivie sur ce titre.',
@@ -50,7 +55,8 @@ const en: typeof fr = {
     loading: 'Loading…', retry: 'Retry', error: 'Something went wrong', premium: 'Premium', free: 'Free',
     seeAll: 'See all', search: 'Search a stock, ticker, ISIN…', cancel: 'Cancel', save: 'Save',
   },
-  dashboard: { title: 'African markets', indices: 'Indices', top: 'Top gainers', flop: 'Top losers', volume: 'Most traded', heatmap: 'Sector heatmap', opportunities: 'Top opportunities (model)', report: 'Closing summary' },
+  dashboard: { title: 'African markets', indices: 'Indices', top: 'Top gainers', flop: 'Top losers', volume: 'Most traded', heatmap: 'Sector heatmap', opportunities: 'Top opportunities (model)', report: 'Closing summary',
+    period: 'Period', nearSupport: 'Near a support', nearResistance: 'Near a resistance', threshold: 'Max distance', levelsHelp: 'Supports and resistances computed over the selected period (turning points and the period low / high).', noneNear: 'No stock within {n}% of a level.', news: 'News', allNews: 'All news', distance: '{n}% away', noResistance: 'at the period high' },
   asset: {
     overview: 'Overview', ranges: 'Lows / highs', performance: 'Performance', liquidity: 'Liquidity', fundamentals: 'Fundamentals',
     technical: 'Technicals', consensus: 'Nyota Consensus', identity: 'Profile', news: 'News', dividends: 'Dividends', peers: 'Peers',
@@ -62,6 +68,10 @@ const en: typeof fr = {
     trend: { up: 'Uptrend', down: 'Downtrend', sideways: 'No trend' },
     lastPrice: 'Last price', change: 'Change', volumeDay: 'Volume', valueDay: 'Traded value', marketCap: 'Market cap',
     supports: 'Supports', resistances: 'Resistances', patterns: 'Detected patterns',
+    tabs: { analysis: 'Analysis', company: 'Company', news: 'News' },
+    about: 'Overview', activity: 'Business', keyFacts: 'Key facts', hq: 'Headquarters', founded: 'Founded', employees: 'Employees',
+    shareholders: 'Main shareholders', management: 'Management', calendar: 'Calendar', documents: 'Official documents', financials: 'Summary financials',
+    revenue: 'Revenue', netIncome: 'Net income', noNews: 'No recent news for this stock.', noInfo: 'Not published',
   },
   consensus: {
     analysts: 'Analyst consensus', noAnalysts: 'No analyst publishes a tracked recommendation on this stock.',

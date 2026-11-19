@@ -33,6 +33,7 @@ export async function buildSheet(db: SupabaseClient, assetId: string) {
     db.from('corporate_events').select('*').eq('asset_id', assetId).gte('event_date', new Date(Date.now() - 365 * 86400_000).toISOString().slice(0, 10)).order('event_date'),
     db.from('assets').select('id, ticker, name, market').eq('sector_id', asset.sector_id).neq('id', assetId).eq('is_active', true).limit(30),
   ]);
+  const { data: documents } = await db.from('source_documents').select('kind, title, url, published_at').eq('asset_id', assetId).order('published_at', { ascending: false }).limit(20);
 
   const last = bars[bars.length - 1] ?? null;
   const price = last?.close ?? null;
@@ -99,6 +100,7 @@ export async function buildSheet(db: SupabaseClient, assetId: string) {
     executives: execRes.data ?? [],
     events: eventsRes.data ?? [],
     peers: peersRes.data ?? [],
+    documents: documents ?? [],
     technical: technicalSnapshot(bars),
     news: (newsRes.data ?? []).map((n) => n.news_articles).filter(Boolean),
     analysts,

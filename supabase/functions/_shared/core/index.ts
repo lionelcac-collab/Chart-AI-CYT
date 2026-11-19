@@ -10,6 +10,7 @@ export * from './consensus.ts';
 export * from './backtest.ts';
 export * from './markets.ts';
 export * from './entitlements.ts';
+export * from './scan.ts';
 
 /** Product name in one place (placeholder « [NOM DE L'APPLI] » resolved here). */
 export const APP_NAME = 'Nyota';
