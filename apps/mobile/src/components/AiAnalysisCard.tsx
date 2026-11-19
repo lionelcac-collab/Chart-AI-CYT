@@ -25,9 +25,12 @@ export function AssetSectionsAnalysis({ assetId }: { assetId: string }) {
 
   const a = m.data?.content;
   return (
-    <Card title={t.asset.analyze} collapsible defaultOpen={false}>
+    <Card title={`✦ ${t.asset.analyze}`} style={{ borderColor: th.accent, borderWidth: 2 }}>
       {!a ? (
         <View style={{ gap: space.sm }}>
+          <Txt size="sm">{lang === 'fr'
+            ? 'Synthèse complète du titre par l’IA : tendance, niveaux clés, fondamentaux, scénarios haussier / central / baissier avec leurs déclencheurs, risques et données manquantes. Basée uniquement sur les données vérifiées de la fiche.'
+            : 'Complete AI summary of the stock: trend, key levels, fundamentals, bull / base / bear scenarios with their triggers, risks and missing data. Based only on the verified data of this sheet.'}</Txt>
           {plan === 'free' ? <Txt size="xs" muted>{fmt(t.asset.analysesLeft, { n: ENTITLEMENTS.free.aiAnalysesPerDay })}</Txt> : null}
           <Button label={t.asset.analyze} icon="✦" loading={m.isPending} onPress={() => m.mutate()} />
           {errorText ? <Txt size="sm" color={th.warn}>{errorText}</Txt> : null}

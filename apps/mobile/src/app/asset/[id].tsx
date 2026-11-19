@@ -75,6 +75,8 @@ export default function AssetScreen() {
 
       {tab === 'analysis' ? (
         <>
+        <AssetSectionsAnalysis assetId={s.asset.id} />
+
         <Card>
           <Row style={{ flexWrap: 'wrap' }}>
             {CHART_RANGES.map(([label, n]) => <Pill key={label} label={lang === 'en' ? label.replace('A', 'Y') : label} active={range === n} onPress={() => setRange(n)} />)}
@@ -93,7 +95,6 @@ export default function AssetScreen() {
         <PerformanceGrid perf={s.performance} />
         <LiquidityCard l={s.liquidity} />
         <ConsensusCard sheet={s} />
-        <AssetSectionsAnalysis assetId={s.asset.id} />
         <TechnicalCard tech={s.technical} currency={s.asset.currency} />
         <FundamentalsCard r={s.ratios} sheet={s} />
         </>
