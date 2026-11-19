@@ -73,7 +73,16 @@ export function detectActions(market: string, rows: Row[]): { actions: Corporate
         const f = t.prev / y.close;
         if (Math.abs(f - 1) > 0.2) { events.push({ idx: i, f }); actions.push({ market, ticker, date: t.date, factor: f, before: y.close, after: t.prev, note: 'prev_close ajusté par la bourse' }); }
       } else if (y.close > 0 && Math.abs(t.close / y.close - 1) > 0.105) {
-        actions.push({ market, ticker, date: t.date, factor: null, before: y.close, after: t.close, note: 'saut > 10,5 % à vérifier' });
+        // Without an adjusted previous close (NGX): a > 40 % move between consecutive sessions is impossible
+        // under the ±10 % daily limit, so it can only be a corporate action (split, consolidation, bonus) → adjust.
+        const gapDays = (Date.parse(t.date) - Date.parse(y.date)) / 86400_000;
+        const f = t.close / y.close;
+        if (gapDays <= 4 && Math.abs(f - 1) > 0.4) {
+          events.push({ idx: i, f });
+          actions.push({ market, ticker, date: t.date, factor: f, before: y.close, after: t.close, note: 'auto-ajusté : saut > 40 % (limite ±10 %)' });
+        } else {
+          actions.push({ market, ticker, date: t.date, factor: null, before: y.close, after: t.close, note: 'saut > 10,5 % à vérifier' });
+        }
       }
     }
     // cumulative factor for each bar = product of factors of all LATER events
