@@ -189,8 +189,8 @@ export function PortfolioAsk({ hasQuantities }: { hasQuantities: boolean }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
   const suggestions = fr
-    ? ['Fais le bilan de mon portefeuille', 'Quels sont mes principaux risques et ma concentration ?', 'Qu’est-ce qui a le plus pesé ce mois-ci ?', 'Lesquels de mes titres sont proches d’un support ou d’une résistance ?', 'Quelle est mon exposition au naira et à chaque marché ?']
-    : ['Review my portfolio', 'What are my main risks and concentration?', 'What weighed most this month?', 'Which of my stocks are near a support or resistance?', 'What is my exposure to the naira and to each market?'];
+    ? ['Fais le bilan de mon portefeuille', 'Quels sont mes principaux risques et ma concentration ?', 'Qu’est-ce qui a le plus pesé ce mois-ci ?', 'Lesquels de mes titres sont proches d’un support ou d’une résistance ?', 'Quelle est mon exposition au naira et à chaque marché ?', 'Sur quels titres de mon portefeuille m’encourages-tu à renforcer ma position (achat) ? À vendre ? Ou à simplement maintenir ma position actuelle ?', 'Que feriez-vous à ma place avec ce portefeuille ?']
+    : ['Review my portfolio', 'What are my main risks and concentration?', 'What weighed most this month?', 'Which of my stocks are near a support or resistance?', 'What is my exposure to the naira and to each market?', 'Which of my holdings would you encourage me to add to (buy), to sell, or simply to hold?', 'What would you do in my place with this portfolio?'];
 
   async function ask(text?: string) {
     const q = (text ?? input).trim();
