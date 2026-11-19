@@ -41,7 +41,8 @@ export default function AssetScreen() {
   // Free plan (or outside the session): no intraday quote → derive the header from the last verified session.
   const lastBar = s.bars[s.bars.length - 1];
   const prevBar = s.bars[s.bars.length - 2];
-  const quote = s.quote ?? (lastBar ? {
+  // Only an intraday delayed quote (Premium, during the session) overrides the verified history.
+  const quote = (s.quote?.status === 'delayed' ? s.quote : null) ?? (lastBar ? {
     last: lastBar.close, change_pct: prevBar && prevBar.close > 0 ? ((lastBar.close - prevBar.close) / prevBar.close) * 100 : null,
     volume: lastBar.volume, value: lastBar.value ?? null, market_cap: null, status: 'close' as const, delay_minutes: null,
     as_of: lastBar.date, source: s.lastSource ?? '—',
