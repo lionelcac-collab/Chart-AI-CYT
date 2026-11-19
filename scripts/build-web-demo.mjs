@@ -28,9 +28,24 @@ const page = `<title>Nyota Démo</title>
 </style>
 <noscript>JavaScript est nécessaire pour afficher la démo.</noscript>
 <div id="root"></div>
+<div id="boot" style="font:15px -apple-system,Segoe UI,sans-serif;color:#9AA4C2;padding:24px;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center">Chargement de la démo Nyota…</div>
 <script>
   // The app router reads the URL path: start the demo on its home screen whatever path hosts this page.
   try { if (location.pathname !== '/') history.replaceState(null, '', '/'); } catch (e) {}
+  // If the app has not rendered after 10 s, say so and show the first error instead of a blank screen.
+  window.__bootErrors = [];
+  window.addEventListener('error', function (e) { window.__bootErrors.push(String(e.message || e.error)); });
+  window.addEventListener('unhandledrejection', function (e) { window.__bootErrors.push(String(e.reason && e.reason.message || e.reason)); });
+  var bootTimer = setInterval(function () {
+    var root = document.getElementById('root'), boot = document.getElementById('boot');
+    if (root && root.childElementCount > 0) { if (boot) boot.remove(); clearInterval(bootTimer); }
+  }, 200);
+  setTimeout(function () {
+    var root = document.getElementById('root'), boot = document.getElementById('boot');
+    if (boot && !(root && root.childElementCount > 0)) {
+      boot.textContent = 'La démo n’a pas pu démarrer dans ce navigateur. ' + (window.__bootErrors[0] ? 'Erreur : ' + window.__bootErrors[0] : 'Essayez Chrome ou Safari à jour.');
+    }
+  }, 10000);
 </script>
 <script>${js}</script>
 `;
