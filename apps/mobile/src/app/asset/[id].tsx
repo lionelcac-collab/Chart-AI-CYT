@@ -6,6 +6,7 @@ import { AssetSectionsAnalysis } from '../../components/AiAnalysisCard';
 import { ConsensusCard, FundamentalsCard, LiquidityCard, PerformanceGrid, RangeTable, TechnicalCard } from '../../components/AssetSections';
 import { Columns, useIsDesktop } from '../../components/Chrome';
 import { CompanyPanel } from '../../components/CompanyPanel';
+import { ForecastPanel } from '../../components/Forecasts';
 import { AlertForm, AlertList } from '../../components/Alerts';
 import { NewsList } from '../../components/NewsList';
 import PriceChart from '../../components/PriceChart';
@@ -27,7 +28,7 @@ export default function AssetScreen() {
   const qc = useQueryClient();
   const desktop = useIsDesktop();
   const [range, setRange] = useState<number>(260);
-  const [tab, setTab] = useState<'analysis' | 'company' | 'news'>('analysis');
+  const [tab, setTab] = useState<'analysis' | 'forecast' | 'company' | 'news'>('analysis');
 
   const q = useQuery({ queryKey: ['asset', assetId, plan], queryFn: () => api.asset(assetId, plan === 'premium') });
   const wl = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist });
@@ -86,7 +87,7 @@ export default function AssetScreen() {
       </View>
 
       <Row style={{ flexWrap: 'wrap' }} gap={space.sm}>
-        {(['analysis', 'company', 'news'] as const).map((k) => <Pill key={k} label={t.asset.tabs[k]} active={tab === k} onPress={() => setTab(k)} />)}
+        {(['analysis', 'forecast', 'company', 'news'] as const).map((k) => <Pill key={k} label={t.asset.tabs[k]} active={tab === k} onPress={() => setTab(k)} />)}
       </Row>
 
       {tab === 'analysis' ? (
@@ -148,6 +149,8 @@ export default function AssetScreen() {
           </>
         )}
         </>
+      ) : tab === 'forecast' ? (
+        <ForecastPanel s={s} />
       ) : tab === 'company' ? (
         <CompanyPanel s={s} />
       ) : (

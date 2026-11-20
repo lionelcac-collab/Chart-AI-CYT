@@ -43,6 +43,13 @@ const dropStale = (rows: AssetSummary[]) => {
 };
 
 
+export type ForecastH = { central: number; pBull: number; pBear: number; pCentral: number; low: number; high: number; bull: number; bear: number };
+export type ForecastRow = { assetId: string; asOf: string; name: string; ticker: string; market: string; currency: string; sector: { fr: string; en: string } | null; price: number;
+  orientation: 'positive' | 'neutral' | 'negative'; confidence: 'low' | 'medium' | 'high'; confidenceValue: number; invalidation: number | null; illiquid: boolean; analysts: number; horizons: Record<'1M' | '3M' | '6M' | '12M', ForecastH> };
+export type ForecastList = { locked: false; rows: ForecastRow[] } | { locked: true; total: number; positive: number; neutral: number; negative: number; asOf: string };
+export type ForecastBacktest = { horizon: string; n: number; calls: number; hitRate: number | null; rangeCoverage: number | null; baseRateUp: number | null;
+  samples: { date: string; predicted: number; realised: number; inRange: boolean; hit: boolean | null }[] };
+export type ForecastReading = { headline: string; horizons: { horizon: string; reading: string }[]; drivers: string[]; risks: string[]; watch: string[]; conclusion: string };
 export type AlertKind = 'price_above' | 'price_below' | 'change_pct' | 'near_support' | 'near_resistance' | 'events';
 export type AlertRow = { id: string; asset_id: string | null; kind: AlertKind; threshold: number | null; direction: 'up' | 'down' | 'both'; scope: 'asset' | 'watchlist'; active: boolean;
   last_triggered_at: string | null; created_at: string; assets: { ticker: string; name: string; currency: string } | null };
@@ -181,6 +188,10 @@ export const api = {
     const { data } = await supabase.rpc('is_admin', { uid: u.user.id });
     return data === true;
   },
+
+  async forecastList(): Promise<ForecastList> { return invoke<ForecastList>('forecasts', { action: 'list' }); },
+  async forecastDetail(assetId: string): Promise<{ sessions: number; backtests: ForecastBacktest[] }> { return invoke('forecasts', { action: 'detail', assetId }); },
+  async forecastReading(assetId: string, lang: string): Promise<{ content: ForecastReading; cached: boolean; asOf: string }> { return invoke('forecasts', { action: 'explain', assetId, lang }); },
 
   async trackRecord(): Promise<TrackRecordRow[]> {
     if (!supabase) return SNAPSHOT ? [] : demoTrackRecord;

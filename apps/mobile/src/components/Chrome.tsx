@@ -61,13 +61,13 @@ function Logo({ size = 22 }: { size?: number }) {
 /** Desktop header: logo + tagline, main navigation, Premium / sign-in. */
 export function TopNav() {
   const th = useTheme();
-  const { t } = useT();
+  const { t, lang } = useT();
   const c = useChromeCopy();
   const { plan } = useSettings();
   const path = usePathname();
   const items: [string, string, string][] = [
     ['/', t.tabs.dashboard, '◎'], ['/screener', t.tabs.screener, '⌕'], ['/watchlist', t.tabs.watchlist, '☆'],
-    ['/assistant', t.tabs.assistant, '✦'], ['/track-record', 'Track record', '◷'], ['/more', t.tabs.more, '≡'],
+    ['/assistant', t.tabs.assistant, '✦'], ['/previsions', lang === 'en' ? 'Forecasts' : 'Prévisions', '🔮'], ['/more', t.tabs.more, '≡'],
   ];
   const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
   return (
