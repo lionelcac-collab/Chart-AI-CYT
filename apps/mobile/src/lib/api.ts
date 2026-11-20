@@ -50,6 +50,10 @@ export type ForecastList = { locked: false; rows: ForecastRow[] } | { locked: tr
 export type ForecastBacktest = { horizon: string; n: number; calls: number; hitRate: number | null; rangeCoverage: number | null; baseRateUp: number | null;
   samples: { date: string; predicted: number; realised: number; inRange: boolean; hit: boolean | null }[] };
 export type ForecastReading = { headline: string; horizons: { horizon: string; reading: string }[]; drivers: string[]; risks: string[]; watch: string[]; conclusion: string };
+export type AnalystRow = { assetId: string; ticker: string; name: string; market: string; currency: string; price: number | null; priceDate: string | null;
+  buy: number | null; hold: number | null; sell: number | null; brokers: string | null; targetMean: number | null; targetMin: number | null; targetMax: number | null;
+  referencePrice: number | null; upsidePct: number | null; publishedAt: string; source: string; sourceUrl: string | null; note: string | null; history: { date: string; targetMean: number | null; source: string }[] };
+export type AnalystsResult = { since: string; totals: { buy: number; hold: number; sell: number } } & ({ locked: false; rows: AnalystRow[] } | { locked: true; covered: number });
 export type AlertKind = 'price_above' | 'price_below' | 'change_pct' | 'near_support' | 'near_resistance' | 'events';
 export type AlertRow = { id: string; asset_id: string | null; kind: AlertKind; threshold: number | null; direction: 'up' | 'down' | 'both'; scope: 'asset' | 'watchlist'; active: boolean;
   last_triggered_at: string | null; created_at: string; assets: { ticker: string; name: string; currency: string } | null };
@@ -189,6 +193,7 @@ export const api = {
     return data === true;
   },
 
+  async analysts(months: number, market?: string): Promise<AnalystsResult> { return invoke<AnalystsResult>('analysts', { months, market }); },
   async forecastList(): Promise<ForecastList> { return invoke<ForecastList>('forecasts', { action: 'list' }); },
   async forecastDetail(assetId: string): Promise<{ sessions: number; backtests: ForecastBacktest[] }> { return invoke('forecasts', { action: 'detail', assetId }); },
   async forecastReading(assetId: string, lang: string): Promise<{ content: ForecastReading; cached: boolean; asOf: string }> { return invoke('forecasts', { action: 'explain', assetId, lang }); },

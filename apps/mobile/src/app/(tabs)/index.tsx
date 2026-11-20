@@ -5,6 +5,7 @@ import { Pressable, View } from 'react-native';
 import { APP_NAME, MARKETS, sessionState, type MarketCode } from '@chart-boursafrikia/core';
 import { Columns, Hero, MarketButtons, useIsDesktop } from '../../components/Chrome';
 import { MarketScan } from '../../components/MarketScan';
+import { AnalystConsensusBlock, PriceTargetsBlock } from '../../components/Analysts';
 import { NewsList } from '../../components/NewsList';
 import { Button, Card, ErrorBox, Loading, Pill, ProvenanceBadge, Row, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
@@ -81,6 +82,7 @@ export default function Dashboard() {
           </Card>
 
           <MarketScan market={market} />
+          <PriceTargetsBlock market={market} />
         </Fragment>,
         <Fragment key="side">
 
@@ -108,6 +110,7 @@ export default function Dashboard() {
             )) : <Txt muted>{t.common.unavailable}</Txt>}
             <Txt size="xs" muted>{lang === 'fr' ? 'Score du modèle de −100 à +100, ⚠ = titre peu liquide. Classement statistique, pas une recommandation.' : 'Model score from −100 to +100, ⚠ = illiquid. Statistical ranking, not a recommendation.'}</Txt>
           </Card>
+          <AnalystConsensusBlock market={market} />
           {d.movers[0] ? <ProvenanceBadge status={asOfLabel(d.movers[0].asOf, d.movers[0].status, lang)} source={d.movers[0].source} /> : null}
         </Fragment>,
         ]}</Columns>
