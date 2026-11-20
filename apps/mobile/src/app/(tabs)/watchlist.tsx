@@ -11,6 +11,7 @@ import { Button, Card, Loading, Pill, Row, Screen, Txt } from '../../components/
 import { useT } from '../../i18n';
 import { ApiError, api, type ImportCandidate } from '../../lib/api';
 import { prepImage } from '../../lib/imagePrep';
+import { exportCsv, exportPdf, type ExportInput } from '../../lib/exportPortfolio';
 import { sectorLabel } from '../../lib/demo';
 import { fmtDate, fmtNum, fmtPct, fmtPrice } from '../../lib/format';
 import { DEMO_MODE, supabase } from '../../lib/supabase';
@@ -98,6 +99,23 @@ export default function Watchlist() {
     } finally { setReading(false); }
   }
 
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const buildExport = (): ExportInput => ({
+    lang, displayCurrency: listCurrency, usdRates: fx.data, periodLabel: periodLong, mode: pd?.mode ?? null, generatedAt: new Date(),
+    summary: pd ? { valueEnd: pd.summary.valueEnd ?? null, change: pd.summary.change ?? null, changePct: pd.summary.changePct, cost: pd.summary.cost ?? null, pnl: pd.summary.pnl ?? null, pnlPct: pd.summary.pnlPct ?? null } : null,
+    lines: sortedRows.map((a) => {
+      const l = contrib.get(a.id); const p = pos.data?.[a.id];
+      return { ticker: a.ticker, name: a.name, market: a.market, sector: a.sector ? sectorLabel(a.sector, lang) : null, currency: a.currency,
+        quantity: p?.quantity ?? null, cost: p?.cost ?? null, last: a.last, lastDate: a.asOf ?? null, dayChangePct: a.changePct,
+        weightPct: l?.weightPct ?? null, periodReturnPct: l?.returnPct ?? null, contributionPts: l?.contributionPts ?? null };
+    }),
+  });
+  const runExport = async (kind: 'csv' | 'pdf') => {
+    setExportMsg(null); setExporting(kind);
+    try { await (kind === 'csv' ? exportCsv(buildExport()) : exportPdf(buildExport())); setExportMsg(kind === 'csv' ? (fr ? '✓ Fichier CSV téléchargé.' : '✓ CSV file downloaded.') : (fr ? '✓ Rapport prêt : choisissez « Enregistrer en PDF » dans la fenêtre d’impression.' : '✓ Report ready: choose “Save as PDF”.')); }
+    catch { setExportMsg(fr ? 'Export impossible.' : 'Export failed.'); } finally { setExporting(null); }
+  };
   const [organize, setOrganize] = useState<'contribution' | 'weight' | 'performance' | 'sector' | 'market'>('contribution');
   const [minWeight, setMinWeight] = useState<0 | 1 | 5 | 10>(0);
   const renderRow = (a: (typeof rows)[number]) => {
@@ -275,6 +293,18 @@ export default function Watchlist() {
           ))}
         </Card>
       )}
+      {ids.data?.length ? (
+        <Card title={fr ? '📤 Exporter mon portefeuille' : '📤 Export my portfolio'}>
+          <Txt size="xs" muted>{fr
+            ? `Toutes vos lignes avec leurs détentions (nombre d’actions, montant investi, cours, valeur, plus-value, poids, contribution ${periodLong}), dans la devise d’affichage choisie.`
+            : `All your lines with holdings (shares, amount invested, price, value, gain, weight, contribution ${periodLong}).`}</Txt>
+          <Row gap={space.sm}>
+            <View style={{ flex: 1 }}><Button label={fr ? 'CSV (Excel)' : 'CSV (Excel)'} icon="📄" variant="secondary" loading={exporting === 'csv'} onPress={() => runExport('csv')} /></View>
+            <View style={{ flex: 1 }}><Button label={fr ? 'Rapport PDF' : 'PDF report'} icon="🧾" loading={exporting === 'pdf'} onPress={() => runExport('pdf')} /></View>
+          </Row>
+          {exportMsg ? <Txt size="xs" color={exportMsg.startsWith('✓') ? th.up : th.warn}>{exportMsg}</Txt> : null}
+        </Card>
+      ) : null}
     </Screen>
   );
 }

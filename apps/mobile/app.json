@@ -11,7 +11,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.chartboursafrikia.app",
-      "config": { "usesNonExemptEncryption": false },
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Chart-BoursafrikIA accède à vos photos uniquement pour analyser la capture d'écran de graphique que vous choisissez.",
         "NSCameraUsageDescription": "Chart-BoursafrikIA utilise l'appareil photo uniquement si vous photographiez un graphique à analyser."
@@ -25,7 +27,9 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["POST_NOTIFICATIONS"],
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -38,10 +42,27 @@
       "expo-localization",
       "expo-secure-store",
       "expo-web-browser",
-      ["expo-notifications", { "color": "#6EECF2" }],
-      ["expo-image-picker", { "photosPermission": "Chart-BoursafrikIA accède à vos photos uniquement pour analyser la capture d'écran de graphique que vous choisissez." }]
+      [
+        "expo-notifications",
+        {
+          "color": "#6EECF2"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Chart-BoursafrikIA accède à vos photos uniquement pour analyser la capture d'écran de graphique que vous choisissez."
+        }
+      ],
+      "expo-sharing"
     ],
-    "experiments": { "typedRoutes": false },
-    "extra": { "eas": { "projectId": "" } }
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    }
   }
 }
