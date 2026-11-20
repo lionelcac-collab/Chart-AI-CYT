@@ -2,12 +2,15 @@
  * App chrome: desktop top navigation, brand strip, home hero, responsive columns and footer.
  * Desktop = web viewport ≥ 900 px: top nav replaces the bottom tab bar and content gets a wide grid.
  */
+import { useQuery } from '@tanstack/react-query';
 import { router, usePathname } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Image, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { APP_NAME } from '@chart-boursafrikia/core';
 import { useT } from '../i18n';
 import { useSettings } from '../settings';
+import { api } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { font, radius, space, useTheme } from '../theme';
 
 export const DESKTOP_MIN = 900;
@@ -97,12 +100,32 @@ export function TopNav() {
               <Text style={{ color: th.accentText, fontWeight: '800', fontSize: 14 }}>★ {c.premium}</Text>
             </Pressable>
           ) : <Text style={{ color: th.accent, fontWeight: '800' }}>★ Premium</Text>}
+          <AlertBell size={18} />
           <Pressable accessibilityRole="button" onPress={() => router.push('/more')} style={{ borderWidth: 1, borderColor: th.border, paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill }}>
             <Text style={{ color: th.text, fontWeight: '600', fontSize: 14 }}>👤</Text>
           </Pressable>
         </View>
       </View>
     </View>
+  );
+}
+
+/** Bell with the number of unread alert notifications (signed-in users). */
+export function AlertBell({ size = 16 }: { size?: number }) {
+  const th = useTheme();
+  const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
+  const ev = useQuery({ queryKey: ['alert-events'], queryFn: () => api.alertEvents(100), enabled: !!user.data, refetchInterval: 10 * 60_000 });
+  if (!user.data) return null;
+  const n = (ev.data ?? []).filter((e) => !e.read_at).length;
+  return (
+    <Pressable accessibilityRole="link" accessibilityLabel={n ? `${n} alertes non lues` : 'Alertes'} onPress={() => router.push('/alertes')} hitSlop={8} style={{ paddingHorizontal: 4 }}>
+      <Text style={{ fontSize: size }}>🔔</Text>
+      {n ? (
+        <View style={{ position: 'absolute', top: -4, right: -6, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: th.down, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
+          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>{n > 99 ? '99+' : n}</Text>
+        </View>
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -115,6 +138,7 @@ export function BrandStrip() {
       <Image source={require('../../assets/logo-mark.png')} accessibilityIgnoresInvertColors style={{ width: 20, height: 20, borderRadius: 5 }} />
       <Text style={{ color: th.text, fontSize: 12, fontWeight: '700', flexShrink: 0 }} numberOfLines={1}>{APP_NAME}</Text>
       <Text style={{ color: th.textMuted, fontSize: 12, flexShrink: 1 }} numberOfLines={1}>· {c.strip}</Text>
+      <AlertBell size={14} />
     </View>
   );
 }

@@ -3,6 +3,7 @@
 import { MODELS, cached, generateJson } from '../_shared/ai.ts';
 import { admin, handler, json, requireService } from '../_shared/runtime.ts';
 import { buildSheet, loadBars } from '../_shared/sheet.ts';
+import { evaluateAlerts } from '../_shared/alerts.ts';
 import { MVP_MARKETS, SCAN_PERIODS, scanMarket, type FactorKey, type ScanInput } from '../_shared/core/index.ts';
 
 type Row = { assetId: string; market: string; sector: string | null; name: string; scores: Partial<Record<FactorKey | 'overall', number>>; illiquid: boolean; confidence: string };
@@ -12,15 +13,6 @@ const REPORT_SCHEMA = {
   properties: { title: { type: 'string' }, body_fr: { type: 'string' }, body_en: { type: 'string' }, highlights: { type: 'array', items: { type: 'string' } } },
 };
 
-async function sendPush(tokens: string[], title: string, body: string, data: Record<string, string>) {
-  // Expo push service (relays to FCM / APNs). Batches of 100.
-  for (let i = 0; i < tokens.length; i += 100) {
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(tokens.slice(i, i + 100).map((to) => ({ to, title, body, data, sound: 'default' }))),
-    }).catch((e) => console.warn('push', e));
-  }
-}
 
 Deno.serve(handler(async (req) => {
   requireService(req);
@@ -102,21 +94,7 @@ Deno.serve(handler(async (req) => {
     });
   }
 
-  // Alerts
-  const { data: alerts } = await db.from('alerts').select('*').eq('active', true);
-  const { data: quotes } = await db.from('quotes_latest').select('asset_id, last, change_pct');
-  const qm = new Map((quotes ?? []).map((x) => [x.asset_id, x]));
-  let fired = 0;
-  for (const al of alerts ?? []) {
-    const q = qm.get(al.asset_id);
-    if (!q) continue;
-    const hit = (al.kind === 'price_above' && q.last >= al.threshold) || (al.kind === 'price_below' && q.last <= al.threshold) ||
-      (al.kind === 'change_pct' && Math.abs(q.change_pct ?? 0) >= al.threshold);
-    if (!hit || (al.last_triggered_at && Date.now() - new Date(al.last_triggered_at).getTime() < 20 * 3600_000)) continue;
-    const { data: toks } = await db.from('push_tokens').select('token').eq('user_id', al.user_id);
-    await sendPush((toks ?? []).map((t) => t.token), `Alerte ${al.asset_id}`, `Dernier cours : ${q.last} (${(q.change_pct ?? 0).toFixed(2)} %)`, { assetId: al.asset_id });
-    await db.from('alerts').update({ last_triggered_at: new Date().toISOString() }).eq('id', al.id);
-    fired++;
-  }
-  return json({ consensus: rows.length, rankings: rankingRows.length, alertsFired: fired });
+  // Alerts (per asset and global watchlist alerts) → in-app notifications + push.
+  const alertsRes = await evaluateAlerts(db).catch((e) => ({ error: String(e) }));
+  return json({ consensus: rows.length, rankings: rankingRows.length, alerts: alertsRes });
 }));

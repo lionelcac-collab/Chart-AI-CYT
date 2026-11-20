@@ -43,6 +43,10 @@ const dropStale = (rows: AssetSummary[]) => {
 };
 
 
+export type AlertKind = 'price_above' | 'price_below' | 'change_pct' | 'near_support' | 'near_resistance' | 'events';
+export type AlertRow = { id: string; asset_id: string | null; kind: AlertKind; threshold: number | null; direction: 'up' | 'down' | 'both'; scope: 'asset' | 'watchlist'; active: boolean;
+  last_triggered_at: string | null; created_at: string; assets: { ticker: string; name: string; currency: string } | null };
+export type AlertEvent = { id: number; alert_id: string | null; asset_id: string | null; kind: string; session_date: string; title: string; body: string; value: number | null; read_at: string | null; created_at: string };
 export type CalendarEvent = { id: number; asset_id: string | null; kind: 'agm' | 'egm' | 'results' | 'dividend' | 'split' | 'rights_issue' | 'suspension' | 'other'; event_date: string;
   title_fr: string | null; title_en: string | null; details: Record<string, any> | null; source: string; source_url: string | null; assets: { ticker: string; name: string; market: string } | null };
 export type CapitalOperation = { id: number; market: string | null; kind: 'ipo' | 'bond_issue' | 'rights_issue' | 'delisting' | 'regulator_visa'; issuer: string; title: string; regulator: string | null;
@@ -265,6 +269,43 @@ export const api = {
     if (!supabase) throw new ApiError('NO_BACKEND');
     const { error } = await supabase.from('portfolio_transactions').delete().eq('portfolio_id', portfolioId);
     if (error) throw new ApiError('SAVE_FAILED', error.message);
+  },
+
+  // ------------------------------------------------------------------ alerts
+  async alerts(): Promise<AlertRow[]> {
+    if (!supabase) return [];
+    const { data } = await supabase.from('alerts').select('id, asset_id, kind, threshold, direction, scope, active, last_triggered_at, created_at, assets(ticker, name, currency)').order('created_at', { ascending: false });
+    return (data ?? []).map((a) => ({ ...a, threshold: a.threshold == null ? null : Number(a.threshold) })) as unknown as AlertRow[];
+  },
+  async createAlerts(rows: { asset_id: string | null; kind: AlertKind; threshold: number | null; direction?: 'up' | 'down' | 'both'; scope?: 'asset' | 'watchlist' }[]) {
+    if (!supabase) throw new ApiError('NO_BACKEND');
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) throw new ApiError('AUTH_REQUIRED');
+    const { error } = await supabase.from('alerts').insert(rows.map((r) => ({ user_id: u.user!.id, scope: 'asset', direction: 'both', ...r })));
+    if (error) throw new ApiError(/FREE_PLAN_ALERT_LIMIT/.test(error.message) ? 'ALERT_LIMIT' : 'SAVE_FAILED', error.message);
+    await invoke('alerts-check', {}).catch(() => null); // immediate check against the latest session
+  },
+  async setAlertActive(id: string, active: boolean) {
+    if (!supabase) return;
+    const { error } = await supabase.from('alerts').update({ active }).eq('id', id);
+    if (error) throw new ApiError(/FREE_PLAN_ALERT_LIMIT/.test(error.message) ? 'ALERT_LIMIT' : 'SAVE_FAILED', error.message);
+  },
+  async deleteAlerts(ids: string[]) {
+    if (!supabase || !ids.length) return;
+    await supabase.from('alerts').delete().in('id', ids);
+  },
+  async alertEvents(limit = 100): Promise<AlertEvent[]> {
+    if (!supabase) return [];
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return [];
+    const { data } = await supabase.from('alert_events').select('id, alert_id, asset_id, kind, session_date, title, body, value, read_at, created_at').order('created_at', { ascending: false }).limit(limit);
+    return (data ?? []) as AlertEvent[];
+  },
+  async markAlertEventsRead(ids?: number[]) {
+    if (!supabase) return;
+    let q = supabase.from('alert_events').update({ read_at: new Date().toISOString() }).is('read_at', null);
+    if (ids?.length) q = q.in('id', ids);
+    await q;
   },
 
   async fxRates(): Promise<Partial<Record<CurrencyCode, number>>> {

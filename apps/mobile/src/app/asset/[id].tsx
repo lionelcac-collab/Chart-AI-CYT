@@ -6,6 +6,7 @@ import { AssetSectionsAnalysis } from '../../components/AiAnalysisCard';
 import { ConsensusCard, FundamentalsCard, LiquidityCard, PerformanceGrid, RangeTable, TechnicalCard } from '../../components/AssetSections';
 import { Columns, useIsDesktop } from '../../components/Chrome';
 import { CompanyPanel } from '../../components/CompanyPanel';
+import { AlertForm, AlertList } from '../../components/Alerts';
 import { NewsList } from '../../components/NewsList';
 import PriceChart from '../../components/PriceChart';
 import { Button, Card, ErrorBox, KV, Loading, Pill, ProvenanceBadge, Row, Screen, Txt } from '../../components/ui';
@@ -31,6 +32,7 @@ export default function AssetScreen() {
   const q = useQuery({ queryKey: ['asset', assetId, plan], queryFn: () => api.asset(assetId, plan === 'premium') });
   const wl = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist });
   const watched = wl.data?.includes(assetId) ?? false;
+  const myAlerts = useQuery({ queryKey: ['alerts'], queryFn: api.alerts });
   const toggle = useMutation({ mutationFn: () => api.toggleWatch(assetId, !watched), onSuccess: () => qc.invalidateQueries({ queryKey: ['watchlist'] }) });
 
   const s = q.data;
@@ -90,6 +92,10 @@ export default function AssetScreen() {
       {tab === 'analysis' ? (
         <>
         <AssetSectionsAnalysis assetId={s.asset.id} />
+        <Card title={lang === 'fr' ? '🔔 Alertes sur ce titre' : '🔔 Alerts on this stock'} collapsible defaultOpen={false} badge={(myAlerts.data ?? []).filter((x) => x.asset_id === s.asset.id).length || null}>
+          <AlertForm assets={[{ id: s.asset.id, ticker: s.asset.ticker, last: last, currency: s.asset.currency }]} />
+          <AlertList alerts={(myAlerts.data ?? []).filter((x) => x.asset_id === s.asset.id)} />
+        </Card>
         {desktop ? (
           <Columns flex={[3, 2]}>{[
             <Fragment key="main">

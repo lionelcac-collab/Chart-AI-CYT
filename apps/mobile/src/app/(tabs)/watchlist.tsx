@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, TextInput, View } from 'react-native';
 import { ENTITLEMENTS } from '@chart-boursafrikia/core';
+import { GlobalAlertCard } from '../../components/Alerts';
 import { ImportReview } from '../../components/ImportReview';
 import { ContributionBar, PERIOD_LABEL, PortfolioAsk, PortfolioPanel, PositionEditor, usePortfolio } from '../../components/Portfolio';
 import { Button, Card, Loading, Pill, Row, Screen, Txt } from '../../components/ui';
@@ -236,6 +237,7 @@ export default function Watchlist() {
           onDone={(m) => { setFound(null); setMsg(m); }} onCancel={() => setFound(null)} />
       ) : null}
 
+      {ids.data?.length ? <GlobalAlertCard count={ids.data.length} /> : null}
       <PortfolioPanel count={ids.data?.length ?? 0} pf={pf} />
       {ids.data?.length ? <PortfolioAsk hasQuantities={Object.values(pos.data ?? {}).some((p) => p.quantity != null)} /> : null}
 

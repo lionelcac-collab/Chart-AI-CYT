@@ -61,6 +61,7 @@ function Shell() {
         <Stack.Screen name="admin" options={{ title: 'Administration' }} />
         <Stack.Screen name="profil" options={{ title: 'Profil investisseur' }} />
         <Stack.Screen name="calendrier" options={{ title: '' }} />
+        <Stack.Screen name="alertes" options={{ title: '' }} />
         <Stack.Screen name="operations" options={{ title: '' }} />
         <Stack.Screen name="portefeuille-virtuel" options={{ title: '' }} />
         <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
