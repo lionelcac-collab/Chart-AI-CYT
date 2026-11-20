@@ -140,10 +140,17 @@ Deno.serve(handler(async (req) => {
   }
 
   // phase 'final': rankings from the latest model results, then alerts.
-  const { data: latest } = await db.from('latest_consensus').select('asset_id, as_of, confidence, confidence_value, result, assets!inner(market, name, is_active, sectors(code))').eq('assets.is_active', true);
+  // Paged read (the API returns at most 1 000 rows per request).
+  const latest: Record<string, any>[] = [];
+  for (let from = 0; ; from += 500) {
+    const { data, error } = await db.from('latest_consensus').select('asset_id, as_of, confidence, confidence_value, result, assets!inner(market, name, is_active, asset_class, sectors(code))').eq('assets.is_active', true).eq('assets.asset_class', 'equity').order('asset_id').range(from, from + 499);
+    if (error) throw error;
+    latest.push(...(data ?? []));
+    if ((data ?? []).length < 500) break;
+  }
   const rows: Row[] = [];
   let sessionDate = '';
-  for (const l of latest ?? []) {
+  for (const l of latest) {
     const a = l.assets as unknown as { market: string; name: string; sectors: { code?: string } | null };
     const c = l.result as { factors: { key: FactorKey; score: number | null }[]; forecasts: { score: number }[]; liquidity?: { warning?: boolean } | null };
     sessionDate = l.as_of > sessionDate ? l.as_of : sessionDate;
