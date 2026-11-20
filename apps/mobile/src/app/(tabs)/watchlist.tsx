@@ -113,7 +113,7 @@ export default function Watchlist() {
   });
   const runExport = async (kind: 'csv' | 'pdf') => {
     setExportMsg(null); setExporting(kind);
-    try { await (kind === 'csv' ? exportCsv(buildExport()) : exportPdf(buildExport())); setExportMsg(kind === 'csv' ? (fr ? '✓ Fichier CSV téléchargé.' : '✓ CSV file downloaded.') : (fr ? '✓ Rapport prêt : choisissez « Enregistrer en PDF » dans la fenêtre d’impression.' : '✓ Report ready: choose “Save as PDF”.')); }
+    try { await (kind === 'csv' ? exportCsv(buildExport()) : exportPdf(buildExport())); setExportMsg(kind === 'csv' ? (fr ? '✓ Fichier CSV téléchargé.' : '✓ CSV file downloaded.') : (fr ? '✓ Rapport ouvert dans un nouvel onglet : touchez « Imprimer / Enregistrer en PDF » (sur iPhone : Partager → Imprimer, puis pincez l’aperçu pour obtenir le PDF).' : '✓ Report opened in a new tab: tap “Print / Save as PDF”.')); }
     catch { setExportMsg(fr ? 'Export impossible.' : 'Export failed.'); } finally { setExporting(null); }
   };
   const [organize, setOrganize] = useState<'contribution' | 'weight' | 'performance' | 'sector' | 'market'>('contribution');

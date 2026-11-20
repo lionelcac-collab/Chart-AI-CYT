@@ -6,6 +6,7 @@ import { AssetSectionsAnalysis } from '../../components/AiAnalysisCard';
 import { ConsensusCard, FundamentalsCard, LiquidityCard, PerformanceGrid, RangeTable, TechnicalCard } from '../../components/AssetSections';
 import { Columns, useIsDesktop } from '../../components/Chrome';
 import { CompanyPanel } from '../../components/CompanyPanel';
+import { BasketForm } from '../../components/Basket';
 import { ForecastPanel } from '../../components/Forecasts';
 import { AlertForm, AlertList } from '../../components/Alerts';
 import { NewsList } from '../../components/NewsList';
@@ -113,6 +114,9 @@ export default function AssetScreen() {
       {tab === 'analysis' ? (
         <>
         <AssetSectionsAnalysis assetId={s.asset.id} />
+        <Card title={lang === 'fr' ? '🛒 Panier : à acheter / à vendre' : '🛒 Basket: buy / sell'} collapsible defaultOpen={false}>
+          <BasketForm asset={{ id: s.asset.id, ticker: s.asset.ticker, last, currency: s.asset.currency }} />
+        </Card>
         <Card title={lang === 'fr' ? '🔔 Alertes sur ce titre' : '🔔 Alerts on this stock'} collapsible defaultOpen={false} badge={(myAlerts.data ?? []).filter((x) => x.asset_id === s.asset.id).length || null}>
           <AlertForm assets={[{ id: s.asset.id, ticker: s.asset.ticker, last: last, currency: s.asset.currency }]} />
           <AlertList alerts={(myAlerts.data ?? []).filter((x) => x.asset_id === s.asset.id)} />

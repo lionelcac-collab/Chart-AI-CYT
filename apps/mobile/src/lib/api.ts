@@ -54,6 +54,8 @@ export type AnalystRow = { assetId: string; ticker: string; name: string; market
   buy: number | null; hold: number | null; sell: number | null; brokers: string | null; targetMean: number | null; targetMin: number | null; targetMax: number | null;
   referencePrice: number | null; upsidePct: number | null; publishedAt: string; source: string; sourceUrl: string | null; note: string | null; history: { date: string; targetMean: number | null; source: string }[] };
 export type AnalystsResult = { since: string; totals: { buy: number; hold: number; sell: number } } & ({ locked: false; rows: AnalystRow[] } | { locked: true; covered: number });
+export type BasketItem = { id: string; asset_id: string; side: 'buy' | 'sell'; quantity: number | null; limit_price: number | null; note: string | null; done: boolean; created_at: string;
+  ticker: string; name: string; market: string; currency: string; last: number | null; lastDate: string | null; changePct: number | null };
 export type AlertKind = 'price_above' | 'price_below' | 'change_pct' | 'near_support' | 'near_resistance' | 'events';
 export type AlertRow = { id: string; asset_id: string | null; kind: AlertKind; threshold: number | null; direction: 'up' | 'down' | 'both'; scope: 'asset' | 'watchlist'; active: boolean;
   last_triggered_at: string | null; created_at: string; assets: { ticker: string; name: string; currency: string } | null };
@@ -211,6 +213,37 @@ export const api = {
   },
 
   /** Optional position details (shares held, amount invested) per watched asset. */
+  async basket(): Promise<BasketItem[]> {
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('trade_basket').select('*').order('created_at');
+    if (error) throw new ApiError('LOAD_FAILED', error.message);
+    const ids = [...new Set((data ?? []).map((r) => r.asset_id))];
+    const { data: px } = ids.length ? await supabase.from('market_latest').select('asset_id, ticker, name, market, currency, close, session_date, change_pct').in('asset_id', ids) : { data: [] };
+    const P = new Map((px ?? []).map((p) => [p.asset_id, p]));
+    return (data ?? []).map((r) => {
+      const p = P.get(r.asset_id);
+      return { ...r, quantity: r.quantity == null ? null : Number(r.quantity), limit_price: r.limit_price == null ? null : Number(r.limit_price),
+        ticker: p?.ticker ?? r.asset_id.split(':')[1], name: p?.name ?? '', market: p?.market ?? r.asset_id.split(':')[0], currency: p?.currency ?? 'XOF',
+        last: p?.close == null ? null : Number(p.close), lastDate: p?.session_date ?? null, changePct: p?.change_pct == null ? null : Number(p.change_pct) } as BasketItem;
+    });
+  },
+  async basketSave(item: { assetId: string; side: 'buy' | 'sell'; quantity: number | null; limitPrice: number | null; note: string | null }) {
+    if (!supabase) throw new ApiError('NO_BACKEND');
+    const { error } = await supabase.from('trade_basket').upsert({ asset_id: item.assetId, side: item.side, quantity: item.quantity, limit_price: item.limitPrice,
+      note: item.note?.trim() || null, done: false, updated_at: new Date().toISOString() }, { onConflict: 'user_id,asset_id,side' });
+    if (error) throw new ApiError(error.message.includes('BASKET_LIMIT') ? 'BASKET_LIMIT' : 'SAVE_FAILED', error.message);
+  },
+  async basketUpdate(id: string, patch: Partial<{ done: boolean; quantity: number | null; limit_price: number | null; note: string | null; side: 'buy' | 'sell' }>) {
+    if (!supabase) return;
+    const { error } = await supabase.from('trade_basket').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) throw new ApiError('SAVE_FAILED', error.message);
+  },
+  async basketDelete(ids: string[]) {
+    if (!supabase || !ids.length) return;
+    const { error } = await supabase.from('trade_basket').delete().in('id', ids);
+    if (error) throw new ApiError('SAVE_FAILED', error.message);
+  },
+
   async positions(): Promise<Record<string, { quantity: number | null; cost: number | null }>> {
     if (!supabase) return {};
     const { data } = await supabase.from('watchlist_items').select('asset_id, quantity, cost_amount');

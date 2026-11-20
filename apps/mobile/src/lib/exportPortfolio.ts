@@ -1,3 +1,4 @@
+import { printHtml } from './printDoc';
 // Portfolio export: CSV (Excel-friendly: ";" separator, decimal comma in French, UTF-8 BOM) and PDF report.
 // Web: CSV is downloaded, PDF goes through the browser print dialog ("Save as PDF").
 // iOS / Android: files are written to the cache and handed to the system share sheet.
@@ -123,19 +124,6 @@ export async function exportCsv(inp: ExportInput) {
 }
 
 export async function exportPdf(inp: ExportInput) {
-  const html = portfolioHtml(inp);
-  if (Platform.OS === 'web') {
-    // Print a standalone document (the browser offers "Save as PDF").
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentWindow!.document;
-    doc.open(); doc.write(html); doc.close();
-    setTimeout(() => { iframe.contentWindow!.focus(); iframe.contentWindow!.print(); setTimeout(() => iframe.remove(), 60_000); }, 300);
-    return;
-  }
-  const Print = await import('expo-print');
-  const Sharing = await import('expo-sharing');
-  const { uri } = await Print.printToFileAsync({ html, width: 842, height: 595 });
-  await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Portefeuille', UTI: 'com.adobe.pdf' });
+  // Synchronous up to window.open (called from the click handler).
+  return printHtml(portfolioHtml(inp), { title: 'Portefeuille', fr: inp.lang !== 'en', landscape: true });
 }

@@ -92,6 +92,7 @@ export default function More() {
         <Txt size="xs" muted>{lang === 'fr' ? 'XOF/XAF ↔ EUR : parité fixe 1 EUR = 655,957 FCFA. Autres devises : taux du jour (source indiquée).' : 'XOF/XAF ↔ EUR: fixed parity 1 EUR = 655.957 FCFA. Other currencies: daily rates (source shown).'}</Txt>
       </Card>
       <Card>
+        <Item label={lang === 'fr' ? '🛒 Mon panier (achats / ventes)' : '🛒 My basket'} onPress={() => router.push('/panier')} />
         <Item label={t.more.forecasts} onPress={() => router.push('/previsions')} />
         <Item label={t.more.portfolio} onPress={() => router.push('/portefeuille-virtuel')} />
         <Item label={t.more.calendar} onPress={() => router.push('/calendrier')} />

@@ -4,6 +4,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { router, usePathname } from 'expo-router';
+import { BasketIcon } from './Basket';
 import type { ReactNode } from 'react';
 import { Image, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { APP_NAME } from '@chart-boursafrikia/core';
@@ -100,6 +101,7 @@ export function TopNav() {
               <Text style={{ color: th.accentText, fontWeight: '800', fontSize: 14 }}>★ {c.premium}</Text>
             </Pressable>
           ) : <Text style={{ color: th.accent, fontWeight: '800' }}>★ Premium</Text>}
+          <BasketIcon size={18} />
           <AlertBell size={18} />
           <Pressable accessibilityRole="button" onPress={() => router.push('/more')} style={{ borderWidth: 1, borderColor: th.border, paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill }}>
             <Text style={{ color: th.text, fontWeight: '600', fontSize: 14 }}>👤</Text>
@@ -138,6 +140,7 @@ export function BrandStrip() {
       <Image source={require('../../assets/logo-mark.png')} accessibilityIgnoresInvertColors style={{ width: 20, height: 20, borderRadius: 5 }} />
       <Text style={{ color: th.text, fontSize: 12, fontWeight: '700', flexShrink: 0 }} numberOfLines={1}>{APP_NAME}</Text>
       <Text style={{ color: th.textMuted, fontSize: 12, flexShrink: 1 }} numberOfLines={1}>· {c.strip}</Text>
+      <BasketIcon size={14} />
       <AlertBell size={14} />
     </View>
   );

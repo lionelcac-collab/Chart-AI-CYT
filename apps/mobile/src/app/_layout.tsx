@@ -65,6 +65,7 @@ function Shell() {
         <Stack.Screen name="operations" options={{ title: '' }} />
         <Stack.Screen name="portefeuille-virtuel" options={{ title: '' }} />
         <Stack.Screen name="previsions" options={{ title: '' }} />
+        <Stack.Screen name="panier" options={{ title: '' }} />
         <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
       </Stack>
       </View>
