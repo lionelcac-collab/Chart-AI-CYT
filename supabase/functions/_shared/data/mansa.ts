@@ -76,7 +76,7 @@ export function num(row: Row, ...keys: string[]): number | null {
 export function rows(payload: unknown): Row[] {
   if (Array.isArray(payload)) return payload as Row[];
   if (payload && typeof payload === 'object') {
-    for (const k of ['data', 'results', 'stocks', 'items', 'indices', 'rates', 'history']) {
+    for (const k of ['data', 'results', 'stocks', 'items', 'indices', 'rates', 'history', 'points']) {
       const v = (payload as Row)[k];
       if (Array.isArray(v)) return v as Row[];
       if (v && typeof v === 'object') { const inner = rows(v); if (inner.length) return inner; }
@@ -220,11 +220,25 @@ export class MansaConnector implements MarketDataConnector {
     });
   }
 
+  /** Raw history payload (diagnostics). */
+  async rawHistory(market: MarketCode, ticker: string, params: Record<string, string>): Promise<unknown> {
+    return this.get(this.path(this.paths.history, market, ticker), params);
+  }
+
   async getHistory(market: MarketCode, ticker: string, from: string, to: string): Promise<Bar[]> {
-    const data = rows(await this.get(this.path(this.paths.history, market, ticker), { from, to }));
+    // The API takes a range (1M…5Y, MAX); dates outside [from, to] are filtered here.
+    const years = Math.max(1, Math.ceil((Date.parse(to) - Date.parse(from)) / (365 * 86400_000)));
+    const range = years <= 1 ? '1Y' : years <= 5 ? '5Y' : 'MAX';
+    const payload = await this.get(this.path(this.paths.history, market, ticker), { range });
+    let data = rows(payload);
+    if (!data.length && payload && typeof payload === 'object') {
+      const inner = (payload as Row).data;
+      if (inner && typeof inner === 'object' && !Array.isArray(inner)) data = rows(inner);
+    }
+    data = data.filter((r) => { const d = String(pick(r, 'date', 'day', 'timestamp', 'trade_date', 'session_date') ?? '').slice(0, 10); return d >= from && d <= to; });
     return data.flatMap((r) => {
-      const date = String(pick(r, 'date', 'day', 'timestamp') ?? '').slice(0, 10);
-      const close = num(r, 'close', 'price', 'last');
+      const date = String(pick(r, 'date', 'day', 'timestamp', 'trade_date', 'session_date') ?? '').slice(0, 10);
+      const close = num(r, 'close', 'price', 'last', 'close_price', 'closing_price');
       if (!date || close === null) return [];
       return [{ date, open: num(r, 'open'), high: num(r, 'high'), low: num(r, 'low'), close, volume: num(r, 'volume') ?? 0, value: num(r, 'value', 'turnover') }];
     }).sort((a, b) => a.date.localeCompare(b.date));

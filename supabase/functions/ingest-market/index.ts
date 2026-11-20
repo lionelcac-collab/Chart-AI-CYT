@@ -180,6 +180,12 @@ Deno.serve(handler(async (req) => {
     const m = body.market as MarketCode;
     const from = body.from ?? new Date(Date.now() - 3 * 365 * 86400_000).toISOString().slice(0, 10);
     const to = new Date().toISOString().slice(0, 10);
+    if (body.debug) {
+      const raw = await mansa.rawHistory(m, body.ticker, body.params ?? { range: '5Y' }).catch((e) => ({ error: (e as Error).message }));
+      const txt = JSON.stringify(raw);
+      await db.from('ingestion_runs').insert({ job: 'history_debug', market: m, status: 'ok', attempts: [{ sample: txt.slice(0, 1500), length: txt.length }], finished_at: new Date().toISOString() });
+      return json({ sample: txt.slice(0, 1500) });
+    }
     const { data: list } = await db.from('assets').select('id, ticker').eq('market', m).eq('is_active', true).order('id').range(body.offset ?? 0, (body.offset ?? 0) + (body.limit ?? 40) - 1);
     const out: Record<string, unknown>[] = [];
     let written = 0;
