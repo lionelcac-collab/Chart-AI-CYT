@@ -110,7 +110,7 @@ export async function buildSheet(db: SupabaseClient, assetId: string) {
     peers: peersRes.data ?? [],
     documents: documents ?? [],
     technical: technicalSnapshot(bars),
-    news: (newsRes.data ?? []).map((n) => n.news_articles).filter(Boolean),
+    news: (newsRes.data ?? []).map((n) => n.news_articles as unknown as { published_at: string | null }).filter(Boolean).sort((x, y) => String(y.published_at).localeCompare(String(x.published_at))),
     analysts,
     consensus,
     consensusInputs: { ...consensusInputs, ratios },

@@ -144,9 +144,11 @@ export const NEWS_CLASSIFICATION_SCHEMA = {
       type: 'array',
       items: {
         type: 'object', additionalProperties: false,
-        required: ['index', 'tickers', 'sentiment', 'materiality', 'category', 'summary_fr', 'summary_en'],
+        required: ['index', 'relevant', 'markets', 'tickers', 'sentiment', 'materiality', 'category', 'summary_fr', 'summary_en'],
         properties: {
           index: { type: 'integer' },
+          relevant: { type: 'boolean' },
+          markets: { type: 'array', items: { type: 'string', enum: ['BRVM', 'BVMAC', 'NGX'] } },
           tickers: { type: 'array', items: { type: 'string' } },
           sentiment: { type: 'number' },
           materiality: { type: 'integer', enum: [0, 1, 2, 3] },

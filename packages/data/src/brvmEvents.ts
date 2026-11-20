@@ -108,3 +108,35 @@ export function parseBrvmOperations(text: string): BrvmOperation[] {
   const seen = new Set<string>();
   return out.filter((x) => (seen.has(x.title) ? false : (seen.add(x.title), true)));
 }
+
+export interface BrvmCommunique { issuer: string; ticker: string | null; reference: string; nature: string; object: string }
+
+/** "COMMUNIQUES" table (Emetteur / N° / Nature / Objet): official issuer releases listed in the bulletin. */
+export function parseBrvmCommuniques(text: string, tickers: Set<string>): BrvmCommunique[] {
+  const lines = text.split('\n');
+  const out: BrvmCommunique[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^\s*COMMUNIQU[EÉ]S\s*$/.test(lines[i]!)) continue;
+    const header = lines.slice(i + 1, i + 4).find((l) => /Emetteur/.test(l) && /Objet/.test(l));
+    if (!header) continue;
+    const cN = header.indexOf('N°'), cNat = header.indexOf('Nature'), cObj = header.indexOf('Objet');
+    if (cN < 0 || cNat < 0 || cObj < 0) continue;
+    let cur: BrvmCommunique | null = null, blanks = 0;
+    for (let j = lines.indexOf(header, i) + 1; j < lines.length; j++) {
+      const l = lines[j]!;
+      if (!l.trim()) { if (++blanks >= 3) break; continue; }
+      blanks = 0;
+      if (/^\s*(AVIS|ASSEMBL|OPERATIONS|ANNEE|Emetteur)/.test(l) || /^\s+\d+\s*$/.test(l)) break;
+      const col = (a: number, b?: number) => l.slice(a, b).trim();
+      const issuer = col(0, cN), ref = col(cN, cNat), nature = col(cNat, cObj), object = col(cObj);
+      if (issuer && ref) {
+        cur = { issuer, ticker: brvmTickerFor(issuer, tickers), reference: ref, nature, object };
+        out.push(cur);
+      } else if (cur) {
+        if (nature) cur.nature = `${cur.nature} ${nature}`.trim();
+        if (object) cur.object = `${cur.object} ${object}`.trim();
+      }
+    }
+  }
+  return out;
+}

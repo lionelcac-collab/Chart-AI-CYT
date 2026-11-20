@@ -157,21 +157,16 @@ export const api = {
   async news(market?: MarketCode, limit = 30): Promise<NewsItem[]> {
     if (SNAPSHOT) return [];
     if (!supabase) return demoNews(market).slice(0, limit);
-    let q = supabase.from('news_asset_links')
-      .select('asset_id, assets!inner(market), news_articles!inner(id, title, url, source, published_at, sentiment, materiality, category, summary_fr, summary_en)')
-      .order('published_at', { referencedTable: 'news_articles', ascending: false }).limit(limit * 2);
-    if (market) q = q.eq('assets.market', market);
+    // Relevant articles about the market (exchange-level) or one of its stocks, newest first.
+    let q = supabase.from('news_articles')
+      .select('id, title, url, source, published_at, sentiment, materiality, category, summary_fr, summary_en, markets, news_asset_links(asset_id)')
+      .eq('relevant', true).order('published_at', { ascending: false }).limit(limit);
+    if (market) q = q.contains('markets', [market]);
     const { data, error } = await q;
     if (error) throw new ApiError('NETWORK', error.message);
-    const byId = new Map<number, NewsItem>();
-    for (const r of data ?? []) {
-      const n = r.news_articles as unknown as NewsItem & { id: number };
-      const prev = byId.get(n.id);
-      if (prev) prev.asset_ids!.push(r.asset_id);
-      else byId.set(n.id, { ...n, asset_ids: [r.asset_id] });
-    }
-    return [...byId.values()].sort((a, b) => String(b.published_at).localeCompare(String(a.published_at))).slice(0, limit);
+    return (data ?? []).map((n) => ({ ...(n as unknown as NewsItem), asset_ids: ((n as { news_asset_links?: { asset_id: string }[] }).news_asset_links ?? []).map((l) => l.asset_id) }));
   },
+
 
   /** Back-office call (server checks the admin role and journals every action). */
   async admin<T = Record<string, any>>(action: string, body: Record<string, unknown> = {}): Promise<T> {

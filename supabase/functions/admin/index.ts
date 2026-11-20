@@ -4,7 +4,7 @@ import { admin, audit, currentUser, handler, json } from '../_shared/runtime.ts'
 
 type Body = Record<string, unknown> & { action?: string };
 
-const JOBS = new Set(['ingest-market', 'post-close', 'ingest-news', 'ingest-macro', 'backfill', 'reports']);
+const JOBS = new Set(['ingest-market', 'post-close', 'ingest-news', 'ingest-macro', 'backfill', 'reports', 'enrich-companies']);
 const ASSET_FIELDS = new Set(['name', 'isin', 'sector_id', 'description_fr', 'description_en', 'activity_fr', 'activity_en', 'website',
   'headquarters', 'employees', 'founded_year', 'listing_date', 'share_capital', 'shares_outstanding', 'free_float_pct', 'is_active', 'country']);
 

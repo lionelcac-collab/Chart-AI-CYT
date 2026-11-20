@@ -173,7 +173,7 @@ Deno.serve(handler(async (req) => {
     const s = body.date ? await bulletin.getSession('BRVM', body.date) : await bulletin.latestSession('BRVM');
     if (!s?.text) return json({ error: 'bulletin introuvable' }, 404);
     const debug = body.debug ? s.text.split('\n').filter((l: string) => /cotation le|AMF-UMOA/.test(l)).slice(0, 20) : undefined;
-    return json({ date: s.date, url: s.url, ...(await saveBrvmEvents(admin(), s.text, s.url)), debug });
+    return json({ date: s.date, url: s.url, ...(await saveBrvmEvents(admin(), s.text, s.url, s.date)), debug });
   }
   const results = [];
   // force: manual run outside the post-close window (admin / first run).
@@ -186,7 +186,7 @@ Deno.serve(handler(async (req) => {
   // Daily: refresh the BRVM calendar / dividends / operations from the latest bulletin (failures don't block prices).
   let events: unknown = null;
   if (job === 'eod' && (markets as string[]).includes('BRVM')) {
-    events = await bulletin.latestSession('BRVM').then((s) => (s.text ? saveBrvmEvents(admin(), s.text, s.url) : null)).catch((e) => ({ error: (e as Error).message }));
+    events = await bulletin.latestSession('BRVM').then((s) => (s.text ? saveBrvmEvents(admin(), s.text, s.url, s.date) : null)).catch((e) => ({ error: (e as Error).message }));
   }
   return json({ results, events });
 }));

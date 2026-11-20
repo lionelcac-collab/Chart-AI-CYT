@@ -23,7 +23,11 @@ export function CompanyPanel({ s }: { s: AssetSheet }) {
   const { t, lang } = useT();
   const a = s.asset;
   const na = t.asset.noInfo;
-  const description = lang === 'fr' ? a.description_fr ?? a.activity_fr : a.description_en ?? a.activity_en;
+  const ax = a as typeof a & { profile_source?: string | null; profile_source_url?: string | null };
+  const own = lang === 'fr' ? a.description_fr ?? a.activity_fr : a.description_en ?? a.activity_en;
+  const other = lang === 'fr' ? a.description_en ?? a.activity_en : a.description_fr ?? a.activity_fr;
+  const description = own ?? other;
+  const otherLang = !own && !!other;
   const activity = lang === 'fr' ? a.activity_fr : a.activity_en;
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = s.events.filter((e) => e.event_date >= today);
@@ -33,8 +37,14 @@ export function CompanyPanel({ s }: { s: AssetSheet }) {
     <>
       <Card title={t.asset.about} collapsible>
         <Txt size="sm">{description ?? na}</Txt>
+        {otherLang ? <Txt size="xs" muted>{lang === 'fr' ? '(texte disponible en anglais uniquement)' : '(text available in French only)'}</Txt> : null}
         {activity && activity !== description ? <><Txt weight="700">{t.asset.activity}</Txt><Txt size="sm">{activity}</Txt></> : null}
         {a.website ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(a.website!)}><Txt size="sm" color={th.info}>{a.website}</Txt></Pressable> : null}
+        {ax.profile_source && ax.profile_source !== 'not_found' ? (
+          <Pressable accessibilityRole="link" onPress={() => ax.profile_source_url && Linking.openURL(ax.profile_source_url)}>
+            <Txt size="xs" muted>{t.common.source} : {ax.profile_source}{ax.profile_source_url ? ' ↗' : ''}</Txt>
+          </Pressable>
+        ) : null}
       </Card>
 
       <Card title={t.asset.keyFacts} collapsible>
