@@ -132,4 +132,9 @@ Deno.serve(handler(async (req) => {
     }
   }
   if (rankingRows.length) await db.from('rankings').upsert(rankingRows, { onConflict: 'scope,style,session_date' });
+
+  // Alerts (per asset and global watchlist alerts) → in-app notifications + push.
+  const alertsRes = await evaluateAlerts(db).catch((e) => ({ error: String(e) }));
+  await db.from('ingestion_runs').insert({ job: 'post_close_final', status: 'error' in (alertsRes as object) ? 'partial' : 'ok', rows_written: rankingRows.length, attempts: [{ ranked: rows.length, rankings: rankingRows.length, alerts: alertsRes }], finished_at: new Date().toISOString() });
+  return json({ ranked: rows.length, rankings: rankingRows.length, alerts: alertsRes });
 }));
