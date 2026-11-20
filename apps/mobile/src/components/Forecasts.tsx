@@ -87,10 +87,10 @@ export function ForecastPanel({ s }: { s: AssetSheet }) {
   if (!c) return <Card title={fr ? '🔮 Prévisions' : '🔮 Forecasts'}><Txt muted>{fr ? 'Historique de cours insuffisant pour calculer des prévisions sur ce titre.' : 'Not enough price history to compute forecasts.'}</Txt></Card>;
 
   if (!full) {
-    const or = { positive: fr ? 'positive' : 'positive', neutral: fr ? 'neutre' : 'neutral', negative: fr ? 'négative' : 'negative' }[c.orientation];
+    const or = { positive: fr ? '▲ signal haussier' : '▲ bullish signal', neutral: fr ? '● signal neutre' : '● neutral signal', negative: fr ? '▼ signal baissier' : '▼ bearish signal' }[c.orientation];
     return (
       <Card title={fr ? '🔮 Prévisions · PRO' : '🔮 Forecasts · PRO'}>
-        <Txt>{fr ? `Orientation du modèle : ${or} · confiance ${c.confidence === 'high' ? 'élevée' : c.confidence === 'medium' ? 'moyenne' : 'faible'}.` : `Model orientation: ${or} · confidence ${c.confidence}.`}</Txt>
+        <Txt>{fr ? `Modèle : ${or} · confiance ${c.confidence === 'high' ? 'élevée' : c.confidence === 'medium' ? 'moyenne' : 'faible'}.` : `Model: ${or} · confidence ${c.confidence}.`}</Txt>
         <View style={{ height: 150, borderRadius: radius.md, backgroundColor: th.cardAlt, alignItems: 'center', justifyContent: 'center', padding: space.md, gap: 6 }}>
           <Txt size="xl">🔒</Txt>
           <Txt weight="700" style={{ textAlign: 'center' }}>{fr ? 'Scénarios baissier / central / haussier à 1, 3, 6 et 12 mois' : 'Bear / central / bull scenarios at 1, 3, 6 and 12 months'}</Txt>
@@ -199,9 +199,9 @@ export function ForecastTeaser({ total, positive, neutral, negative, asOf }: { t
     <Card title={fr ? '🔮 Prévisions · PRO' : '🔮 Forecasts · PRO'}>
       <Txt>{fr ? `Le modèle a calculé des prévisions pour ${total} titres après la séance du ${fmtDate(asOf, lang)} :` : `The model computed forecasts for ${total} stocks after the ${fmtDate(asOf, lang)} session:`}</Txt>
       <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>
-        <Pill label={`▲ ${positive} ${fr ? 'orientés positivement' : 'positive'}`} color={th.up} />
+        <Pill label={`▲ ${positive} ${fr ? 'signaux haussiers' : 'bullish'}`} color={th.up} />
         <Pill label={`● ${neutral} ${fr ? 'neutres' : 'neutral'}`} />
-        <Pill label={`▼ ${negative} ${fr ? 'orientés négativement' : 'negative'}`} color={th.down} />
+        <Pill label={`▼ ${negative} ${fr ? 'signaux baissiers' : 'bearish'}`} color={th.down} />
       </Row>
       <Txt size="sm" muted>{fr ? 'Avec Premium : classement des titres par rendement médian attendu, probabilité de hausse ou de baisse à 1, 3, 6 et 12 mois, fourchettes et niveaux d’invalidation, filtres par bourse.' : 'With Premium: ranking by expected median return, probability of rise/fall at 1, 3, 6 and 12 months, ranges, invalidation levels, market filters.'}</Txt>
       <Button label={fr ? 'Passer à Premium' : 'Go Premium'} onPress={() => router.push('/premium')} />

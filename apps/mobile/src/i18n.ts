@@ -31,7 +31,7 @@ const fr = {
   },
   consensus: {
     analysts: 'Consensus des analystes', noAnalysts: 'Aucun analyste ne publie de recommandation suivie sur ce titre.',
-    model: 'Modèle quantitatif', orientation: { positive: 'Orientation positive', neutral: 'Orientation neutre', negative: 'Orientation négative' },
+    model: 'Modèle quantitatif', orientation: { positive: '▲ Signal haussier', neutral: '● Signal neutre', negative: '▼ Signal baissier' },
     confidence: { low: 'Confiance faible', medium: 'Confiance moyenne', high: 'Confiance élevée' },
     bear: 'Baissier', central: 'Central', bull: 'Haussier', probability: 'Probabilité', range: 'Fourchette 80 %',
     invalidation: 'Niveau d’invalidation', factors: 'Facteurs principaux', horizon: 'Horizon', locked: 'Scénarios, probabilités et fourchettes réservés au Premium.',
@@ -81,7 +81,7 @@ const en: typeof fr = {
   },
   consensus: {
     analysts: 'Analyst consensus', noAnalysts: 'No analyst publishes a tracked recommendation on this stock.',
-    model: 'Quantitative model', orientation: { positive: 'Positive orientation', neutral: 'Neutral orientation', negative: 'Negative orientation' },
+    model: 'Quantitative model', orientation: { positive: '▲ Bullish signal', neutral: '● Neutral signal', negative: '▼ Bearish signal' },
     confidence: { low: 'Low confidence', medium: 'Medium confidence', high: 'High confidence' },
     bear: 'Bearish', central: 'Central', bull: 'Bullish', probability: 'Probability', range: '80% range',
     invalidation: 'Invalidation level', factors: 'Main drivers', horizon: 'Horizon', locked: 'Scenarios, probabilities and ranges are Premium features.',

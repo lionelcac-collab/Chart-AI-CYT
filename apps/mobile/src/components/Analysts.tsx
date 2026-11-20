@@ -11,7 +11,7 @@ import { radius, space, useTheme } from '../theme';
 import { Button, Card, Loading, Pill, Row, Txt } from './ui';
 
 const PERIODS = [3, 6, 12] as const;
-const ORIENT = { fr: { positive: 'orientation positive', neutral: 'orientation neutre', negative: 'orientation négative' }, en: { positive: 'positive', neutral: 'neutral', negative: 'negative' } } as const;
+const ORIENT = { fr: { positive: '▲ signal haussier', neutral: '● signal neutre', negative: '▼ signal baissier' }, en: { positive: '▲ bullish signal', neutral: '● neutral signal', negative: '▼ bearish signal' } } as const;
 
 function ModelSection({ m, locked }: { m: ModelConsensus; locked: boolean }) {
   const th = useTheme();
@@ -35,19 +35,19 @@ function ModelSection({ m, locked }: { m: ModelConsensus; locked: boolean }) {
         {m.totals.negative ? <View style={{ flex: m.totals.negative, backgroundColor: th.down }} /> : null}
       </View>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Txt size="sm" weight="700" color={th.up}>{fr ? 'Positive' : 'Positive'} {m.totals.positive}</Txt>
-        <Txt size="sm" weight="700" color={th.neutral}>{fr ? 'Neutre' : 'Neutral'} {m.totals.neutral}</Txt>
-        <Txt size="sm" weight="700" color={th.down}>{fr ? 'Négative' : 'Negative'} {m.totals.negative}</Txt>
+        <Txt size="sm" weight="700" color={th.up}>{fr ? '▲ Haussier' : '▲ Bullish'} {m.totals.positive}</Txt>
+        <Txt size="sm" weight="700" color={th.neutral}>{fr ? '● Neutre' : '● Neutral'} {m.totals.neutral}</Txt>
+        <Txt size="sm" weight="700" color={th.down}>{fr ? '▼ Baissier' : '▼ Bearish'} {m.totals.negative}</Txt>
       </Row>
-      <Txt size="xs" muted>{fr ? `Orientation du modèle sur ${m.count} titre(s) de cette bourse, calculée après la séance du ${m.asOf ? fmtDate(m.asOf, lang) : '—'} (tendance, valorisation, qualité, dividende, actualité, analystes).` : `Model orientation on ${m.count} stocks.`}</Txt>
-      {locked ? <Locked text={fr ? 'Titres les plus nettement orientés selon le modèle : réservé à Premium.' : 'Top model picks are Premium.'} /> : (
+      <Txt size="xs" muted>{fr ? `Signal du modèle sur ${m.count} titre(s) de cette bourse, calculée après la séance du ${m.asOf ? fmtDate(m.asOf, lang) : '—'} (tendance, valorisation, qualité, dividende, actualité, analystes).` : `Model signal on ${m.count} stocks.`}</Txt>
+      {locked ? <Locked text={fr ? 'Signaux haussiers et baissiers les plus nets : réservé à Premium.' : 'Top model picks are Premium.'} /> : (
         <>
-          {m.topPositive?.length ? <><Txt size="sm" weight="700" color={th.up}>{fr ? 'Orientation positive la plus nette' : 'Most clearly positive'}</Txt>{m.topPositive.map(pick)}</> : null}
-          {m.topNegative?.length ? <><Txt size="sm" weight="700" color={th.down}>{fr ? 'Orientation négative la plus nette' : 'Most clearly negative'}</Txt>{m.topNegative.map(pick)}</> : null}
+          {m.topPositive?.length ? <><Txt size="sm" weight="700" color={th.up}>{fr ? '▲ Signaux haussiers les plus nets' : '▲ Strongest bullish signals'}</Txt>{m.topPositive.map(pick)}</> : null}
+          {m.topNegative?.length ? <><Txt size="sm" weight="700" color={th.down}>{fr ? '▼ Signaux baissiers les plus nets' : '▼ Strongest bearish signals'}</Txt>{m.topNegative.map(pick)}</> : null}
           <Pressable onPress={() => router.push('/previsions')}><Txt size="xs" color={th.info}>{fr ? 'Classement complet des prévisions →' : 'Full forecasts ranking →'}</Txt></Pressable>
         </>
       )}
-      <Txt size="xs" muted>{fr ? 'Orientation statistique du modèle (pas une recommandation d’achat ou de vente).' : 'Statistical model orientation, not a recommendation.'}</Txt>
+      <Txt size="xs" muted>{fr ? 'Signal statistique du modèle : il indique le sens le plus probable du cours, ce n’est pas une recommandation d’achat ou de vente.' : 'Statistical model signal, not a buy/sell recommendation.'}</Txt>
     </View>
   );
 }

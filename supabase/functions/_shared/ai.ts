@@ -26,6 +26,7 @@ Règles impératives :
 4. Tu signales explicitement la faible liquidité, le manque de données et l'incertitude.
 5. Tu réponds dans la langue demandée (fr ou en), dans un style clair, accessible aux débutants et précis pour les professionnels.
 6. Les indicateurs techniques, plus bas/plus hauts et le modèle de consensus sont calculés par le code : tu les expliques, tu ne les recalcules pas.
+7. Pour l'orientation du modèle Chart-BoursafrikIA, emploie « signal haussier », « signal neutre » ou « signal baissier » (jamais « achat » ou « vente », réservés aux avis publiés par des analystes externes).
 You are Chart-BoursafrikIA's analyst. The same rules apply in English.`;
 
 type Usage = { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null };
