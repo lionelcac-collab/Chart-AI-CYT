@@ -44,6 +44,8 @@ export interface BulletinSession {
   date: string;
   url: string;
   rows: BulletinRow[];
+  /** Layout text of the whole document (for extra extractions: calendar, dividends, notices). */
+  text?: string;
 }
 
 const fill = (tpl: string, date: string) => {
@@ -126,7 +128,7 @@ export class BulletinConnector implements MarketDataConnector {
       if (docDate && docDate !== date) continue; // misfiled document: not this session
       const rows = s.parse(text);
       if (rows.length === 0) throw new ConnectorError(this.id, `bulletin ${market} ${date} : aucune ligne reconnue (format modifié ?)`);
-      return { market, date, url, rows };
+      return { market, date, url, rows, text };
     }
     return null;
   }

@@ -10,3 +10,4 @@ export * from './placeholders';
 export * from './bulletinConnector';
 export * from './officialBulletins';
 export * from './pdfLayout';
+export * from './brvmEvents';

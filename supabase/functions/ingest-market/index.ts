@@ -7,6 +7,7 @@
 // Extra job: {"job":"backfill","market":"BVMAC","from":"2024-01-01","to":"2024-12-31"} rebuilds history from past bulletins.
 import { getDocumentProxy } from 'npm:unpdf@1.4.0';
 import { admin, handler, json, requireService } from '../_shared/runtime.ts';
+import { saveBrvmEvents } from '../_shared/events.ts';
 import { MARKETS, MVP_MARKETS, isIngestionWindow, localClock, type MarketCode, type Quote } from '../_shared/core/index.ts';
 import {
   BulletinConnector, ConnectorRegistry, layoutText, LicensedRealtimeConnector, MansaConnector, NgxOfficialConnector, businessDays, crossCheck, validateQuote,
@@ -167,6 +168,13 @@ Deno.serve(handler(async (req) => {
     if (!body.market || !body.from || !body.to) return json({ error: 'market, from, to requis' }, 400);
     return json(await backfill(body.market, body.from, body.to));
   }
+  // Calendar (general meetings, dividends) + capital operations from a BRVM bulletin: {"job":"events","date":"YYYY-MM-DD"} (default: latest).
+  if (job === 'events') {
+    const s = body.date ? await bulletin.getSession('BRVM', body.date) : await bulletin.latestSession('BRVM');
+    if (!s?.text) return json({ error: 'bulletin introuvable' }, 404);
+    const debug = body.debug ? s.text.split('\n').filter((l: string) => /cotation le|AMF-UMOA/.test(l)).slice(0, 20) : undefined;
+    return json({ date: s.date, url: s.url, ...(await saveBrvmEvents(admin(), s.text, s.url)), debug });
+  }
   const results = [];
   // force: manual run outside the post-close window (admin / first run).
   for (const m of markets as MarketCode[]) results.push(await ingest(m, job, body.force === true).catch((e) => ({ market: m, error: (e as Error).message })));
@@ -175,5 +183,10 @@ Deno.serve(handler(async (req) => {
     const fx = await mansa.getForex().catch(() => []);
     if (fx.length) await admin().from('fx_rates').upsert(fx.map((r) => ({ quote: r.quote, as_of: r.provenance.asOf.slice(0, 10), rate: r.rate, source: r.provenance.source })), { onConflict: 'quote,as_of' });
   }
-  return json({ results });
+  // Daily: refresh the BRVM calendar / dividends / operations from the latest bulletin (failures don't block prices).
+  let events: unknown = null;
+  if (job === 'eod' && (markets as string[]).includes('BRVM')) {
+    events = await bulletin.latestSession('BRVM').then((s) => (s.text ? saveBrvmEvents(admin(), s.text, s.url) : null)).catch((e) => ({ error: (e as Error).message }));
+  }
+  return json({ results, events });
 }));

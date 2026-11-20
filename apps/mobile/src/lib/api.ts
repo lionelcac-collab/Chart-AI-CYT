@@ -43,6 +43,12 @@ const dropStale = (rows: AssetSummary[]) => {
 };
 
 
+export type CalendarEvent = { id: number; asset_id: string | null; kind: 'agm' | 'egm' | 'results' | 'dividend' | 'split' | 'rights_issue' | 'suspension' | 'other'; event_date: string;
+  title_fr: string | null; title_en: string | null; details: Record<string, any> | null; source: string; source_url: string | null; assets: { ticker: string; name: string; market: string } | null };
+export type CapitalOperation = { id: number; market: string | null; kind: 'ipo' | 'bond_issue' | 'rights_issue' | 'delisting' | 'regulator_visa'; issuer: string; title: string; regulator: string | null;
+  visa_number: string | null; amount: number | null; currency: string | null; price: number | null; coupon_pct: number | null; subscription_start: string | null; subscription_end: string | null;
+  listing_date: string | null; status: string; source: string; source_url: string | null; created_at: string };
+export type VirtualTx = { id: string; asset_id: string; side: 'buy' | 'sell' | 'dividend'; quantity: number; price: number; fees: number; executed_on: string; created_at: string };
 export type ImportCandidate = { qtySource?: 'read' | 'value_div_price' | null; assetId: string; ticker: string; name: string; market: string; currency: string; confidence: number; read: string;
   quantity: number | null; costAmount: number | null; costSource: 'total' | 'pru' | 'value_minus_pnl' | 'value_div_pnl_pct' | 'own_price_div_pnl_pct' | null; marketValue: number | null; pnl: number | null; pnlPct?: number | null;
   lastPrice: number | null; avgCostPrice: number | null; readCurrency: string | null; currencyMismatch: boolean };
@@ -217,6 +223,47 @@ export const api = {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) throw new ApiError('AUTH_REQUIRED');
     const { error } = await supabase.from('investor_profiles').upsert({ user_id: u.user.id, answers, risk_profile: risk, knowledge_level: knowledge, risk_score: riskScore, knowledge_score: knowledgeScore, updated_at: new Date().toISOString() });
+    if (error) throw new ApiError('SAVE_FAILED', error.message);
+  },
+
+  /** Corporate calendar (general meetings, dividend payments) from official bulletins. */
+  async calendar(): Promise<CalendarEvent[]> {
+    if (!supabase) return [];
+    const { data } = await supabase.from('corporate_events').select('id, asset_id, kind, event_date, title_fr, title_en, details, source, source_url, assets(ticker, name, market)').order('event_date', { ascending: true }).limit(1000);
+    return (data ?? []) as unknown as CalendarEvent[];
+  },
+
+  /** IPOs, bond issues, regulator approvals. */
+  async capitalOperations(): Promise<CapitalOperation[]> {
+    if (!supabase) return [];
+    const { data } = await supabase.from('capital_operations').select('*').order('listing_date', { ascending: false, nullsFirst: true }).order('created_at', { ascending: false }).limit(300);
+    return (data ?? []) as CapitalOperation[];
+  },
+
+  /** Virtual portfolio (simulation): the user's first portfolio and its transactions. */
+  async virtualPortfolio(): Promise<{ id: string; startingCash: number; currency: string; tx: VirtualTx[] } | null> {
+    if (!supabase) return null;
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return null;
+    let { data: pf } = await supabase.from('portfolios').select('id, starting_cash, base_currency').order('created_at').limit(1).maybeSingle();
+    if (!pf) {
+      const ins = await supabase.from('portfolios').insert({ user_id: u.user.id }).select('id, starting_cash, base_currency').single();
+      pf = ins.data;
+    }
+    if (!pf) return null;
+    const { data: tx } = await supabase.from('portfolio_transactions').select('id, asset_id, side, quantity, price, fees, executed_on, created_at').eq('portfolio_id', pf.id).order('created_at');
+    return { id: pf.id, startingCash: Number(pf.starting_cash), currency: pf.base_currency, tx: (tx ?? []).map((t) => ({ ...t, quantity: Number(t.quantity), price: Number(t.price), fees: Number(t.fees) })) as VirtualTx[] };
+  },
+
+  async virtualTrade(portfolioId: string, assetId: string, side: 'buy' | 'sell', quantity: number, price: number) {
+    if (!supabase) throw new ApiError('NO_BACKEND');
+    const { error } = await supabase.from('portfolio_transactions').insert({ portfolio_id: portfolioId, asset_id: assetId, side, quantity, price, executed_on: new Date().toISOString().slice(0, 10) });
+    if (error) throw new ApiError('SAVE_FAILED', error.message);
+  },
+
+  async virtualReset(portfolioId: string) {
+    if (!supabase) throw new ApiError('NO_BACKEND');
+    const { error } = await supabase.from('portfolio_transactions').delete().eq('portfolio_id', portfolioId);
     if (error) throw new ApiError('SAVE_FAILED', error.message);
   },
 

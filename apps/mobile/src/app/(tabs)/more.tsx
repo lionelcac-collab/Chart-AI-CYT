@@ -25,7 +25,6 @@ export default function More() {
   const th = useTheme();
   const { t, lang } = useT();
   const s = useSettings();
-  const soon = lang === 'fr' ? 'bientôt' : 'soon';
   const qc = useQueryClient();
   const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
   const isAdmin = useQuery({
@@ -92,9 +91,9 @@ export default function More() {
         <Txt size="xs" muted>{lang === 'fr' ? 'XOF/XAF ↔ EUR : parité fixe 1 EUR = 655,957 FCFA. Autres devises : taux du jour (source indiquée).' : 'XOF/XAF ↔ EUR: fixed parity 1 EUR = 655.957 FCFA. Other currencies: daily rates (source shown).'}</Txt>
       </Card>
       <Card>
-        <Item label={t.more.portfolio} badge={soon} onPress={() => {}} />
-        <Item label={t.more.calendar} badge={soon} onPress={() => {}} />
-        <Item label={t.more.ipo} badge={soon} onPress={() => {}} />
+        <Item label={t.more.portfolio} onPress={() => router.push('/portefeuille-virtuel')} />
+        <Item label={t.more.calendar} onPress={() => router.push('/calendrier')} />
+        <Item label={t.more.ipo} onPress={() => router.push('/operations')} />
         <Item label={t.more.trackRecord} onPress={() => router.push('/track-record')} />
         <Item label={t.more.sources} onPress={() => router.push('/legal/sources')} />
         <Item label={t.more.legal} onPress={() => router.push('/legal/disclaimer')} />

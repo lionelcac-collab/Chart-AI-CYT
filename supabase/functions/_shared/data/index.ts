@@ -11,3 +11,4 @@ export * from './placeholders.ts';
 export * from './bulletinConnector.ts';
 export * from './officialBulletins.ts';
 export * from './pdfLayout.ts';
+export * from './brvmEvents.ts';
