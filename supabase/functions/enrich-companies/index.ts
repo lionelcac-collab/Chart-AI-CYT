@@ -9,7 +9,8 @@ const get = async (url: string) => {
   if (!r.ok) throw new Error(`HTTP ${r.status} ${url.slice(0, 60)}`);
   return r.json();
 };
-const COUNTRY_Q: Record<string, string> = { CI: 'Q1008', SN: 'Q1041', BF: 'Q965', BJ: 'Q962', ML: 'Q912', NE: 'Q1032', TG: 'Q945', GW: 'Q1007', NG: 'Q1033', CM: 'Q1009', GA: 'Q1000', CG: 'Q971', TD: 'Q657', GQ: 'Q983', CF: 'Q929' };
+const COUNTRY_Q: Record<string, string> = { CI: 'Q1008', SN: 'Q1041', BF: 'Q965', BJ: 'Q962', ML: 'Q912', NE: 'Q1032', TG: 'Q945', GW: 'Q1007', NG: 'Q1033', CM: 'Q1009', GA: 'Q1000', CG: 'Q971', TD: 'Q657', GQ: 'Q983', CF: 'Q929',
+  ZA: 'Q258', EG: 'Q79', MA: 'Q1028', KE: 'Q114', GH: 'Q117', TZ: 'Q924', UG: 'Q1036', RW: 'Q1037' };
 // Company types (instance of). Newspapers, buildings, people… are not accepted.
 const BUSINESS_Q = new Set(['Q4830453', 'Q783794', 'Q891723', 'Q6881511', 'Q22687', 'Q848507', 'Q1145276', 'Q778575', 'Q219577', 'Q2085381', 'Q167037', 'Q658255', 'Q1058914', 'Q1589009', 'Q1331793', 'Q18388277', 'Q740752', 'Q1762059', 'Q15265344', 'Q2421158', 'Q1076968', 'Q4387609', 'Q207652', 'Q1196138', 'Q11691', 'Q936518', 'Q18043413']);
 // Sector consistency, required when the name has a single distinctive word (Champion, Standard, Universal…).
