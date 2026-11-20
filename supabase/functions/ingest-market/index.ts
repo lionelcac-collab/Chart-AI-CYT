@@ -172,6 +172,14 @@ Deno.serve(handler(async (req) => {
     if (!body.market || !body.from || !body.to) return json({ error: 'market, from, to requis' }, 400);
     return json(await backfill(body.market, body.from, body.to));
   }
+  // Diagnostics: sector coverage of the provider's stock list for a market.
+  if (job === 'assets_debug') {
+    const list = await mansa.listAssets(body.market).catch((e) => { throw e; });
+    const sectors: Record<string, number> = {};
+    for (const a of list) sectors[String(a.sector ?? 'null')] = (sectors[String(a.sector ?? 'null')] ?? 0) + 1;
+    await admin().from('ingestion_runs').insert({ job: 'assets_debug', market: body.market, status: 'ok', attempts: [{ n: list.length, sectors, sample: list.slice(0, 3) }], finished_at: new Date().toISOString() });
+    return json({ n: list.length, sectors });
+  }
   // Price history from Mansa (PRO plan): {"job":"history","market":"GSE","from":"2024-01-01","limit":40,"offset":0}.
   // Nothing is invented: a refused or empty history is only logged.
   if (job === 'history') {

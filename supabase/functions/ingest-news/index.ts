@@ -49,9 +49,19 @@ Deno.serve(handler(async (req) => {
 
   // Classify unclassified articles in batches of 25 (at most 50 per run to stay within the function time limit; the hourly runs catch up).
   const { data: pending } = await db.from('news_articles').select('id, title, excerpt, source, markets').is('classified_by', null).order('published_at', { ascending: false }).limit(50);
-  const { data: tickers } = await db.from('assets').select('id, ticker, name').eq('is_active', true);
-  const universe = (tickers ?? []).map((t) => `${t.id}=${t.name}`).join('; ');
-  const valid = new Set((tickers ?? []).map((t) => t.id));
+  // Paged read of listed companies (equities only); per batch only the exchanges concerned are sent (keeps the prompt small).
+  const tickers: { id: string; ticker: string; name: string; market: string }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data } = await db.from('assets').select('id, ticker, name, market').eq('is_active', true).eq('asset_class', 'equity').order('id').range(from, from + 999);
+    tickers.push(...(data ?? []));
+    if ((data ?? []).length < 1000) break;
+  }
+  const universeFor = (batch: { markets: string[] | null }[]) => {
+    const ms = new Set(batch.flatMap((b) => b.markets ?? []));
+    const all = batch.some((b) => !b.markets?.length);
+    return tickers.filter((t) => all ? ['BRVM', 'BVMAC', 'NGX'].includes(t.market) || ms.has(t.market) : ms.has(t.market)).map((t) => `${t.id}=${t.name}`).join('; ');
+  };
+  const valid = new Set(tickers.map((t) => t.id));
   let classified = 0, dropped = 0;
   for (let i = 0; i < (pending ?? []).length; i += 25) {
     const batch = pending!.slice(i, i + 25);
@@ -63,7 +73,7 @@ Deno.serve(handler(async (req) => {
         `- relevant : true seulement s'il concerne une société cotée sur ces bourses, ces bourses elles-mêmes, leurs régulateurs, les émissions de titres de ces zones, ou l'économie/la politique monétaire de ces pays avec un impact plausible pour les actionnaires ; false sinon (sport, faits divers, autres pays…) ;\n` +
         `- markets : bourses concernées ; tickers : UNIQUEMENT parmi l'univers fourni (format id), liste vide si aucun titre précis n'est concerné ;\n` +
         `- sentiment pour l'actionnaire entre -1 et 1, matérialité 0-3, catégorie, résumé d'une phrase en français et en anglais, fondé uniquement sur le titre et l'extrait (n'invente rien).\n` +
-        `Univers : ${universe}\n\nArticles :\n` + batch.map((a, j) => `[${j}] ${a.title} — ${a.excerpt ?? ''} (${a.source})`).join('\n') }],
+        `Univers : ${universeFor(batch)}\n\nArticles :\n` + batch.map((a, j) => `[${j}] ${a.title} — ${a.excerpt ?? ''} (${a.source})`).join('\n') }],
     });
     for (const it of r.data.items) {
       const a = batch[it.index];
