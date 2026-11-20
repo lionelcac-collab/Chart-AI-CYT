@@ -8,7 +8,7 @@
 import { getDocumentProxy } from 'npm:unpdf@1.4.0';
 import { admin, handler, json, requireService } from '../_shared/runtime.ts';
 import { saveBrvmEvents } from '../_shared/events.ts';
-import { MARKETS, MVP_MARKETS, isIngestionWindow, localClock, type MarketCode, type Quote } from '../_shared/core/index.ts';
+import { MARKETS, MVP_MARKETS, isIngestionWindow, localClock, sessionState, type MarketCode, type Quote } from '../_shared/core/index.ts';
 import {
   BulletinConnector, ConnectorRegistry, layoutText, LicensedRealtimeConnector, MansaConnector, NgxOfficialConnector, businessDays, crossCheck, validateQuote,
   type Anomaly, type BulletinSourceConfig, type MarketDataConnector,
@@ -67,6 +67,8 @@ async function ingest(market: MarketCode, job: 'eod' | 'delayed', force = false)
   const db = admin();
   const info = MARKETS[market as 'BRVM'];
   const today = localClock(info.timezone).date;
+  // Intraday quotes only while the exchange is in session (saves the data provider's daily quota).
+  if (job === 'delayed' && sessionState(info) !== 'open') return { market, skipped: 'hors séance' };
   if (job === 'eod') {
     if (!force && !isIngestionWindow(info)) return { market, skipped: 'hors fenêtre' };
     const { data: done } = await db.from('ingestion_runs').select('id').eq('job', 'eod').eq('market', market).eq('status', 'ok').gte('started_at', `${today}T00:00:00Z`).limit(1);
