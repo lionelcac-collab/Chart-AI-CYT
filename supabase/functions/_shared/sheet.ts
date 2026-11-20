@@ -54,11 +54,11 @@ export async function buildSheet(db: SupabaseClient, assetId: string) {
 
   // Peers: latest consensus snapshots hold their PER / P/B / yield.
   const peerIds = (peersRes.data ?? []).map((p) => p.id);
+  // Only the ratios of each peer's latest snapshot (not the full inputs history).
   const { data: peerSnaps } = peerIds.length
-    ? await db.from('consensus_results').select('asset_id, inputs, as_of').in('asset_id', peerIds).order('as_of', { ascending: false }).limit(200)
-    : { data: [] as { asset_id: string; inputs: Record<string, number | null> }[] };
-  const seen = new Set<string>();
-  const peerRatios = (peerSnaps ?? []).filter((s) => !seen.has(s.asset_id) && seen.add(s.asset_id)).map((s) => s.inputs?.ratios as Record<string, number | null> | undefined).filter(Boolean) as Record<string, number | null>[];
+    ? await db.from('latest_consensus').select('asset_id, ratios:inputs->ratios').in('asset_id', peerIds)
+    : { data: [] as { asset_id: string; ratios: Record<string, number | null> | null }[] };
+  const peerRatios = (peerSnaps ?? []).map((s) => (s as { ratios: Record<string, number | null> | null }).ratios).filter(Boolean) as Record<string, number | null>[];
   const med = (k: string) => median(peerRatios.map((r) => r[k]).filter((x): x is number => typeof x === 'number' && x > 0));
 
   const opinions: AnalystOpinion[] = (opRes.data ?? []).map((o) => ({ broker: o.broker, recommendation: o.recommendation, targetPrice: o.target_price, publishedAt: o.published_at, sourceUrl: o.source_url }));

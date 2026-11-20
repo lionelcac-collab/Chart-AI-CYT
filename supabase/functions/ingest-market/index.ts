@@ -155,6 +155,7 @@ async function backfill(market: MarketCode, from: string, to: string) {
     await new Promise((r) => setTimeout(r, 1500));
   }
   await db.from('ingestion_runs').update({ status: 'ok', source_used: bulletin.id, rows_written: rows, finished_at: new Date().toISOString() }).eq('id', run!.id);
+  await db.rpc('refresh_market_latest');
   return { market, sessions, rows };
 }
 
@@ -210,6 +211,7 @@ Deno.serve(handler(async (req) => {
       }
     }
     await db.from('ingestion_runs').insert({ job: 'history', market: m, status: written ? 'ok' : 'failed', rows_written: written, attempts: out, source_used: 'mansa', finished_at: new Date().toISOString() });
+    if (written) await db.rpc('refresh_market_latest');
     return json({ market: m, written, out });
   }
   // Calendar (general meetings, dividends) + capital operations from a BRVM bulletin: {"job":"events","date":"YYYY-MM-DD"} (default: latest).
@@ -222,6 +224,8 @@ Deno.serve(handler(async (req) => {
   const results = [];
   // force: manual run outside the post-close window (admin / first run).
   for (const m of markets as MarketCode[]) results.push(await ingest(m, job, body.force === true).catch((e) => ({ market: m, error: (e as Error).message })));
+  // Latest closes are materialized: refresh once new closes were written.
+  if (job === 'eod' && results.some((r) => (r as { written?: number }).written)) await admin().rpc('refresh_market_latest');
   // FX once per EOD run
   if (job === 'eod' && mansa.isEnabled()) {
     const fx = await mansa.getForex().catch(() => []);

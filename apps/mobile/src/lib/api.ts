@@ -90,11 +90,12 @@ export const api = {
     let latQ = supabase.from('market_latest').select('*');
     if (market) { idxQ = idxQ.eq('market', market); latQ = latQ.eq('market', market); }
     const reportMarkets: MarketCode[] = market ? [market] : ([...ACTIVE_MARKETS] as MarketCode[]);
-    const [idx, q, rk, ...reps] = await Promise.all([
+    const [idx, q, rk, repAll] = await Promise.all([
       idxQ, latQ,
       supabase.from('rankings').select('items, session_date').eq('scope', market ?? 'AFRICA').eq('style', 'overall').order('session_date', { ascending: false }).limit(1).maybeSingle(),
-      ...reportMarkets.map((m) => invoke<{ content: Dashboard['report'] }>('reports', { kind: 'close', market: m }).catch(() => null)),
+      invoke<{ reports: { market: string; content: Dashboard['report'] }[] }>('reports', { kind: 'close', markets: reportMarkets }).catch(() => ({ reports: [] })),
     ]);
+    const reps = (repAll as { reports: { market: string; content: Dashboard['report'] }[] }).reports.map((r) => ({ content: r.content }));
     const seen = new Set<string>();
     const indices = (idx.data ?? []).filter((i) => !seen.has(i.index_code) && seen.add(i.index_code))
       .map((i) => ({ code: i.index_code, name: i.name, market: i.market, value: Number(i.value), changePct: i.change_pct, date: i.session_date, source: i.source }));

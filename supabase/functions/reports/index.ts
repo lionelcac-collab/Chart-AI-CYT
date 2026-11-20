@@ -9,8 +9,16 @@ const SCHEMA = { type: 'object', additionalProperties: false, required: ['title'
   properties: { title: { type: 'string' }, body_fr: { type: 'string' }, body_en: { type: 'string' }, highlights: { type: 'array', items: { type: 'string' } } } };
 
 Deno.serve(handler(async (req) => {
-  const { kind = 'close', market } = await req.json().catch(() => ({}));
+  const { kind = 'close', market, markets } = await req.json().catch(() => ({}));
   const db = admin();
+  // Several markets in one call (dashboard "Tous"): latest closing report of each.
+  if (kind === 'close' && Array.isArray(markets)) {
+    const out = await Promise.all((markets as string[]).slice(0, 20).map(async (m) => {
+      const { data } = await db.from('ai_analyses').select('content, session_date').eq('kind', 'close_report').eq('market', m).order('session_date', { ascending: false }).limit(1).maybeSingle();
+      return { market: m, content: data?.content ?? null, sessionDate: data?.session_date ?? null };
+    }));
+    return json({ reports: out });
+  }
   if (kind === 'close') {
     const { data } = await db.from('ai_analyses').select('content, session_date, model').eq('kind', 'close_report').eq('market', market).order('session_date', { ascending: false }).limit(1).maybeSingle();
     return json({ content: data?.content ?? null, sessionDate: data?.session_date ?? null });

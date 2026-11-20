@@ -28,6 +28,7 @@ Deno.serve(handler(async (req) => {
   if (!body.phase) {
     // One sequential chain per market: consensus chunks → scan chunks → closing report.
     // (Chunks run one after another to stay within the edge time / CPU limits.)
+    await db.rpc('refresh_market_latest');
     const started: string[] = [];
     for (const m of MVP_MARKETS) {
       const { count } = await db.from('assets').select('id', { count: 'exact', head: true }).eq('market', m).eq('is_active', true).eq('asset_class', 'equity');
