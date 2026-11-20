@@ -194,6 +194,7 @@ function Jobs() {
         <Button label="Cours différés en séance" variant="secondary" onPress={() => run.mutate({ job: 'ingest-market', payload: { job: 'delayed' } })} />
         <Button label="Recalculer consensus, classements et scans" variant="secondary" onPress={() => run.mutate({ job: 'post-close' })} />
         <Button label="Actualités (flux + classement IA)" variant="secondary" onPress={() => run.mutate({ job: 'ingest-news' })} />
+        <Button label="Consensus des analystes (revues de courtiers)" variant="secondary" onPress={() => run.mutate({ job: 'ingest-analysts' })} />
         <Button label="Macroéconomie (Banque mondiale)" variant="secondary" onPress={() => run.mutate({ job: 'ingest-macro' })} />
         {msg ? <Txt size="sm">{msg}</Txt> : null}
       </Card>
