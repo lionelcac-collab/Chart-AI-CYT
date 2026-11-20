@@ -1,4 +1,4 @@
-import { Pressable, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { explainFactor, type ConsensusResult, type CurrencyCode, type LiquidityStat, type PerformanceStat, type RangeStat, type Ratios, type TechnicalSnapshot, type AnalystConsensus } from '@chart-boursafrikia/core';
 import { useT } from '../i18n';
@@ -147,6 +147,16 @@ function AnalystBlock({ a, currency }: { a: AnalystConsensus | null; currency: C
         <View style={{ flex: a.distribution.sell / total || 0.0001, backgroundColor: th.down }} />
       </View>
       <Txt size="xs" muted>{t.consensus.buy} {a.distribution.buy} · {t.consensus.hold} {a.distribution.hold} · {t.consensus.sell} {a.distribution.sell}</Txt>
+      {(a as AnalystConsensus & { source?: { name: string; url: string | null; brokers: string | null; note: string | null } }).source ? (() => {
+        const src = (a as AnalystConsensus & { source: { name: string; url: string | null; brokers: string | null; note: string | null } }).source;
+        return (
+          <View style={{ gap: 2 }}>
+            {src.brokers ? <Txt size="xs" muted>{src.brokers}</Txt> : null}
+            {src.note ? <Txt size="xs" color={th.warn}>ⓘ {src.note}</Txt> : null}
+            <Txt size="xs" color={th.info} onPress={src.url ? () => Linking.openURL(src.url!) : undefined}>{lang === 'fr' ? 'Source' : 'Source'} : {src.name}{a.latestAt ? ` · ${fmtDate(a.latestAt, lang)}` : ''}{src.url ? ' ↗' : ''}</Txt>
+          </View>
+        );
+      })() : null}
       {a.opinions.slice(0, 5).map((o, i) => <Txt key={i} size="xs" muted>• {o.broker} — {o.recommendation} {o.targetPrice ? `→ ${fmtNum(o.targetPrice, lang, 0)}` : ''} ({fmtDate(o.publishedAt, lang)})</Txt>)}
     </View>
   );

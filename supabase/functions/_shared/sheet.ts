@@ -62,7 +62,23 @@ export async function buildSheet(db: SupabaseClient, assetId: string) {
   const med = (k: string) => median(peerRatios.map((r) => r[k]).filter((x): x is number => typeof x === 'number' && x > 0));
 
   const opinions: AnalystOpinion[] = (opRes.data ?? []).map((o) => ({ broker: o.broker, recommendation: o.recommendation, targetPrice: o.target_price, publishedAt: o.published_at, sourceUrl: o.source_url }));
-  const analysts = price ? analystConsensus(opinions, price, last!.date) : null;
+  let analysts = price ? analystConsensus(opinions, price, last!.date) : null;
+  // No individual broker notes: fall back to the latest published consensus summary (≤ 12 months), figures as published.
+  if (price && (!analysts || analysts.count === 0)) {
+    const since = new Date(new Date(last!.date + 'T00:00:00Z').getTime() - 365 * 86400_000).toISOString().slice(0, 10);
+    const { data: snap } = await db.from('analyst_consensus_snapshots').select('*').eq('asset_id', assetId).gte('published_at', since)
+      .order('published_at', { ascending: false }).limit(1).maybeSingle();
+    const n = snap ? (snap.n_buy ?? 0) + (snap.n_hold ?? 0) + (snap.n_sell ?? 0) : 0;
+    if (snap && n > 0) {
+      const mean = snap.target_mean == null ? null : Number(snap.target_mean);
+      analysts = {
+        count: n, targetMean: mean, targetMin: snap.target_min == null ? null : Number(snap.target_min), targetMax: snap.target_max == null ? null : Number(snap.target_max),
+        distribution: { buy: snap.n_buy ?? 0, hold: snap.n_hold ?? 0, sell: snap.n_sell ?? 0 },
+        impliedUpsidePct: mean != null ? (mean / price - 1) * 100 : null, latestAt: snap.published_at,
+        opinions: [], source: { name: snap.source_name, url: snap.source_url, brokers: snap.brokers, note: snap.note },
+      } as typeof analysts & { source: unknown };
+    }
+  }
 
   const news = (newsRes.data ?? []).map((n) => n.news_articles as unknown as { published_at: string; sentiment: number | null }).filter(Boolean);
   const recent = news.filter((n) => n.sentiment != null && Date.now() - new Date(n.published_at).getTime() < 30 * 86400_000);
