@@ -15,9 +15,29 @@ import { useT } from '../../i18n';
 import { api } from '../../lib/api';
 import { asOfLabel, fmtCompact, fmtDate, fmtNum, fmtPct, fmtPrice, statusLabel } from '../../lib/format';
 import { useSettings } from '../../settings';
-import { changeColor, space, useTheme } from '../../theme';
+import { changeColor, radius, space, useTheme } from '../../theme';
 
 const CHART_RANGES = [['1M', 22], ['3M', 66], ['6M', 130], ['1A', 260], ['3A', 800]] as const;
+
+/** % change over the last n sessions (null when the history is shorter than the period). */
+function periodChange(bars: { close: number }[], n: number): number | null {
+  if (bars.length < 2) return null;
+  const last = bars[bars.length - 1]!.close;
+  const first = bars.length > n ? bars[bars.length - 1 - n]!.close : null;
+  return first && first > 0 ? (last / first - 1) * 100 : null;
+}
+
+function PeriodButton({ label, pct, active, onPress }: { label: string; pct: number | null; active: boolean; onPress: () => void }) {
+  const th = useTheme();
+  const { lang } = useT();
+  return (
+    <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} accessibilityLabel={`${label} ${pct == null ? '' : fmtPct(pct, lang, 1)}`} onPress={onPress} hitSlop={4}
+      style={{ flex: 1, maxWidth: 110, alignItems: 'center', paddingHorizontal: 2, paddingVertical: 6, borderRadius: radius.md, backgroundColor: active ? th.accent : th.cardAlt, borderWidth: 1, borderColor: active ? th.accent : th.border, gap: 1 }}>
+      <Txt size="sm" weight="700" color={active ? th.accentText : th.text}>{label}</Txt>
+      <Txt size="xs" weight="700" color={pct == null ? (active ? th.accentText : th.textMuted) : active ? th.accentText : changeColor(th, pct)}>{pct == null ? '—' : fmtPct(pct, lang, 1)}</Txt>
+    </Pressable>
+  );
+}
 
 export default function AssetScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -101,8 +121,8 @@ export default function AssetScreen() {
           <Columns flex={[3, 2]}>{[
             <Fragment key="main">
         <Card>
-          <Row style={{ flexWrap: 'wrap' }}>
-            {CHART_RANGES.map(([label, n]) => <Pill key={label} label={lang === 'en' ? label.replace('A', 'Y') : label} active={range === n} onPress={() => setRange(n)} />)}
+          <Row gap={6}>
+            {CHART_RANGES.map(([label, n]) => <PeriodButton key={label} label={lang === 'en' ? label.replace('A', 'Y') : label} pct={periodChange(s.bars, n)} active={range === n} onPress={() => setRange(n)} />)}
           </Row>
           {bars.length > 1 ? <PriceChart bars={bars} levels={levels} /> : <Txt muted>{t.common.unavailable}</Txt>}
           <Txt size="xs" muted>— MM50  - - MM200  · {t.asset.supports}/{t.asset.resistances}</Txt>
@@ -127,8 +147,8 @@ export default function AssetScreen() {
         ) : (
           <>
         <Card>
-          <Row style={{ flexWrap: 'wrap' }}>
-            {CHART_RANGES.map(([label, n]) => <Pill key={label} label={lang === 'en' ? label.replace('A', 'Y') : label} active={range === n} onPress={() => setRange(n)} />)}
+          <Row gap={6}>
+            {CHART_RANGES.map(([label, n]) => <PeriodButton key={label} label={lang === 'en' ? label.replace('A', 'Y') : label} pct={periodChange(s.bars, n)} active={range === n} onPress={() => setRange(n)} />)}
           </Row>
           {bars.length > 1 ? <PriceChart bars={bars} levels={levels} /> : <Txt muted>{t.common.unavailable}</Txt>}
           <Txt size="xs" muted>— MM50  - - MM200  · {t.asset.supports}/{t.asset.resistances}</Txt>
