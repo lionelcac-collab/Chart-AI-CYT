@@ -84,9 +84,10 @@ export async function generateJson<T>(opts: {
 export const ASSET_ANALYSIS_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['headline', 'summary', 'technical', 'fundamental', 'risks', 'scenarios', 'keyLevels', 'dataGaps', 'sources'],
+  required: ['headline', 'summary', 'technical', 'fundamental', 'risks', 'scenarios', 'keyLevels', 'dataGaps', 'sources', 'conclusion'],
   properties: {
     headline: { type: 'string' },
+    conclusion: { type: 'array', items: { type: 'string' } },
     summary: { type: 'string' },
     technical: { type: 'string' },
     fundamental: { type: 'string' },

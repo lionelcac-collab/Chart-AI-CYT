@@ -78,6 +78,7 @@ export interface AiAnalysis {
   headline: string; summary: string; technical: string; fundamental: string; risks: string[];
   scenarios: { name: 'bear' | 'central' | 'bull'; description: string; trigger: string }[];
   keyLevels: { label: string; price: number }[]; dataGaps: string[]; sources: { label: string; date: string }[];
+  conclusion?: string[];
 }
 
 export interface TrackRecordRow { scope: string; horizon: string; samples: number; calls: number; hits: number; hit_rate: number | null; range_coverage: number | null; base_rate_up: number | null; period_start: string; period_end: string }

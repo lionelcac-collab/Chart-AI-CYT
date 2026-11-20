@@ -5,7 +5,7 @@ import { admin, asUser, currentUser, handler, json } from '../_shared/runtime.ts
 import { buildSheet, sheetForPrompt } from '../_shared/sheet.ts';
 import { ENTITLEMENTS } from '../_shared/core/index.ts';
 
-const PROMPT_VERSION = 'asset-analysis-v1';
+const PROMPT_VERSION = 'asset-analysis-v2';
 
 Deno.serve(handler(async (req) => {
   const user = await currentUser(req);
@@ -29,7 +29,8 @@ Deno.serve(handler(async (req) => {
       content: [{ type: 'text', text:
         `Produis l'analyse complète de cet actif en langue « ${lang} » à partir de ces données (JSON). ` +
         `Explique la technique, les fondamentaux, le consensus et les 3 scénarios du modèle sans en modifier les chiffres. ` +
-        `Liste dans dataGaps les données manquantes. Ne formule aucune recommandation impérative.\n\n` +
+        `Liste dans dataGaps les données manquantes. Ne formule aucune recommandation impérative. ` +
+        `conclusion : 3 à 5 phrases courtes, précises et tranchées sur la lecture des données (pas de généralités) : lecture d'ensemble des signaux les plus pertinents (majoritairement positifs, négatifs ou mitigés) et les 2-3 éléments qui pèsent le plus ; scénario le plus probable du modèle avec sa probabilité et son horizon ; niveaux de prix qui confirmeraient ou invalideraient cette lecture ; ce qu'il faut surveiller. Sans recommandation personnelle ni impératif.\n\n` +
         JSON.stringify(sheetForPrompt(sheet, lang)) }],
     });
     return { content: r.data, model: r.model, promptVersion: PROMPT_VERSION, usage: r.usage,

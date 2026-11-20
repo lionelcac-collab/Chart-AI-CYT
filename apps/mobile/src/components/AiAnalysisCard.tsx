@@ -52,6 +52,15 @@ export function AssetSectionsAnalysis({ assetId }: { assetId: string }) {
           {a.keyLevels.map((k) => <KV key={k.label} label={k.label} value={fmtNum(k.price, lang)} />)}
           {a.risks.length ? <View><Txt weight="700">{lang === 'fr' ? 'Risques' : 'Risks'}</Txt>{a.risks.map((r) => <Txt key={r} size="sm">• {r}</Txt>)}</View> : null}
           {a.dataGaps.length ? <Txt size="xs" muted>{lang === 'fr' ? 'Données manquantes' : 'Missing data'} : {a.dataGaps.join(' · ')}</Txt> : null}
+          {a.conclusion?.length ? (
+            <View style={{ gap: 4, padding: space.md, borderRadius: 12, backgroundColor: th.cardAlt, borderLeftWidth: 3, borderLeftColor: th.accent }}>
+              <Txt weight="800">{lang === 'fr' ? 'Conclusion' : 'Conclusion'}</Txt>
+              {a.conclusion.map((c) => <Txt key={c} size="sm">• {c}</Txt>)}
+              <Txt size="xs" muted style={{ marginTop: 4 }}>{lang === 'fr'
+                ? 'Ceci n’est pas un conseil en investissement ; pour une analyse approfondie adaptée à votre situation, consultez un professionnel agréé (SGI, conseiller en investissement financier).'
+                : 'This is not investment advice; for an in-depth analysis suited to your situation, consult a licensed professional.'}</Txt>
+            </View>
+          ) : null}
           <Txt size="xs" muted>{t.common.source} : {a.sources.map((s) => `${s.label} (${s.date})`).join(' · ')}</Txt>
           <Disclaimer />
         </View>
