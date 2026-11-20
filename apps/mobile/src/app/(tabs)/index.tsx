@@ -17,10 +17,11 @@ import { changeColor, radius, space, useTheme } from '../../theme';
 export default function Dashboard() {
   const th = useTheme();
   const { t, lang } = useT();
-  const [market, setMarket] = useState<MarketCode>('BRVM');
+  const [market, setMarket] = useState<MarketCode | undefined>('BRVM');
   const desktop = useIsDesktop();
   const q = useQuery({ queryKey: ['dashboard', market], queryFn: () => api.dashboard(market) });
-  const state = sessionState(MARKETS[market as 'BRVM']);
+  const states = (market ? [market] : (['BRVM', 'BVMAC', 'NGX'] as MarketCode[])).map((m) => ({ m, st: sessionState(MARKETS[m as 'BRVM']) }));
+  const state = states.some((x) => x.st === 'open') ? 'open' : states[0]!.st;
   const stateLabel = { fr: { open: 'Séance en cours', closed: 'Séance terminée', pre_open: 'Avant ouverture', weekend: 'Marché fermé' }, en: { open: 'Session open', closed: 'Session closed', pre_open: 'Pre-open', weekend: 'Market closed' } }[lang][state];
 
   const news = useQuery({ queryKey: ['news', market], queryFn: () => api.news(market, 5) });
@@ -38,9 +39,10 @@ export default function Dashboard() {
           <Txt size="sm" muted>{APP_NAME} · {lang === 'fr' ? 'cours officiels et analyse IA' : 'official prices and AI analysis'}</Txt>
         </View>
         <View style={{ width: desktop ? 460 : undefined }}>
-          <MarketButtons<MarketCode> value={market} onChange={(m) => m && setMarket(m)} />
+          <MarketButtons<MarketCode> value={market} onChange={(m) => setMarket(m)} allLabel={lang === 'fr' ? 'Tous' : 'All'} />
         </View>
-        <View style={{ alignSelf: desktop ? 'auto' : 'flex-start', marginBottom: desktop ? 8 : 0 }}><Pill label={stateLabel} bg={state === 'open' ? th.up : th.cardAlt} color={state === 'open' ? '#0B0F1E' : th.textMuted} /></View>
+        <View style={{ alignSelf: desktop ? 'auto' : 'flex-start', marginBottom: desktop ? 8 : 0 }}>{market ? <Pill label={stateLabel} bg={state === 'open' ? th.up : th.cardAlt} color={state === 'open' ? '#0B0F1E' : th.textMuted} />
+          : <Row style={{ flexWrap: 'wrap' }} gap={6}>{states.map(({ m, st }) => <Pill key={m} label={`${m} · ${({ fr: { open: 'en cours', closed: 'terminée', pre_open: 'avant ouverture', weekend: 'fermé' }, en: { open: 'open', closed: 'closed', pre_open: 'pre-open', weekend: 'closed' } } as const)[lang][st]}`} bg={st === 'open' ? th.up : th.cardAlt} color={st === 'open' ? '#0B0F1E' : th.textMuted} />)}</Row>}</View>
       </View>
 
       {q.isLoading ? <Loading /> : q.error ? <ErrorBox message={t.common.error} onRetry={() => q.refetch()} /> : d ? (
@@ -60,9 +62,13 @@ export default function Dashboard() {
           </Card>
 
           {d.report ? (
-            <Card title={t.dashboard.report} collapsible defaultOpen={false}>
-              <Txt weight="700">{d.report.title}</Txt>
-              <Txt size="sm">{lang === 'fr' ? d.report.body_fr : d.report.body_en}</Txt>
+            <Card title={t.dashboard.report} collapsible defaultOpen={false} badge={market ? null : ((d as typeof d & { reports?: unknown[] }).reports?.length || null)}>
+              {((d as typeof d & { reports?: NonNullable<typeof d.report>[] }).reports ?? [d.report]).map((r, i) => (
+                <View key={i} style={{ gap: 4 }}>
+                  <Txt weight="700">{r.title}</Txt>
+                  <Txt size="sm">{lang === 'fr' ? r.body_fr : r.body_en}</Txt>
+                </View>
+              ))}
             </Card>
           ) : null}
 

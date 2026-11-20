@@ -39,7 +39,7 @@ function ModelSection({ m, locked }: { m: ModelConsensus; locked: boolean }) {
         <Txt size="sm" weight="700" color={th.neutral}>{fr ? '● Neutre' : '● Neutral'} {m.totals.neutral}</Txt>
         <Txt size="sm" weight="700" color={th.down}>{fr ? '▼ Baissier' : '▼ Bearish'} {m.totals.negative}</Txt>
       </Row>
-      <Txt size="xs" muted>{fr ? `Signal du modèle sur ${m.count} titre(s) de cette bourse, calculée après la séance du ${m.asOf ? fmtDate(m.asOf, lang) : '—'} (tendance, valorisation, qualité, dividende, actualité, analystes).` : `Model signal on ${m.count} stocks.`}</Txt>
+      <Txt size="xs" muted>{fr ? `Signal du modèle sur ${m.count} titre(s), calculé après la séance du ${m.asOf ? fmtDate(m.asOf, lang) : '—'} (tendance, valorisation, qualité, dividende, actualité, analystes).` : `Model signal on ${m.count} stocks.`}</Txt>
       {locked ? <Locked text={fr ? 'Signaux haussiers et baissiers les plus nets : réservé à Premium.' : 'Top model picks are Premium.'} /> : (
         <>
           {m.topPositive?.length ? <><Txt size="sm" weight="700" color={th.up}>{fr ? '▲ Signaux haussiers les plus nets' : '▲ Strongest bullish signals'}</Txt>{m.topPositive.map(pick)}</> : null}
@@ -65,7 +65,7 @@ function Split({ buy, hold, sell, h = 8 }: { buy: number; hold: number; sell: nu
   );
 }
 
-function useAnalysts(market: string, months: number) {
+function useAnalysts(market: string | undefined, months: number) {
   return useQuery({ queryKey: ['analysts', market, months], queryFn: () => api.analysts(months, market), staleTime: 600_000 });
 }
 
@@ -84,7 +84,7 @@ function Locked({ text }: { text: string }) {
   );
 }
 
-export function AnalystConsensusBlock({ market }: { market: string }) {
+export function AnalystConsensusBlock({ market }: { market?: string }) {
   const th = useTheme();
   const { lang } = useT();
   const fr = lang === 'fr';
@@ -111,10 +111,10 @@ export function AnalystConsensusBlock({ market }: { market: string }) {
               <Txt size="sm" weight="700" color={th.neutral}>{fr ? 'Neutre' : 'Hold'} {d.totals.hold}</Txt>
               <Txt size="sm" weight="700" color={th.down}>{fr ? 'Vente' : 'Sell'} {d.totals.sell}</Txt>
             </Row>
-            <Txt size="xs" muted>{fr ? `Avis publiés depuis le ${fmtDate(d.since, lang)} sur ${d.locked ? d.covered : d.rows.length} titre(s) de cette bourse.` : `Ratings published since ${fmtDate(d.since, lang)}.`}</Txt>
+            <Txt size="xs" muted>{fr ? `Avis publiés depuis le ${fmtDate(d.since, lang)} sur ${d.locked ? d.covered : d.rows.length} titre(s).` : `Ratings published since ${fmtDate(d.since, lang)}.`}</Txt>
           </View>
           {d.locked ? <Locked text={fr ? 'Détail par titre (achat / neutre / vente, courtiers, sources) réservé à Premium.' : 'Per-stock detail is Premium.'} />
-            : !d.rows.length ? <Txt size="sm" muted>{fr ? 'Aucune recommandation d’analyste publiée trouvée sur cette période pour cette bourse.' : 'No published analyst rating for this period and exchange.'}</Txt>
+            : !d.rows.length ? <Txt size="sm" muted>{fr ? 'Aucune recommandation d’analyste publiée trouvée sur cette période pour cette sélection.' : 'No published analyst rating for this period and exchange.'}</Txt>
             : d.rows.map((r) => {
               const l = label(r);
               return (
@@ -151,7 +151,7 @@ export function AnalystConsensusBlock({ market }: { market: string }) {
   );
 }
 
-export function PriceTargetsBlock({ market }: { market: string }) {
+export function PriceTargetsBlock({ market }: { market?: string }) {
   const th = useTheme();
   const { lang } = useT();
   const fr = lang === 'fr';
@@ -166,7 +166,7 @@ export function PriceTargetsBlock({ market }: { market: string }) {
       <PeriodPills months={months} setMonths={setMonths} />
       {q.isLoading ? <Loading /> : !d ? <Txt muted>{fr ? 'Indisponible.' : 'Unavailable.'}</Txt> : d.locked
         ? <Locked text={fr ? `Objectifs moyens, fourchettes et potentiel par rapport au dernier cours pour ${d.covered} titre(s) : réservé à Premium.` : 'Targets are Premium.'} />
-        : !rows.length ? <Txt size="sm" muted>{fr ? 'Aucun objectif de cours publié trouvé sur cette période pour cette bourse.' : 'No published price target for this period and exchange.'}</Txt> : (
+        : !rows.length ? <Txt size="sm" muted>{fr ? 'Aucun objectif de cours publié trouvé sur cette période pour cette sélection.' : 'No published price target for this period and exchange.'}</Txt> : (
           <>
             <Row><Pill label={fr ? 'Potentiel' : 'Upside'} active={sort === 'upside'} onPress={() => setSort('upside')} /><Pill label={fr ? 'Plus récents' : 'Latest'} active={sort === 'date'} onPress={() => setSort('date')} /></Row>
             {rows.map((r) => {

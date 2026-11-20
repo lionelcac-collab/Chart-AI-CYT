@@ -82,14 +82,18 @@ export type PortfolioResult = { empty?: boolean; noData?: boolean; mode: 'value'
 export const api = {
   demo: DEMO_MODE,
 
-  async dashboard(market: MarketCode): Promise<Dashboard> {
-    if (SNAPSHOT) return IS_DB ? dbDashboard(market) : snapDashboard(market);
-    if (!supabase) return demoDashboard(market);
-    const [idx, q, rk, rep] = await Promise.all([
-      supabase.from('index_values').select('index_code, name, market, value, change_pct, session_date, source').eq('market', market).order('session_date', { ascending: false }).limit(8),
-      supabase.from('market_latest').select('*').eq('market', market),
-      supabase.from('rankings').select('items, session_date').eq('scope', market).eq('style', 'overall').order('session_date', { ascending: false }).limit(1).maybeSingle(),
-      invoke<{ content: Dashboard['report'] }>('reports', { kind: 'close', market }).catch(() => null),
+  /** Markets dashboard for one exchange, or all of them when market is undefined. */
+  async dashboard(market?: MarketCode): Promise<Dashboard> {
+    if (SNAPSHOT) return IS_DB ? dbDashboard(market ?? 'BRVM') : snapDashboard(market ?? 'BRVM');
+    if (!supabase) return demoDashboard(market ?? 'BRVM');
+    let idxQ = supabase.from('index_values').select('index_code, name, market, value, change_pct, session_date, source').order('session_date', { ascending: false }).limit(market ? 8 : 24);
+    let latQ = supabase.from('market_latest').select('*');
+    if (market) { idxQ = idxQ.eq('market', market); latQ = latQ.eq('market', market); }
+    const reportMarkets: MarketCode[] = market ? [market] : (['BRVM', 'BVMAC', 'NGX'] as MarketCode[]);
+    const [idx, q, rk, ...reps] = await Promise.all([
+      idxQ, latQ,
+      supabase.from('rankings').select('items, session_date').eq('scope', market ?? 'AFRICA').eq('style', 'overall').order('session_date', { ascending: false }).limit(1).maybeSingle(),
+      ...reportMarkets.map((m) => invoke<{ content: Dashboard['report'] }>('reports', { kind: 'close', market: m }).catch(() => null)),
     ]);
     const seen = new Set<string>();
     const indices = (idx.data ?? []).filter((i) => !seen.has(i.index_code) && seen.add(i.index_code))
@@ -97,12 +101,14 @@ export const api = {
     const movers = dropStale((q.data ?? []).map(mapLatestRow));
     const sec = new Map<string, { s: number; n: number }>();
     movers.forEach((m) => { if (!m.sector || m.changePct == null) return; const e = sec.get(m.sector) ?? { s: 0, n: 0 }; e.s += m.changePct; e.n++; sec.set(m.sector, e); });
+    const reports = reps.map((r, i) => (r?.content ? { ...r.content, title: market ? r.content.title : `${reportMarkets[i]} — ${r.content.title}` } : null)).filter(Boolean) as NonNullable<Dashboard['report']>[];
     return {
-      market, indices, movers,
+      market: (market ?? 'AFRICA') as MarketCode, indices, movers,
       sectors: [...sec.entries()].map(([sector, v]) => ({ sector, changePct: v.s / v.n, count: v.n })),
       opportunities: (rk.data?.items as Dashboard['opportunities']) ?? [],
-      report: rep?.content ?? null,
-    };
+      report: reports[0] ?? null,
+      reports,
+    } as Dashboard & { reports: NonNullable<Dashboard['report']>[] };
   },
 
   async asset(id: string, premiumHint: boolean): Promise<AssetSheet> {
@@ -156,7 +162,12 @@ export const api = {
   },
 
   /** Movers + support/resistance distances for a period (precomputed after each session). */
-  async scan(market: MarketCode, period: ScanPeriod): Promise<{ rows: ScanRow[]; sessionDate: string | null; unavailable?: 'history' }> {
+  async scan(market: MarketCode | undefined, period: ScanPeriod): Promise<{ rows: ScanRow[]; sessionDate: string | null; unavailable?: 'history' }> {
+    if (!market) {
+      // All exchanges: merge each exchange's latest scan.
+      const parts = await Promise.all((['BRVM', 'BVMAC', 'NGX'] as MarketCode[]).map((m) => api.scan(m, period).catch(() => ({ rows: [] as ScanRow[], sessionDate: null }))));
+      return { rows: parts.flatMap((x) => x.rows), sessionDate: parts.map((x) => x.sessionDate).filter(Boolean).sort().pop() ?? null };
+    }
     if (SNAPSHOT) return IS_DB ? dbScan(market, period) : snapScan(market, period);
     if (!supabase) {
       const rows = demoScan(market, period);

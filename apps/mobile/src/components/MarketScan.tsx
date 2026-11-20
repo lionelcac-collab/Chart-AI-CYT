@@ -60,7 +60,7 @@ function LevelLine({ r, kind }: { r: ScanRow; kind: 'support' | 'resistance' }) 
   );
 }
 
-export function MarketScan({ market }: { market: MarketCode }) {
+export function MarketScan({ market }: { market: MarketCode | undefined }) {
   const th = useTheme();
   const { t, lang, fmt } = useT();
   const [period, setPeriod] = useState<ScanPeriod>('1D');
