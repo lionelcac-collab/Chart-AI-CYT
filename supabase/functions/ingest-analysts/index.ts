@@ -45,7 +45,7 @@ async function fc(path: string, body: unknown) {
 Deno.serve(handler(async (req) => {
   requireService(req);
   const db = admin();
-  const { days = 14, maxArticles = 4, urls } = (await req.json().catch(() => ({}))) as { days?: number; maxArticles?: number; urls?: string[] };
+  const { days = 14, maxArticles = 4, urls, dryRun = false } = (await req.json().catch(() => ({}))) as { days?: number; maxArticles?: number; urls?: string[]; dryRun?: boolean };
   const log: Record<string, unknown>[] = [];
   let written = 0;
   const started = new Date().toISOString();
@@ -63,7 +63,7 @@ Deno.serve(handler(async (req) => {
     found = [...new Map(found.map((f) => [f.url.replace(/^http:/, 'https:').replace(/[#?].*$/, ''), f])).entries()].map(([url, f]) => ({ ...f, url }));
     const { data: known } = await db.from('analyst_consensus_snapshots').select('source_url').in('source_url', found.map((f) => f.url));
     const knownSet = new Set((known ?? []).map((k) => k.source_url));
-    const todo = found.filter((f) => !knownSet.has(f.url) && /recommend|consensus|broker|buy list|stocks to buy/i.test(`${f.url} ${f.title ?? ''}`)).slice(0, maxArticles);
+    const todo = found.filter((f) => (dryRun || !knownSet.has(f.url)) && (urls?.length || /recommend|consensus|broker|buy[ -]list|stocks[ -]to[ -]buy/i.test(`${f.url} ${f.title ?? ''}`))).slice(0, maxArticles);
     log.push({ step: 'search', found: found.length, new: todo.length });
 
     const { data: assets } = await db.from('assets').select('id, ticker, name').eq('market', 'NGX').eq('is_active', true).eq('asset_class', 'equity');
@@ -103,6 +103,7 @@ Deno.serve(handler(async (req) => {
         rows.push({ asset_id: a.id, published_at: published, source_name: SOURCE, source_url: art.url, brokers: x.brokers, n_buy: x.n_buy, n_hold: x.n_hold, n_sell: x.n_sell,
           target_mean: x.target_mean, target_min: x.target_min, target_max: x.target_max, reference_price: x.reference_price, note: x.note });
       }
+      if (dryRun) { log.push({ url: art.url, published, dryRun: true, rows, rejected }); continue; }
       if (rows.length) {
         const { error } = await db.from('analyst_consensus_snapshots').upsert(rows, { onConflict: 'asset_id,source_name,published_at' });
         if (error) throw error;
@@ -111,7 +112,7 @@ Deno.serve(handler(async (req) => {
       await audit('system:analysts', 'ingest_consensus', 'analyst_consensus_snapshots', art.url, { model: MODELS.bulk, rows: rows.length, rejected });
       log.push({ url: art.url, published, rows: rows.length, rejected });
     }
-    await db.from('ingestion_runs').insert({ job: 'ingest_analysts', status: 'ok', rows_written: written, attempts: log, started_at: started, finished_at: new Date().toISOString(), source_used: 'firecrawl+claude' });
+    await db.from('ingestion_runs').insert({ job: dryRun ? 'ingest_analysts_dryrun' : 'ingest_analysts', status: 'ok', rows_written: written, attempts: log, started_at: started, finished_at: new Date().toISOString(), source_used: 'firecrawl+claude' });
   } catch (e) {
     log.push({ error: String((e as Error).message ?? e).slice(0, 300) });
     await db.from('ingestion_runs').insert({ job: 'ingest_analysts', status: 'failed', rows_written: written, attempts: log, started_at: started, finished_at: new Date().toISOString(), source_used: 'firecrawl+claude' });
