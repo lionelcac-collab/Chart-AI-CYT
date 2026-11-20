@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { convert, formatMoney, type CurrencyCode } from '@chart-boursafrikia/core';
+import { convert, formatMoney, type CurrencyCode, marketLabel } from '@chart-boursafrikia/core';
 import { Button, Card, ErrorBox, KV, Loading, Row, Screen, Txt } from '../components/ui';
 import { useT } from '../i18n';
 import { api } from '../lib/api';
@@ -104,7 +104,7 @@ export default function VirtualPortfolioScreen() {
           style={{ backgroundColor: th.bg, color: th.text, borderRadius: radius.md, padding: space.md, borderWidth: 1, borderColor: th.border }} accessibilityLabel={fr ? 'Rechercher un titre' : 'Search a stock'} />
         {!sel ? results.map((a) => (
           <Pressable key={a.id} onPress={() => { setSel(a.id); setQuery(`${a.ticker} · ${a.name}`); }} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: th.grid }}>
-            <Txt weight="700">{a.ticker} <Txt size="xs" muted>{a.market} · {a.name}</Txt></Txt>
+            <Txt weight="700">{a.ticker} <Txt size="xs" muted>{marketLabel(a.market)} · {a.name}</Txt></Txt>
           </Pressable>
         )) : null}
         {asset ? (
@@ -127,7 +127,7 @@ export default function VirtualPortfolioScreen() {
         {!book.lines.length ? <Txt muted>{fr ? 'Aucune position. Achetez un titre ci-dessus pour démarrer la simulation.' : 'No position yet.'}</Txt> : book.lines.map((l) => (
           <Pressable key={l.id} onPress={() => router.push(`/asset/${encodeURIComponent(l.id)}`)} style={{ flexDirection: 'row', paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: th.grid }}>
             <View style={{ flex: 1 }}>
-              <Txt weight="700">{l.a?.ticker ?? l.id} <Txt size="xs" muted>{l.a?.market}</Txt></Txt>
+              <Txt weight="700">{l.a?.ticker ?? l.id} <Txt size="xs" muted>{marketLabel(l.a?.market)}</Txt></Txt>
               <Txt size="xs" muted>{fmtNum(l.qty, lang, 0)} {fr ? 'actions' : 'shares'} · {fr ? 'investi' : 'cost'} {money(l.cost)}</Txt>
             </View>
             <View style={{ alignItems: 'flex-end' }}>

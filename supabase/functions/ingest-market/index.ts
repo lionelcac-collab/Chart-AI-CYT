@@ -41,6 +41,8 @@ const registry = new ConnectorRegistry({
   BRVM: [new LicensedRealtimeConnector(), mansa],
   BVMAC: [bulletin, mansa],
   NGX: [new NgxOfficialConnector(), mansa],
+  // Other exchanges: Mansa Markets (end-of-day + 30-min delayed quotes).
+  JSE: [mansa], EGX: [mansa], CSE_MA: [mansa], NSE_KE: [mansa], GSE: [mansa], DSE: [mansa], USE: [mansa], RSE: [mansa],
 });
 const byId: Record<string, MarketDataConnector> = { [mansa.id]: mansa, [bulletin.id]: bulletin };
 
@@ -167,6 +169,32 @@ Deno.serve(handler(async (req) => {
   if (job === 'backfill') {
     if (!body.market || !body.from || !body.to) return json({ error: 'market, from, to requis' }, 400);
     return json(await backfill(body.market, body.from, body.to));
+  }
+  // Price history from Mansa (PRO plan): {"job":"history","market":"GSE","from":"2024-01-01","limit":40,"offset":0}.
+  // Nothing is invented: a refused or empty history is only logged.
+  if (job === 'history') {
+    if (!body.market) return json({ error: 'market requis' }, 400);
+    const db = admin();
+    const m = body.market as MarketCode;
+    const from = body.from ?? new Date(Date.now() - 3 * 365 * 86400_000).toISOString().slice(0, 10);
+    const to = new Date().toISOString().slice(0, 10);
+    const { data: list } = await db.from('assets').select('id, ticker').eq('market', m).eq('is_active', true).order('id').range(body.offset ?? 0, (body.offset ?? 0) + (body.limit ?? 40) - 1);
+    const out: Record<string, unknown>[] = [];
+    let written = 0;
+    for (const a of list ?? []) {
+      const t0 = Date.now();
+      try {
+        const bars = await mansa.getHistory(m, a.ticker, from, to);
+        const rows = bars.filter((b) => b.close > 0).map((b) => ({ asset_id: a.id, session_date: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume, value: b.value, source: 'mansa', verified: false }));
+        if (rows.length) { await db.from('price_bars').upsert(rows, { onConflict: 'asset_id,session_date', ignoreDuplicates: true }); written += rows.length; }
+        out.push({ asset: a.id, bars: rows.length, ms: Date.now() - t0 });
+      } catch (e) {
+        out.push({ asset: a.id, error: (e as Error).message.slice(0, 120) });
+        if (/40[13]/.test((e as Error).message)) break; // plan does not include history: stop early
+      }
+    }
+    await db.from('ingestion_runs').insert({ job: 'history', market: m, status: written ? 'ok' : 'failed', rows_written: written, attempts: out, source_used: 'mansa', finished_at: new Date().toISOString() });
+    return json({ market: m, written, out });
   }
   // Calendar (general meetings, dividends) + capital operations from a BRVM bulletin: {"job":"events","date":"YYYY-MM-DD"} (default: latest).
   if (job === 'events') {

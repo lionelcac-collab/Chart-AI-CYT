@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, TextInput, View } from 'react-native';
-import { ENTITLEMENTS } from '@chart-boursafrikia/core';
+import { ENTITLEMENTS, marketLabel } from '@chart-boursafrikia/core';
 import { GlobalAlertCard } from '../../components/Alerts';
 import { ImportReview } from '../../components/ImportReview';
 import { ContributionBar, PERIOD_LABEL, PortfolioAsk, PortfolioPanel, PositionEditor, usePortfolio } from '../../components/Portfolio';
@@ -88,7 +88,7 @@ export default function Watchlist() {
       setFound({ matched: r.matched, unmatched: r.unmatched, totalValue: r.totalValue, totalCurrency: r.totalCurrency });
       setTray([]); setNote('');
       if (!r.matched.length) setMsg(r.readable
-        ? (fr ? 'Aucun titre de la BRVM, de la BVMAC ou de la NGX n’a été reconnu sur ces images.' : 'No BRVM, BVMAC or NGX stock was recognised on these images.')
+        ? (fr ? 'Aucun titre coté sur les bourses suivies n’a été reconnu sur ces images.' : 'No listed stock from the covered exchanges was recognised.')
         : (fr ? 'Aucune liste de titres lisible sur ces images. Essayez une capture plus nette.' : 'No readable list of stocks on these images. Try a sharper screenshot.'));
     } catch (e) {
       const code = (e as ApiError).code;
@@ -131,7 +131,7 @@ export default function Watchlist() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, gap: space.sm }}>
                   <Pressable onPress={() => router.push(`/asset/${encodeURIComponent(a.id)}`)} style={{ flex: 1, flexDirection: 'row', borderRadius: radius.sm }}>
                     <View style={{ flex: 1 }}>
-                      <Txt weight="700">{a.ticker} <Txt size="xs" muted>{a.market}</Txt></Txt>
+                      <Txt weight="700">{a.ticker} <Txt size="xs" muted>{marketLabel(a.market)}</Txt></Txt>
                       <Txt size="xs" muted numberOfLines={1}>{a.name}</Txt>
                       {p?.quantity != null ? (
                         <Txt size="xs" color={th.textMuted}>
@@ -215,8 +215,8 @@ export default function Watchlist() {
       <Card style={{ borderColor: th.accent, borderWidth: 1 }}>
         <Txt weight="800">📷 {fr ? 'Créer ou mettre à jour mon portefeuille par capture d’écran' : 'Build or update my portfolio from a screenshot'}</Txt>
         <Txt size="sm" muted>{fr
-          ? 'Capture de votre application de courtier, d’un relevé de portefeuille ou d’une liste : l’IA lit les titres (BRVM, BVMAC, NGX), le nombre de titres, le PRU, la valorisation et les plus-values, puis vous proposez d’ajouter ou de mettre à jour vos lignes. Jusqu’à 4 images.'
-          : 'Screenshot of your broker app, a portfolio, a newspaper or a list: the AI recognises BRVM, BVMAC and NGX stocks. Up to 4 images.'}</Txt>
+          ? 'Capture de votre application de courtier, d’un relevé de portefeuille ou d’une liste : l’IA lit les titres (11 bourses africaines), le nombre de titres, le PRU, la valorisation et les plus-values, puis vous proposez d’ajouter ou de mettre à jour vos lignes. Jusqu’à 4 images.'
+          : 'Screenshot of your broker app, a portfolio, a newspaper or a list: the AI recognises stocks of 11 African exchanges. Up to 4 images.'}</Txt>
         {tray.length ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
             {tray.map((im, i) => (

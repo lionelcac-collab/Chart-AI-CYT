@@ -7,7 +7,7 @@ import { router, usePathname } from 'expo-router';
 import { BasketIcon } from './Basket';
 import type { ReactNode } from 'react';
 import { Image, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
-import { APP_NAME } from '@chart-boursafrikia/core';
+import { APP_NAME, ACTIVE_MARKETS, MARKET_LABEL } from '@chart-boursafrikia/core';
 import { useT } from '../i18n';
 import { useSettings } from '../settings';
 import { api } from '../lib/api';
@@ -27,7 +27,7 @@ const copy = {
     tagline: 'Analyse IA des bourses africaines',
     badge: '✦ Analyse IA avancée',
     heroTitle: 'L’intelligence artificielle au service des bourses africaines',
-    heroSub: 'Cours officiels, plus bas / plus hauts, supports et résistances, scénarios et consensus calculés par IA sur les actions de la BRVM, de la BVMAC et de la NGX.',
+    heroSub: 'Cours officiels, plus bas / plus hauts, supports et résistances, scénarios et consensus calculés par IA sur les actions de 11 bourses africaines : BRVM, BVMAC, NGX, JSE, EGX, Casablanca, Nairobi, Ghana, Dar es Salaam, Ouganda et Rwanda.',
     askAi: 'Demander à l’assistant IA', explore: 'Explorer les actions', premium: 'Premium', signIn: 'Connexion',
     strip: 'Analyse IA · Bourses africaines',
     markets: [['BRVM', '8 pays UEMOA'], ['BVMAC', '6 pays CEMAC'], ['NGX', 'Nigeria']],
@@ -38,7 +38,7 @@ const copy = {
     tagline: 'AI analysis of African stock markets',
     badge: '✦ Advanced AI analysis',
     heroTitle: 'Artificial intelligence for African stock markets',
-    heroSub: 'Official prices, lows / highs, supports and resistances, AI-computed scenarios and consensus on BRVM, BVMAC and NGX stocks.',
+    heroSub: 'Official prices, lows / highs, supports and resistances, AI-computed scenarios and consensus on stocks of 11 African exchanges: BRVM, BVMAC, NGX, JSE, EGX, Casablanca, Nairobi, Ghana, Dar es Salaam, Uganda and Rwanda.',
     askAi: 'Ask the AI assistant', explore: 'Explore stocks', premium: 'Premium', signIn: 'Sign in',
     strip: 'AI analysis · African markets',
     markets: [['BRVM', '8 WAEMU countries'], ['BVMAC', '6 CEMAC countries'], ['NGX', 'Nigeria']],
@@ -203,28 +203,26 @@ export function Footer() {
   );
 }
 
-const SHORT_ZONE = { BRVM: 'UEMOA', BVMAC: 'CEMAC', NGX: 'Nigeria' };
-
-/** The three exchanges as always-visible buttons (optionally with an "All" button first). */
+/** Exchanges as always-visible buttons in a grid (optionally with an "All" button first). */
 export function MarketButtons<T extends string>({ value, onChange, allLabel }: { value: T | undefined; onChange: (m: T | undefined) => void; allLabel?: string }) {
   const th = useTheme();
   const { lang } = useT();
-  const c = copy[lang];
   const desktop = useIsDesktop();
   const items: [T | undefined, string, string][] = [
-    ...(allLabel ? [[undefined, allLabel, desktop ? 'BRVM · BVMAC · NGX' : (lang === 'fr' ? '3 bourses' : '3 exchanges')] as [T | undefined, string, string]] : []),
-    ...c.markets.map(([code, zone]) => [code as T, code, desktop ? zone : SHORT_ZONE[code as 'BRVM']] as [T | undefined, string, string]),
+    ...(allLabel ? [[undefined, allLabel, lang === 'fr' ? `${ACTIVE_MARKETS.length} bourses` : `${ACTIVE_MARKETS.length} exchanges`] as [T | undefined, string, string]] : []),
+    ...ACTIVE_MARKETS.map((code) => [code as T, MARKET_LABEL[code]?.short ?? code, MARKET_LABEL[code]?.[lang] ?? ''] as [T | undefined, string, string]),
   ];
+  const basis = desktop ? '15%' : '22%';
   return (
-    <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: space.sm }}>
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
       {items.map(([v, label, sub]) => {
         const active = value === v;
         return (
           <Pressable key={label} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => onChange(v)}
-            style={{ flex: 1, alignItems: 'center', paddingVertical: 10, paddingHorizontal: 6, borderRadius: radius.md, borderWidth: 1,
+            style={{ flexGrow: 1, flexBasis: basis, minWidth: 70, alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4, borderRadius: radius.md, borderWidth: 1,
               backgroundColor: active ? th.accent : th.card, borderColor: active ? th.accent : th.border }}>
-            <Text style={{ color: active ? th.accentText : th.text, fontWeight: '800', fontSize: 15 }}>{label}</Text>
-            <Text numberOfLines={1} style={{ color: active ? th.accentText : th.textMuted, fontSize: 11, marginTop: 2 }}>{sub}</Text>
+            <Text style={{ color: active ? th.accentText : th.text, fontWeight: '800', fontSize: 14 }}>{label}</Text>
+            <Text numberOfLines={1} style={{ color: active ? th.accentText : th.textMuted, fontSize: 10, marginTop: 1 }}>{sub}</Text>
           </Pressable>
         );
       })}

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, router } from 'expo-router';
 import { Fragment, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { APP_NAME, MARKETS, sessionState, type MarketCode } from '@chart-boursafrikia/core';
+import { ACTIVE_MARKETS, APP_NAME, MARKETS, marketLabel, sessionState, type MarketCode } from '@chart-boursafrikia/core';
 import { Columns, Hero, MarketButtons, useIsDesktop } from '../../components/Chrome';
 import { MarketScan } from '../../components/MarketScan';
 import { AnalystConsensusBlock, PriceTargetsBlock } from '../../components/Analysts';
@@ -20,7 +20,7 @@ export default function Dashboard() {
   const [market, setMarket] = useState<MarketCode | undefined>('BRVM');
   const desktop = useIsDesktop();
   const q = useQuery({ queryKey: ['dashboard', market], queryFn: () => api.dashboard(market) });
-  const states = (market ? [market] : (['BRVM', 'BVMAC', 'NGX'] as MarketCode[])).map((m) => ({ m, st: sessionState(MARKETS[m as 'BRVM']) }));
+  const states = (market ? [market] : ([...ACTIVE_MARKETS] as MarketCode[])).map((m) => ({ m, st: sessionState(MARKETS[m as 'BRVM']) }));
   const state = states.some((x) => x.st === 'open') ? 'open' : states[0]!.st;
   const stateLabel = { fr: { open: 'Séance en cours', closed: 'Séance terminée', pre_open: 'Avant ouverture', weekend: 'Marché fermé' }, en: { open: 'Session open', closed: 'Session closed', pre_open: 'Pre-open', weekend: 'Market closed' } }[lang][state];
 
@@ -38,11 +38,11 @@ export default function Dashboard() {
           <Txt size="xl" weight="800">{t.dashboard.title}</Txt>
           <Txt size="sm" muted>{APP_NAME} · {lang === 'fr' ? 'cours officiels et analyse IA' : 'official prices and AI analysis'}</Txt>
         </View>
-        <View style={{ width: desktop ? 460 : undefined }}>
+        <View style={{ width: desktop ? 640 : undefined }}>
           <MarketButtons<MarketCode> value={market} onChange={(m) => setMarket(m)} allLabel={lang === 'fr' ? 'Tous' : 'All'} />
         </View>
         <View style={{ alignSelf: desktop ? 'auto' : 'flex-start', marginBottom: desktop ? 8 : 0 }}>{market ? <Pill label={stateLabel} bg={state === 'open' ? th.up : th.cardAlt} color={state === 'open' ? '#0B0F1E' : th.textMuted} />
-          : <Row style={{ flexWrap: 'wrap' }} gap={6}>{states.map(({ m, st }) => <Pill key={m} label={`${m} · ${({ fr: { open: 'en cours', closed: 'terminée', pre_open: 'avant ouverture', weekend: 'fermé' }, en: { open: 'open', closed: 'closed', pre_open: 'pre-open', weekend: 'closed' } } as const)[lang][st]}`} bg={st === 'open' ? th.up : th.cardAlt} color={st === 'open' ? '#0B0F1E' : th.textMuted} />)}</Row>}</View>
+          : <Pill label={(() => { const n = states.filter((x) => x.st === 'open').length; return lang === 'fr' ? (n ? `${n} bourse${n > 1 ? 's' : ''} en séance : ${states.filter((x) => x.st === 'open').map((x) => marketLabel(x.m)).join(', ')}` : 'Aucune bourse en séance') : (n ? `${n} open: ${states.filter((x) => x.st === 'open').map((x) => marketLabel(x.m)).join(', ')}` : 'No exchange open'); })()} bg={state === 'open' ? th.up : th.cardAlt} color={state === 'open' ? '#0B0F1E' : th.textMuted} />}</View>
       </View>
 
       {q.isLoading ? <Loading /> : q.error ? <ErrorBox message={t.common.error} onRetry={() => q.refetch()} /> : d ? (

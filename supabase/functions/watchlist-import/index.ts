@@ -38,7 +38,11 @@ const ALIASES: [RegExp, string][] = [
 ];
 const expand = (s: string) => ALIASES.reduce((acc, [re, to]) => acc.replace(re, to), ` ${norm(s)} `).trim();
 const tokens = (s: string) => expand(s).split(' ').filter((w) => w.length > 1 && !STOP.has(w));
-const MARKET_HINT: Record<string, string> = { BRVM: 'BRVM', ABIDJAN: 'BRVM', UEMOA: 'BRVM', XOF: 'BRVM', BVMAC: 'BVMAC', DOUALA: 'BVMAC', LIBREVILLE: 'BVMAC', CEMAC: 'BVMAC', XAF: 'BVMAC', NGX: 'NGX', NSE: 'NGX', LAGOS: 'NGX', NGN: 'NGX', NIGERIA: 'NGX' };
+const MARKET_HINT: Record<string, string> = { BRVM: 'BRVM', ABIDJAN: 'BRVM', UEMOA: 'BRVM', XOF: 'BRVM', BVMAC: 'BVMAC', DOUALA: 'BVMAC', LIBREVILLE: 'BVMAC', CEMAC: 'BVMAC', XAF: 'BVMAC', NGX: 'NGX', LAGOS: 'NGX', NGN: 'NGX', NIGERIA: 'NGX',
+  // "NSE" alone is ambiguous (former Nigerian Stock Exchange / Nairobi): not used as a hint.
+  JSE: 'JSE', JOHANNESBURG: 'JSE', ZAR: 'JSE', EGX: 'EGX', CAIRO: 'EGX', CAIRE: 'EGX', EGP: 'EGX', CASABLANCA: 'CSE_MA', BVC: 'CSE_MA', MAD: 'CSE_MA', MAROC: 'CSE_MA', MOROCCO: 'CSE_MA',
+  NAIROBI: 'NSE_KE', KES: 'NSE_KE', KENYA: 'NSE_KE', GSE: 'GSE', ACCRA: 'GSE', GHS: 'GSE', GHANA: 'GSE', DSE: 'DSE', 'DAR ES SALAAM': 'DSE', TZS: 'DSE', TANZANIA: 'DSE', TANZANIE: 'DSE',
+  USE: 'USE', KAMPALA: 'USE', UGX: 'USE', UGANDA: 'USE', OUGANDA: 'USE', RSE: 'RSE', KIGALI: 'RSE', RWF: 'RSE', RWANDA: 'RSE' };
 
 function match(it: Item, assets: Asset[]): { asset: Asset; score: number } | null {
   const inPool = matchIn(it, assets, true);
@@ -53,7 +57,7 @@ function matchIn(it: Item, assets: Asset[], useHint: boolean): { asset: Asset; s
   const pool = hint && useHint ? assets.filter((a) => a.market === hint) : assets;
   if (it.isin) { const a = assets.find((x) => x.isin && x.isin === it.isin!.toUpperCase().replace(/\s/g, '')); if (a) return { asset: a, score: 1 }; }
   if (it.ticker) {
-    const t = norm(it.ticker).replace(/ (BRVM|NGX|BVMAC|LG|NL|CI)$/, '').replace(/ /g, '');
+    const t = norm(it.ticker).replace(/ (BRVM|NGX|BVMAC|JSE|EGX|GSE|DSE|USE|RSE|NSE|LG|NL|CI|SJ|EY|CA|NR|GA|DA|UG|RW)$/, '').replace(/ /g, '');
     const hits = pool.filter((a) => norm(a.ticker).replace(/ /g, '') === t);
     if (hits.length === 1) return { asset: hits[0]!, score: 0.95 };
     if (hits.length > 1 && it.name) { const best = hits.map((a) => ({ asset: a, score: 0.9 * overlap(it.name!, a.name) })).sort((a, b) => b.score - a.score)[0]; if (best && best.score > 0.3) return best; }
@@ -100,7 +104,7 @@ Deno.serve(handler(async (req) => {
       { type: 'text' as const, text:
         'Ces images sont des captures d’écran (application de courtier, portefeuille, liste de cotations, article, tableau…). ' +
         'Relève chaque action ou titre coté qui y apparaît : ticker (tel qu’écrit), nom complet de la société (avec le pays s’il est écrit), ISIN si visible, ' +
-        'et la bourse (BRVM, BVMAC ou NGX) seulement si elle est écrite ou clairement indiquée pour CE titre (ville de cotation : Abidjan → BRVM, Douala/Libreville → BVMAC, Lagos → NGX), sinon null. Ne déduis jamais la bourse de la devise de valorisation d’un portefeuille (un relevé consolidé en FCFA peut contenir des titres nigérians). ' +
+        'et la bourse (BRVM, BVMAC, NGX, JSE, EGX, CSE_MA = Casablanca, NSE_KE = Nairobi, GSE = Ghana, DSE = Dar es Salaam, USE = Ouganda, RSE = Rwanda) seulement si elle est écrite ou clairement indiquée pour CE titre (ville de cotation : Abidjan → BRVM, Douala/Libreville → BVMAC, Lagos → NGX, Johannesburg → JSE, Le Caire → EGX, Casablanca → CSE_MA, Nairobi → NSE_KE, Accra → GSE, Dar es Salaam → DSE, Kampala → USE, Kigali → RSE), sinon null. Ne déduis jamais la bourse de la devise de valorisation d’un portefeuille (un relevé consolidé en FCFA peut contenir des titres nigérians). ' +
         'Ne relève que ce qui est réellement lisible sur l’image : n’invente aucun titre, ne complète pas une liste. Ignore les indices, devises, cryptomonnaies et matières premières. ' +
         'Pour chaque titre, relève aussi quand ils sont lisibles : quantity = nombre de titres détenus. Il peut être libellé « Unités », « Unité(s) », « Qté », « Quantité », « Nombre », « Nb titres », « Titres », « Actions », « Position », « Solde », « Avoir », « Détenu(s) », « Units », « Shares », « Holdings », « Qty », ou apparaître sans libellé à côté du nom (ex. « 120 unités », « x 120 »). Ce n’est PAS un volume échangé du marché ; avg_cost_price = prix de revient unitaire (PRU, prix moyen d’achat) ; ' +
         'total_cost = montant total investi (coût d’acquisition) ; market_value = valorisation de la ligne ; unrealized_pnl = plus/moins-value latente en montant (négative si perte) ; unrealized_pnl_pct = plus/moins-value latente en POURCENTAGE (ex. « +12,5 % » → 12.5, « -8 % » → -8 ; ce n’est PAS la variation du jour) ; last_price = dernier cours affiché ; ' +

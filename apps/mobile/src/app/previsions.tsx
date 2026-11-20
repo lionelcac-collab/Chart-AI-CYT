@@ -1,3 +1,4 @@
+import { marketLabel } from '@chart-boursafrikia/core';
 // Forecasts ranking (Premium): every stock ranked by the model's median expected return or probability of rise/fall,
 // per horizon and exchange. Free users see a teaser with counts only.
 import { useQuery } from '@tanstack/react-query';
@@ -68,7 +69,7 @@ export default function ForecastsScreen() {
               style={{ paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: th.grid, gap: 4 }}>
               <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <View style={{ flex: 1 }}>
-                  <Txt weight="800">{i + 1}. {r.ticker} <Txt size="xs" muted>{r.market}{r.illiquid ? ' · ⚠ ' + (fr ? 'peu liquide' : 'illiquid') : ''}</Txt></Txt>
+                  <Txt weight="800">{i + 1}. {r.ticker} <Txt size="xs" muted>{marketLabel(r.market)}{r.illiquid ? ' · ⚠ ' + (fr ? 'peu liquide' : 'illiquid') : ''}</Txt></Txt>
                   <Txt size="xs" muted numberOfLines={1}>{r.name}{r.sector ? ` · ${fr ? r.sector.fr : r.sector.en}` : ''}</Txt>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>

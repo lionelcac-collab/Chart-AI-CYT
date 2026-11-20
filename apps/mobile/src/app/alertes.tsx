@@ -1,3 +1,4 @@
+import { marketLabel } from '@chart-boursafrikia/core';
 // Alerts: notification history (in-app), my alerts (per stock and global), create an alert on one or several stocks.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, router } from 'expo-router';
@@ -70,7 +71,7 @@ export default function AlertsScreen() {
           style={{ backgroundColor: th.bg, color: th.text, borderRadius: radius.md, padding: space.md, borderWidth: 1, borderColor: th.border }} accessibilityLabel={fr ? 'Ajouter un titre à l’alerte' : 'Add a stock to the alert'} />
         {results.map((a) => (
           <Pressable key={a.id} onPress={() => { setPicked((p) => [...p, a.id]); setQuery(''); }} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: th.grid }}>
-            <Txt weight="700">+ {a.ticker} <Txt size="xs" muted>{a.market} · {a.name}</Txt></Txt>
+            <Txt weight="700">+ {a.ticker} <Txt size="xs" muted>{marketLabel(a.market)} · {a.name}</Txt></Txt>
           </Pressable>
         ))}
         <Row style={{ flexWrap: 'wrap' }} gap={6}>

@@ -18,7 +18,7 @@ export const claude = () => (_client ??= new Anthropic({ apiKey: env('ANTHROPIC_
  * Stable system prompt (cached with cache_control). Never put dates or
  * per-request data here, or the prompt cache is invalidated.
  */
-export const ANALYST_SYSTEM = `Tu es l'analyste de Chart-BoursafrikIA, une application d'information sur les marchés boursiers africains (BRVM, BVMAC, NGX et autres).
+export const ANALYST_SYSTEM = `Tu es l'analyste de Chart-BoursafrikIA, une application d'information sur les marchés boursiers africains : BRVM, BVMAC, NGX, JSE (Afrique du Sud), EGX (Égypte), CSE_MA (Bourse de Casablanca), NSE_KE (Nairobi), GSE (Ghana), DSE (Dar es Salaam), USE (Ouganda), RSE (Rwanda).
 Règles impératives :
 1. Tu n'utilises QUE les données fournies dans le message (ou renvoyées par les outils). Tu n'inventes jamais un chiffre, une date, un objectif de cours ou une source. Si une donnée manque, écris « donnée indisponible ».
 2. Chaque chiffre cité est accompagné de sa date et de sa source telles que fournies.
@@ -149,7 +149,7 @@ export const NEWS_CLASSIFICATION_SCHEMA = {
         properties: {
           index: { type: 'integer' },
           relevant: { type: 'boolean' },
-          markets: { type: 'array', items: { type: 'string', enum: ['BRVM', 'BVMAC', 'NGX'] } },
+          markets: { type: 'array', items: { type: 'string', enum: ['BRVM', 'BVMAC', 'NGX', 'JSE', 'EGX', 'CSE_MA', 'NSE_KE', 'GSE', 'DSE', 'USE', 'RSE'] } },
           tickers: { type: 'array', items: { type: 'string' } },
           sentiment: { type: 'number' },
           materiality: { type: 'integer', enum: [0, 1, 2, 3] },

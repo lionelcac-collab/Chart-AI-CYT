@@ -190,7 +190,7 @@ function Jobs() {
     <>
       <Card title="Lancer une tâche">
         <Txt size="xs" muted>La collecte automatique tourne déjà chaque soir de séance. Ces boutons servent à relancer manuellement.</Txt>
-        <Button label="Collecte de clôture (BRVM, BVMAC, NGX)" variant="secondary" onPress={() => run.mutate({ job: 'ingest-market', payload: { job: 'eod', force: true } })} />
+        <Button label="Collecte de clôture (11 bourses)" variant="secondary" onPress={() => run.mutate({ job: 'ingest-market', payload: { job: 'eod', force: true } })} />
         <Button label="Cours différés en séance" variant="secondary" onPress={() => run.mutate({ job: 'ingest-market', payload: { job: 'delayed' } })} />
         <Button label="Recalculer consensus, classements et scans" variant="secondary" onPress={() => run.mutate({ job: 'post-close' })} />
         <Button label="Actualités (flux + classement IA)" variant="secondary" onPress={() => run.mutate({ job: 'ingest-news' })} />

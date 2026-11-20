@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { formatMoney, type CurrencyCode } from '@chart-boursafrikia/core';
+import { formatMoney, type CurrencyCode, marketLabel } from '@chart-boursafrikia/core';
 import { useT } from '../i18n';
 import { api, type ImportCandidate } from '../lib/api';
 import { fmtNum } from '../lib/format';
@@ -110,7 +110,7 @@ export function ImportReview({ matched, unmatched, totalValue, totalCurrency, wa
                 {d.on ? <Txt size="xs" weight="900" color={th.accentText}>✓</Txt> : null}
               </View>
               <View style={{ flex: 1 }}>
-                <Txt weight="700">{c.ticker} <Txt size="xs" muted>{c.market}</Txt></Txt>
+                <Txt weight="700">{c.ticker} <Txt size="xs" muted>{marketLabel(c.market)}</Txt></Txt>
                 <Txt size="xs" muted numberOfLines={1}>{c.name}</Txt>
               </View>
               <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: existing ? th.cardAlt : th.accent }}>

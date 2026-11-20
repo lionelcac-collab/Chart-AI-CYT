@@ -7,7 +7,7 @@ import { BasketForm, basketHtml, useBasket } from '../components/Basket';
 import { Button, Card, Disclaimer, Loading, Row, Screen, Txt } from '../components/ui';
 import { useT } from '../i18n';
 import { api, type BasketItem } from '../lib/api';
-import { formatMoney } from '@chart-boursafrikia/core';
+import { formatMoney, marketLabel } from '@chart-boursafrikia/core';
 import { fmtDate, fmtPct } from '../lib/format';
 import { printHtml } from '../lib/printDoc';
 import { changeColor, radius, space, useTheme } from '../theme';
@@ -60,7 +60,7 @@ export default function BasketScreen() {
                   {i.done ? <Txt weight="800" color="#fff">✓</Txt> : null}
                 </Pressable>
                 <Pressable style={{ flex: 1 }} onPress={() => router.push(`/asset/${encodeURIComponent(i.asset_id)}`)}>
-                  <Txt weight="800" style={{ textDecorationLine: i.done ? 'line-through' : 'none' }}>{i.ticker} <Txt size="xs" muted>{i.name} · {i.market}</Txt></Txt>
+                  <Txt weight="800" style={{ textDecorationLine: i.done ? 'line-through' : 'none' }}>{i.ticker} <Txt size="xs" muted>{i.name} · {marketLabel(i.market)}</Txt></Txt>
                   <Txt size="xs" muted>
                     {fr ? 'Dernier cours' : 'Last'} {i.last != null ? formatMoney(i.last, i.currency as never, lang) : '—'}{i.lastDate ? ` (${fmtDate(i.lastDate, lang)})` : ''}
                     {i.changePct != null ? <Txt size="xs" color={changeColor(th, i.changePct)}> {fmtPct(i.changePct, lang)}</Txt> : null}

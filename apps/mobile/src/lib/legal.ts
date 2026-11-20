@@ -45,14 +45,14 @@ export const LEGAL: Record<'disclaimer' | 'privacy' | 'terms' | 'sources', { fr:
   },
   sources: {
     fr: { title: 'Sources des données', sections: [
-      { h: 'Cours', p: 'Mansa Markets (API sous licence, attribution obligatoire) ; bulletins officiels de la BRVM, de la BVMAC et de NGX pour le contrôle et l’historique.' },
+      { h: 'Cours', p: 'Mansa Markets (API sous licence, attribution obligatoire) pour les 11 bourses suivies (BRVM, BVMAC, NGX, JSE, EGX, Casablanca, Nairobi, Ghana, Dar es Salaam, Ouganda, Rwanda) ; bulletins officiels de la BRVM, de la BVMAC et de NGX pour le contrôle et l’historique.' },
       { h: 'Fondamentaux', p: 'Rapports annuels, semestriels et communiqués publiés par les émetteurs sur les sites des bourses ; extraction assistée par IA puis contrôles de cohérence.' },
       { h: 'Macroéconomie', p: 'Banque mondiale (API Indicators), FMI (DataMapper), BCEAO, BEAC, CBN.' },
       { h: 'Actualités', p: 'Flux RSS officiels (bourses, régulateurs AMF-UMOA, COSUMAF, SEC Nigeria, émetteurs) et GDELT. Seuls titres, extraits et liens sont affichés.' },
       { h: 'Graphiques', p: 'Version web : TradingView Lightweight Charts™ (licence Apache 2.0).' },
     ] },
     en: { title: 'Data sources', sections: [
-      { h: 'Prices', p: 'Mansa Markets (licensed API, attribution required); official BRVM, BVMAC and NGX bulletins for verification and history.' },
+      { h: 'Prices', p: 'Mansa Markets (licensed API, attribution required) for the 11 covered exchanges; official BRVM, BVMAC and NGX bulletins for verification and history.' },
       { h: 'Fundamentals', p: 'Annual, half-year reports and releases published by issuers on exchange websites; AI-assisted extraction followed by consistency checks.' },
       { h: 'Macro', p: 'World Bank (Indicators API), IMF (DataMapper), BCEAO, BEAC, CBN.' },
       { h: 'News', p: 'Official RSS feeds (exchanges, regulators AMF-UMOA, COSUMAF, SEC Nigeria, issuers) and GDELT. Only titles, excerpts and links are shown.' },

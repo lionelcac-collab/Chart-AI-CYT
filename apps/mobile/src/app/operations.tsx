@@ -1,3 +1,4 @@
+import { marketLabel } from '@chart-boursafrikia/core';
 // IPOs, bond issues and regulator approvals (BRVM official bulletin: operations in progress + AMF-UMOA notices).
 import { useQuery } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
@@ -45,7 +46,7 @@ export default function OperationsScreen() {
         return (
           <Card key={o.id}>
             <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <Txt size="xs" muted style={{ flex: 1 }}>{k.icon} {fr ? k.fr : k.en}{o.market ? ` · ${o.market}` : ''}</Txt>
+              <Txt size="xs" muted style={{ flex: 1 }}>{k.icon} {fr ? k.fr : k.en}{o.market ? ` · ${marketLabel(o.market)}` : ''}</Txt>
               <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill, borderWidth: 1, borderColor: st.c }}><Txt size="xs" weight="700" color={st.c}>{st.l}</Txt></View>
             </Row>
             <Txt weight="800">{o.issuer}</Txt>

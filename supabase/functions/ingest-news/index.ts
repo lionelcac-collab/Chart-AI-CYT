@@ -59,7 +59,7 @@ Deno.serve(handler(async (req) => {
       model: MODELS.bulk, effort: 'low', maxTokens: 8000,
       schema: NEWS_CLASSIFICATION_SCHEMA as unknown as Record<string, unknown>,
       content: [{ type: 'text', text:
-        `Classe ces articles pour des investisseurs en actions africaines (BRVM : 8 pays de l'UEMOA ; BVMAC : CEMAC ; NGX : Nigeria). Pour chaque article :\n` +
+        `Classe ces articles pour des investisseurs en actions africaines (BRVM : 8 pays de l'UEMOA ; BVMAC : CEMAC ; NGX : Nigeria ; JSE : Afrique du Sud ; EGX : Égypte ; CSE_MA : Maroc ; NSE_KE : Kenya ; GSE : Ghana ; DSE : Tanzanie ; USE : Ouganda ; RSE : Rwanda). Pour chaque article :\n` +
         `- relevant : true seulement s'il concerne une société cotée sur ces bourses, ces bourses elles-mêmes, leurs régulateurs, les émissions de titres de ces zones, ou l'économie/la politique monétaire de ces pays avec un impact plausible pour les actionnaires ; false sinon (sport, faits divers, autres pays…) ;\n` +
         `- markets : bourses concernées ; tickers : UNIQUEMENT parmi l'univers fourni (format id), liste vide si aucun titre précis n'est concerné ;\n` +
         `- sentiment pour l'actionnaire entre -1 et 1, matérialité 0-3, catégorie, résumé d'une phrase en français et en anglais, fondé uniquement sur le titre et l'extrait (n'invente rien).\n` +

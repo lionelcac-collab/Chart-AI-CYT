@@ -2,7 +2,7 @@
  * Data access. Real mode: Supabase tables (RLS) + edge functions.
  * Demo mode: local fictional data (see demo.ts), clearly labelled in the UI.
  */
-import type { CurrencyCode, MarketCode, ScanPeriod, ScanRow } from '@chart-boursafrikia/core';
+import { ACTIVE_MARKETS, type CurrencyCode, type MarketCode, type ScanPeriod, type ScanRow } from '@chart-boursafrikia/core';
 import { DEMO_ASSETS, demoDashboard, demoNews, demoScan, demoSheet, demoSummary, demoTrackRecord } from './demo';
 import { SNAPSHOT } from './snapshot';
 import { IS_DB, dbDashboard, dbScan, dbSearch, dbSheet, snapDashboard, snapScan, snapSearch, snapSheet } from './snapshotApi';
@@ -89,7 +89,7 @@ export const api = {
     let idxQ = supabase.from('index_values').select('index_code, name, market, value, change_pct, session_date, source').order('session_date', { ascending: false }).limit(market ? 8 : 24);
     let latQ = supabase.from('market_latest').select('*');
     if (market) { idxQ = idxQ.eq('market', market); latQ = latQ.eq('market', market); }
-    const reportMarkets: MarketCode[] = market ? [market] : (['BRVM', 'BVMAC', 'NGX'] as MarketCode[]);
+    const reportMarkets: MarketCode[] = market ? [market] : ([...ACTIVE_MARKETS] as MarketCode[]);
     const [idx, q, rk, ...reps] = await Promise.all([
       idxQ, latQ,
       supabase.from('rankings').select('items, session_date').eq('scope', market ?? 'AFRICA').eq('style', 'overall').order('session_date', { ascending: false }).limit(1).maybeSingle(),
@@ -131,7 +131,7 @@ export const api = {
     if (!supabase) {
       return DEMO_ASSETS.filter((a) => (!market || a.market === market) && (!ql || a.name.toLowerCase().includes(ql) || a.ticker.toLowerCase().includes(ql))).map(demoSummary);
     }
-    let req = supabase.from('market_latest').select('*').order('ticker').limit(500);
+    let req = supabase.from('market_latest').select('*').order('ticker').limit(3000);
     if (market) req = req.eq('market', market);
     if (ql) req = req.or(`name.ilike.%${ql}%,ticker.ilike.%${ql}%`);
     const { data, error } = await req;
@@ -165,7 +165,7 @@ export const api = {
   async scan(market: MarketCode | undefined, period: ScanPeriod): Promise<{ rows: ScanRow[]; sessionDate: string | null; unavailable?: 'history' }> {
     if (!market) {
       // All exchanges: merge each exchange's latest scan.
-      const parts = await Promise.all((['BRVM', 'BVMAC', 'NGX'] as MarketCode[]).map((m) => api.scan(m, period).catch(() => ({ rows: [] as ScanRow[], sessionDate: null }))));
+      const parts = await Promise.all(([...ACTIVE_MARKETS] as MarketCode[]).map((m) => api.scan(m, period).catch(() => ({ rows: [] as ScanRow[], sessionDate: null }))));
       return { rows: parts.flatMap((x) => x.rows), sessionDate: parts.map((x) => x.sessionDate).filter(Boolean).sort().pop() ?? null };
     }
     if (SNAPSHOT) return IS_DB ? dbScan(market, period) : snapScan(market, period);

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { type MarketCode } from '@chart-boursafrikia/core';
+import { type MarketCode, marketLabel } from '@chart-boursafrikia/core';
 import { MarketButtons, useIsDesktop } from '../../components/Chrome';
 import { Card, ErrorBox, Loading, Pill, Row, Screen, Select, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
@@ -37,7 +37,7 @@ export default function Screener() {
     <Screen>
       <View>
         <Txt size="xl" weight="800">{t.screener.title}</Txt>
-        <Txt size="sm" muted>{lang === 'fr' ? 'Toutes les actions BRVM · BVMAC · NGX. Ouvrez un titre pour obtenir son analyse IA complète ✦' : 'All BRVM · BVMAC · NGX stocks. Open a stock to get its full AI analysis ✦'}</Txt>
+        <Txt size="sm" muted>{lang === 'fr' ? 'Toutes les actions de 11 bourses africaines. Ouvrez un titre pour obtenir son analyse IA complète ✦' : 'All stocks of 11 African exchanges. Open a stock to get its full AI analysis ✦'}</Txt>
       </View>
       <TextInput value={query} onChangeText={setQuery} placeholder={t.common.search} placeholderTextColor={th.textMuted} autoCapitalize="characters"
         accessibilityLabel={t.common.search}
@@ -62,7 +62,7 @@ export default function Screener() {
           {rows.map((a) => (
             <Pressable key={a.id} onPress={() => router.push(`/asset/${encodeURIComponent(a.id)}`)} style={{ flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: th.grid }}>
               <View style={{ flex: 1 }}>
-                <Txt weight="700">{a.ticker} <Txt size="xs" muted>{a.market}</Txt></Txt>
+                <Txt weight="700">{a.ticker} <Txt size="xs" muted>{marketLabel(a.market)}</Txt></Txt>
                 <Txt size="xs" muted numberOfLines={1}>{a.name}</Txt>
               </View>
               <View style={{ alignItems: 'flex-end' }}>

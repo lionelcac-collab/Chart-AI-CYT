@@ -143,7 +143,8 @@ export class MansaConnector implements MarketDataConnector {
     if (hhmm >= info.close) return { asOf: date, status: { kind: 'close' as const, sessionDate: date } };
     if (hhmm >= info.open) return { asOf: at.toISOString(), status: { kind: 'delayed' as const, delayMinutes: this.cfg.delayMinutes || 30 } };
     const d = new Date(`${date}T12:00:00Z`);
-    do d.setUTCDate(d.getUTCDate() - 1); while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
+    const days = info.tradingDays ?? [1, 2, 3, 4, 5];
+    do d.setUTCDate(d.getUTCDate() - 1); while (!days.includes(d.getUTCDay()));
     const prev = d.toISOString().slice(0, 10);
     return { asOf: prev, status: { kind: 'close' as const, sessionDate: prev } };
   }
@@ -153,8 +154,25 @@ export class MansaConnector implements MarketDataConnector {
     return { source, fetchedAt: new Date().toISOString(), asOf: s.asOf, status: s.status, url: 'https://mansamarkets.com' };
   }
 
+  /** All stock rows of an exchange, following the API pagination (`offset`, pages of up to 200). */
+  private async allStocks(market: MarketCode): Promise<Row[]> {
+    const out: Row[] = [];
+    const seen = new Set<string>();
+    for (let offset = 0; offset < 2000; offset += 200) {
+      const r = rows(await this.get(this.path(this.paths.stocks, market), { limit: '200', offset: String(offset) }));
+      let fresh = 0;
+      for (const row of r) {
+        const t = String(pick(row, 'ticker', 'symbol', 'code') ?? '');
+        if (!t || seen.has(t)) continue;
+        seen.add(t); out.push(row); fresh++;
+      }
+      if (r.length < 200 || !fresh) break; // last page, or offset ignored by the API
+    }
+    return out;
+  }
+
   async listAssets(market: MarketCode): Promise<Asset[]> {
-    const data = rows(await this.get(this.path(this.paths.stocks, market), { limit: '500' }));
+    const data = await this.allStocks(market);
     const info = MARKETS[market as 'BRVM'];
     return data.map((r) => {
       const ticker = String(pick(r, 'ticker', 'symbol', 'code') ?? '').trim();
@@ -174,7 +192,7 @@ export class MansaConnector implements MarketDataConnector {
   }
 
   async getQuotes(market: MarketCode): Promise<Quote[]> {
-    const data = rows(await this.get(this.path(this.paths.stocks, market), { limit: '500' }));
+    const data = await this.allStocks(market);
     return data.flatMap((r) => {
       const ticker = String(pick(r, 'ticker', 'symbol', 'code') ?? '').trim();
       const last = num(r, 'price', 'last', 'close', 'last_price', 'current_price');

@@ -1,3 +1,4 @@
+import { marketLabel } from '@chart-boursafrikia/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Fragment, useMemo, useState } from 'react';
@@ -99,7 +100,7 @@ export default function AssetScreen() {
       ) : null}
       <View style={{ gap: 4 }}>
         <Txt size={desktop ? 'xxl' : 'lg'} weight="800">{s.asset.name}</Txt>
-        <Txt size="sm" muted>{s.asset.ticker} · {s.asset.market}{s.asset.sectors ? ` · ${lang === 'fr' ? s.asset.sectors.name_fr : s.asset.sectors.name_en}` : ''}</Txt>
+        <Txt size="sm" muted>{s.asset.ticker} · {marketLabel(s.asset.market)}{s.asset.sectors ? ` · ${lang === 'fr' ? s.asset.sectors.name_fr : s.asset.sectors.name_en}` : ''}</Txt>
         <Row style={{ alignItems: 'flex-end', marginTop: space.sm }}>
           <Txt size="xxl" weight="800">{fmtPrice(last, s.asset.currency, lang, displayCurrency)}</Txt>
           <Txt size="lg" weight="700" color={changeColor(th, quote?.change_pct)}>{fmtPct(quote?.change_pct, lang)}</Txt>

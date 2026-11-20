@@ -1,3 +1,4 @@
+import { marketLabel } from '@chart-boursafrikia/core';
 import { router } from 'expo-router';
 import { Linking, Pressable, View } from 'react-native';
 import { useT } from '../i18n';
@@ -49,7 +50,7 @@ export function CompanyPanel({ s }: { s: AssetSheet }) {
 
       <Card title={t.asset.keyFacts} collapsible>
         <KV label={lang === 'fr' ? 'Secteur' : 'Sector'} value={a.sectors ? (lang === 'fr' ? a.sectors.name_fr : a.sectors.name_en) : na} />
-        <KV label={lang === 'fr' ? 'Bourse · pays' : 'Exchange · country'} value={`${a.market}${a.country ? ` · ${a.country}` : ''}`} />
+        <KV label={lang === 'fr' ? 'Bourse · pays' : 'Exchange · country'} value={`${marketLabel(a.market)}${a.country ? ` · ${a.country}` : ''}`} />
         <KV label="Ticker" value={a.ticker} />
         <KV label="ISIN" value={a.isin ?? na} />
         <KV label={t.asset.hq} value={a.headquarters ?? na} />
@@ -121,7 +122,7 @@ export function CompanyPanel({ s }: { s: AssetSheet }) {
         <Card title={t.asset.peers} collapsible defaultOpen={false}>
           {s.peers.slice(0, 8).map((p) => (
             <Pressable key={p.id} onPress={() => router.push(`/asset/${encodeURIComponent(p.id)}`)}>
-              <Row style={{ justifyContent: 'space-between', paddingVertical: 4 }}><Txt weight="600">{p.ticker}</Txt><Txt size="sm" muted numberOfLines={1}>{p.name} · {p.market}</Txt></Row>
+              <Row style={{ justifyContent: 'space-between', paddingVertical: 4 }}><Txt weight="600">{p.ticker}</Txt><Txt size="sm" muted numberOfLines={1}>{p.name} · {marketLabel(p.market)}</Txt></Row>
             </Pressable>
           ))}
         </Card>
