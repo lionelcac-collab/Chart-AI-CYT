@@ -5,12 +5,52 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { useT } from '../i18n';
-import { api, type AnalystRow } from '../lib/api';
+import { api, type AnalystRow, type ModelConsensus, type ModelPick } from '../lib/api';
 import { fmtDate, fmtNum, fmtPct, fmtPrice } from '../lib/format';
 import { radius, space, useTheme } from '../theme';
 import { Button, Card, Loading, Pill, Row, Txt } from './ui';
 
 const PERIODS = [3, 6, 12] as const;
+const ORIENT = { fr: { positive: 'orientation positive', neutral: 'orientation neutre', negative: 'orientation négative' }, en: { positive: 'positive', neutral: 'neutral', negative: 'negative' } } as const;
+
+function ModelSection({ m, locked }: { m: ModelConsensus; locked: boolean }) {
+  const th = useTheme();
+  const { lang } = useT();
+  const fr = lang === 'fr';
+  const conf = (c: string) => (fr ? ({ high: 'élevée', medium: 'moyenne', low: 'faible' } as Record<string, string>)[c] ?? c : c);
+  const pick = (x: ModelPick) => (
+    <Pressable key={x.assetId} onPress={() => router.push(`/asset/${encodeURIComponent(x.assetId)}`)} style={{ paddingVertical: 4 }}>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <Txt size="sm" weight="700" style={{ flex: 1 }} numberOfLines={1}>{x.ticker} <Txt size="xs" muted>{x.name}</Txt></Txt>
+        <Txt size="xs" muted>{fr ? 'confiance' : 'conf.'} {conf(x.confidence)}{x.central12 != null ? ` · 12 m ${x.central12 >= 0 ? '+' : ''}${fmtNum(x.central12, lang, 1)} %` : ''}</Txt>
+      </Row>
+    </Pressable>
+  );
+  return (
+    <View style={{ gap: 6, borderTopWidth: 1, borderTopColor: th.grid, paddingTop: space.md, marginTop: space.sm }}>
+      <Txt weight="800">{fr ? 'Modèle Chart-BoursafrikIA' : 'Chart-BoursafrikIA model'}</Txt>
+      <View style={{ flexDirection: 'row', height: 12, borderRadius: 6, overflow: 'hidden', backgroundColor: th.grid }}>
+        {m.totals.positive ? <View style={{ flex: m.totals.positive, backgroundColor: th.up }} /> : null}
+        {m.totals.neutral ? <View style={{ flex: m.totals.neutral, backgroundColor: th.neutral }} /> : null}
+        {m.totals.negative ? <View style={{ flex: m.totals.negative, backgroundColor: th.down }} /> : null}
+      </View>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <Txt size="sm" weight="700" color={th.up}>{fr ? 'Positive' : 'Positive'} {m.totals.positive}</Txt>
+        <Txt size="sm" weight="700" color={th.neutral}>{fr ? 'Neutre' : 'Neutral'} {m.totals.neutral}</Txt>
+        <Txt size="sm" weight="700" color={th.down}>{fr ? 'Négative' : 'Negative'} {m.totals.negative}</Txt>
+      </Row>
+      <Txt size="xs" muted>{fr ? `Orientation du modèle sur ${m.count} titre(s) de cette bourse, calculée après la séance du ${m.asOf ? fmtDate(m.asOf, lang) : '—'} (tendance, valorisation, qualité, dividende, actualité, analystes).` : `Model orientation on ${m.count} stocks.`}</Txt>
+      {locked ? <Locked text={fr ? 'Titres les plus nettement orientés selon le modèle : réservé à Premium.' : 'Top model picks are Premium.'} /> : (
+        <>
+          {m.topPositive?.length ? <><Txt size="sm" weight="700" color={th.up}>{fr ? 'Orientation positive la plus nette' : 'Most clearly positive'}</Txt>{m.topPositive.map(pick)}</> : null}
+          {m.topNegative?.length ? <><Txt size="sm" weight="700" color={th.down}>{fr ? 'Orientation négative la plus nette' : 'Most clearly negative'}</Txt>{m.topNegative.map(pick)}</> : null}
+          <Pressable onPress={() => router.push('/previsions')}><Txt size="xs" color={th.info}>{fr ? 'Classement complet des prévisions →' : 'Full forecasts ranking →'}</Txt></Pressable>
+        </>
+      )}
+      <Txt size="xs" muted>{fr ? 'Orientation statistique du modèle (pas une recommandation d’achat ou de vente).' : 'Statistical model orientation, not a recommendation.'}</Txt>
+    </View>
+  );
+}
 
 function Split({ buy, hold, sell, h = 8 }: { buy: number; hold: number; sell: number; h?: number }) {
   const th = useTheme();
@@ -59,10 +99,11 @@ export function AnalystConsensusBlock({ market }: { market: string }) {
     return { t: fr ? 'Avis partagés' : 'Mixed', c: th.neutral };
   };
   return (
-    <Card title={fr ? '🧑‍💼 Consensus des analystes · PRO' : '🧑‍💼 Analyst consensus · PRO'} collapsible badge={d && !d.locked ? d.rows.length || null : null}>
+    <Card title={fr ? '🧑‍💼 Consensus analystes & Chart-BoursafrikIA · PRO' : '🧑‍💼 Analysts & Chart-BoursafrikIA consensus · PRO'} collapsible badge={d && !d.locked ? d.rows.length || null : null}>
       <PeriodPills months={months} setMonths={setMonths} />
       {q.isLoading ? <Loading /> : !d ? <Txt muted>{fr ? 'Indisponible.' : 'Unavailable.'}</Txt> : (
         <>
+          <Txt weight="800">{fr ? 'Analystes (courtiers / SGI)' : 'Analysts (brokers)'}</Txt>
           <View style={{ gap: 6 }}>
             <Split buy={d.totals.buy} hold={d.totals.hold} sell={d.totals.sell} h={12} />
             <Row style={{ justifyContent: 'space-between' }}>
@@ -83,6 +124,18 @@ export function AnalystConsensusBlock({ market }: { market: string }) {
                     <Txt size="sm" weight="700" color={l.c}>{l.t}</Txt>
                   </Row>
                   <Split buy={r.buy ?? 0} hold={r.hold ?? 0} sell={r.sell ?? 0} />
+                  {r.model ? (() => {
+                    const o = r.model.orientation;
+                    const an = (r.buy ?? 0) > (r.hold ?? 0) + (r.sell ?? 0) ? 'positive' : (r.sell ?? 0) > (r.buy ?? 0) + (r.hold ?? 0) ? 'negative' : 'neutral';
+                    const conv = (r.buy ?? 0) + (r.hold ?? 0) + (r.sell ?? 0) === 0 ? null : an === o;
+                    return (
+                      <Txt size="xs">
+                        <Txt size="xs" muted>{fr ? 'Modèle Chart-BoursafrikIA : ' : 'Chart-BoursafrikIA model: '}</Txt>
+                        <Txt size="xs" weight="700" color={o === 'positive' ? th.up : o === 'negative' ? th.down : th.neutral}>{ORIENT[lang][o]}</Txt>
+                        {conv == null ? null : <Txt size="xs" weight="700" color={conv ? th.up : th.warn}>{conv ? (fr ? '  ✓ convergent avec les analystes' : '  ✓ agrees with analysts') : (fr ? '  ≠ divergent des analystes' : '  ≠ differs from analysts')}</Txt>}
+                      </Txt>
+                    );
+                  })() : null}
                   <Txt size="xs" muted>
                     {[r.buy != null ? `${r.buy} ${fr ? 'achat' : 'buy'}` : null, r.hold != null ? `${r.hold} ${fr ? 'neutre' : 'hold'}` : null, r.sell != null ? `${r.sell} ${fr ? 'vente' : 'sell'}` : null].filter(Boolean).join(' · ') || (fr ? 'Répartition non précisée' : 'Split not stated')}
                     {r.brokers ? ` — ${r.brokers}` : ''} · {fmtDate(r.publishedAt, lang)}
@@ -91,6 +144,7 @@ export function AnalystConsensusBlock({ market }: { market: string }) {
               );
             })}
           <Txt size="xs" muted>{fr ? 'Opinions publiées par des courtiers et reprises par la presse financière, citées telles quelles. Ce ne sont pas des recommandations de Chart-BoursafrikIA.' : 'Broker opinions as published; not Chart-BoursafrikIA recommendations.'}</Txt>
+          {d.model ? <ModelSection m={d.model} locked={d.locked} /> : null}
         </>
       )}
     </Card>

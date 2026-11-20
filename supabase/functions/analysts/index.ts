@@ -62,7 +62,25 @@ Deno.serve(handler(async (req) => {
         .sort((a, b) => a.date.localeCompare(b.date)),
     });
   }
+  // Chart-BoursafrikIA model consensus (latest computation per stock) for the same exchange.
+  let mq = db.from('latest_consensus').select('asset_id, as_of, orientation, confidence, confidence_value, result, assets!inner(ticker, name, market)');
+  if (market) mq = mq.eq('assets.market', market);
+  const { data: mrows } = await mq;
+  const model = (mrows ?? []).map((m) => {
+    const a = m.assets as unknown as { ticker: string; name: string; market: string };
+    const f12 = (m.result as { forecasts: { horizon: string; expectedReturnPct: number; bull: { probability: number }; bear: { probability: number } }[] }).forecasts.find((f) => f.horizon === '12M');
+    return { assetId: m.asset_id, ticker: a.ticker, name: a.name, market: a.market, asOf: m.as_of, orientation: m.orientation as 'positive' | 'neutral' | 'negative',
+      confidence: m.confidence as string, confidenceValue: Number(m.confidence_value), central12: f12?.expectedReturnPct ?? null, pBull12: f12?.bull.probability ?? null, pBear12: f12?.bear.probability ?? null };
+  });
+  const M = new Map(model.map((m) => [m.assetId, m]));
+  for (const r of rows) (r as Row & { model?: unknown }).model = M.get(r.assetId) ? { orientation: M.get(r.assetId)!.orientation, confidence: M.get(r.assetId)!.confidence } : null;
+  const mTotals = { positive: model.filter((m) => m.orientation === 'positive').length, neutral: model.filter((m) => m.orientation === 'neutral').length, negative: model.filter((m) => m.orientation === 'negative').length };
+  const mAsOf = model.reduce((x, m) => (m.asOf > x ? m.asOf : x), '');
+  const rank = (o: string, k: (m: (typeof model)[number]) => number) => model.filter((m) => m.orientation === o).sort((x, y) => k(y) - k(x)).slice(0, 5);
+  const modelBlock = { totals: mTotals, asOf: mAsOf, count: model.length,
+    topPositive: rank('positive', (m) => m.confidenceValue * 10 + (m.central12 ?? 0) / 100), topNegative: rank('negative', (m) => m.confidenceValue * 10 - (m.central12 ?? 0) / 100) };
+
   const totals = rows.reduce((t, r) => ({ buy: t.buy + (r.buy ?? 0), hold: t.hold + (r.hold ?? 0), sell: t.sell + (r.sell ?? 0) }), { buy: 0, hold: 0, sell: 0 });
-  if (!premium) return json({ locked: true, covered: rows.length, totals, since });
-  return json({ locked: false, since, totals, rows: rows.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)) });
+  if (!premium) return json({ locked: true, covered: rows.length, totals, since, model: { totals: mTotals, asOf: mAsOf, count: model.length } });
+  return json({ locked: false, since, totals, model: modelBlock, rows: rows.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)) });
 }));

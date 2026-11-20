@@ -53,7 +53,9 @@ export type ForecastReading = { headline: string; horizons: { horizon: string; r
 export type AnalystRow = { assetId: string; ticker: string; name: string; market: string; currency: string; price: number | null; priceDate: string | null;
   buy: number | null; hold: number | null; sell: number | null; brokers: string | null; targetMean: number | null; targetMin: number | null; targetMax: number | null;
   referencePrice: number | null; upsidePct: number | null; publishedAt: string; source: string; sourceUrl: string | null; note: string | null; history: { date: string; targetMean: number | null; source: string }[] };
-export type AnalystsResult = { since: string; totals: { buy: number; hold: number; sell: number } } & ({ locked: false; rows: AnalystRow[] } | { locked: true; covered: number });
+export type ModelPick = { assetId: string; ticker: string; name: string; market: string; asOf: string; orientation: 'positive' | 'neutral' | 'negative'; confidence: string; confidenceValue: number; central12: number | null; pBull12: number | null; pBear12: number | null };
+export type ModelConsensus = { totals: { positive: number; neutral: number; negative: number }; asOf: string; count: number; topPositive?: ModelPick[]; topNegative?: ModelPick[] };
+export type AnalystsResult = { since: string; totals: { buy: number; hold: number; sell: number }; model?: ModelConsensus } & ({ locked: false; rows: (AnalystRow & { model?: { orientation: 'positive' | 'neutral' | 'negative'; confidence: string } | null })[] } | { locked: true; covered: number });
 export type BasketItem = { id: string; asset_id: string; side: 'buy' | 'sell'; quantity: number | null; limit_price: number | null; note: string | null; done: boolean; created_at: string;
   ticker: string; name: string; market: string; currency: string; last: number | null; lastDate: string | null; changePct: number | null };
 export type AlertKind = 'price_above' | 'price_below' | 'change_pct' | 'near_support' | 'near_resistance' | 'events';
