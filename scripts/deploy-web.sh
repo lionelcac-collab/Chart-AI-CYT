@@ -6,6 +6,25 @@ set -euo pipefail
 cd "$(dirname "$0")/../apps/mobile"
 OUT=$(mktemp -d)
 npx expo export --platform web --clear --output-dir "$OUT"
+# Home-screen / desktop icon: manifest + Apple touch icon (files come from apps/mobile/public), French page language.
+python3 - "$OUT/index.html" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+tags = ('<link rel="manifest" href="/manifest.webmanifest"/>'
+        '<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>'
+        '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"/>'
+        '<meta name="theme-color" content="#161B1E"/>'
+        '<meta name="apple-mobile-web-app-capable" content="yes"/>'
+        '<meta name="mobile-web-app-capable" content="yes"/>'
+        '<meta name="apple-mobile-web-app-title" content="BoursafrikIA"/>'
+        '<meta name="apple-mobile-web-app-status-bar-style" content="black"/>')
+if 'rel="manifest"' not in s: s = s.replace('</head>', tags + '</head>', 1)
+s = s.replace('<html lang="en">', '<html lang="fr">', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+for f in manifest.webmanifest apple-touch-icon.png icon-192.png icon-512.png icon-maskable-512.png favicon-32.png; do
+  [ -f "$OUT/$f" ] || cp "public/$f" "$OUT/$f"
+done
 cat > "$OUT/vercel.json" <<'JSON'
 {
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
