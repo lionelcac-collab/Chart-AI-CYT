@@ -1,8 +1,17 @@
-// CinetPay notification. The payload is never trusted: the transaction is re-checked server-to-server.
+// Payment notifications (CinetPay, Moneroo). The payload is never trusted: the transaction is re-checked server-to-server.
 import { admin, env, handler, json } from '../_shared/runtime.ts';
 import { mirrorToRevenueCat, setPremium } from '../_shared/premium.ts';
+import { monerooSettle, monerooSignatureOk } from '../_shared/moneroo.ts';
 
 Deno.serve(handler(async (req) => {
+  const sig = req.headers.get('x-moneroo-signature');
+  if (sig !== null || req.headers.get('user-agent')?.toLowerCase().includes('moneroo')) {
+    const raw = await req.text();
+    if (!(await monerooSignatureOk(raw, sig))) return json({ error: 'signature invalide' }, 401);
+    const evt = JSON.parse(raw || '{}') as { event?: string; data?: { id?: string } };
+    if (!evt.data?.id || !String(evt.event ?? '').startsWith('payment.')) return json({ ignored: true });
+    return json(await monerooSettle(evt.data.id));
+  }
   const form = await req.formData().catch(() => null);
   const transactionId = form?.get('cpm_trans_id')?.toString() ?? (await req.json().catch(() => ({}))).transaction_id;
   if (!transactionId) return json({ error: 'transaction manquante' }, 400);

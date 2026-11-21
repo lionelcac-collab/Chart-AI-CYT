@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { PRICING } from '@chart-boursafrikia/core';
 import { Button, Card, Pill, Row, Screen, Txt } from '../components/ui';
 import { useT } from '../i18n';
 import { api } from '../lib/api';
-import { buy, getPackages, restore, supportsInAppPurchases, webCheckout, type PurchasesPackage } from '../lib/purchases';
+import { buy, getPackages, restore, supportsInAppPurchases, verifyWebPayment, webCheckout, type PurchasesPackage } from '../lib/purchases';
 import { DEMO_MODE } from '../lib/supabase';
 import { useSettings } from '../settings';
 import { space, useTheme } from '../theme';
@@ -19,6 +19,23 @@ export default function Premium() {
   const [currency, setCurrency] = useState<keyof typeof PRICING>('XOF');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const { paymentId } = useLocalSearchParams<{ paymentId?: string }>();
+  // Back from the web payment page: check the payment server-side (the webhook may not have arrived yet).
+  useEffect(() => {
+    if (!paymentId) return;
+    let stop = false; let tries = 0;
+    setMsg(lang === 'fr' ? 'Vérification de votre paiement…' : 'Checking your payment…');
+    const check = async () => {
+      const r = await verifyWebPayment(String(paymentId)).catch(() => ({ ok: false, status: 'unknown' }));
+      if (stop) return;
+      if (r.ok) { setPlan(await api.plan()); setMsg(lang === 'fr' ? 'Paiement confirmé : votre accès Premium est actif. Merci !' : 'Payment confirmed: Premium is active. Thank you!'); return; }
+      if (r.status === 'failed' || r.status === 'cancelled') { setMsg(lang === 'fr' ? 'Le paiement n’a pas abouti. Aucun montant n’a été validé ; vous pouvez réessayer.' : 'The payment did not go through. You can try again.'); return; }
+      if (++tries < 10) setTimeout(check, 4000);
+      else setMsg(lang === 'fr' ? 'Paiement en cours de confirmation. Votre accès Premium s’activera automatiquement dès réception ; contactez hello@otheon-tech.com si besoin.' : 'Payment pending confirmation. Premium will activate automatically.');
+    };
+    check();
+    return () => { stop = true; };
+  }, [paymentId]);
   const pkgs = useQuery({ queryKey: ['rc-packages'], queryFn: getPackages, enabled: supportsInAppPurchases });
 
   const storePkg: PurchasesPackage | undefined = pkgs.data?.find((p) => (period === 'yearly' ? /annual|year/i : /month/i).test(p.identifier));
@@ -34,7 +51,7 @@ export default function Premium() {
       if (!storePkg) { setMsg(lang === 'fr' ? 'Offre indisponible pour le moment.' : 'Offer unavailable right now.'); return; }
       if (await buy(storePkg)) { setPlan(await api.plan()); router.back(); }
     } catch (e) {
-      setMsg((e as Error).message === 'PAYMENT_INIT_FAILED'
+      setMsg((e as Error).message === 'PAYMENT_INIT_FAILED' || (e as Error).message === 'CURRENCY_UNAVAILABLE'
         ? (lang === 'fr' ? 'Le paiement en ligne est momentanément indisponible. Réessayez plus tard ou contactez-nous : hello@otheon-tech.com.' : 'Online payment is temporarily unavailable. Please try again later.')
         : (lang === 'fr' ? 'Achat annulé ou échoué.' : 'Purchase cancelled or failed.'));
     } finally { setBusy(false); }

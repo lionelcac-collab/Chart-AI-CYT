@@ -42,3 +42,7 @@ export type { PurchasesPackage };
 export async function webCheckout(_plan: 'monthly' | 'yearly', _currency: string): Promise<void> {
   throw new Error('WEB_ONLY');
 }
+
+export async function verifyWebPayment(_paymentId: string): Promise<{ ok: boolean; status: string }> {
+  return { ok: false, status: 'unknown' };
+}

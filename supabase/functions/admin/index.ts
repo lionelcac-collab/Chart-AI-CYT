@@ -141,6 +141,7 @@ Deno.serve(handler(async (req) => {
         payments: {
           revenuecat: { configured: !!(Deno.env.get('REVENUECAT_WEBHOOK_AUTH') || Deno.env.get('REVENUECAT_API_KEY')) },
           cinetpay: { configured: !!(Deno.env.get('CINETPAY_APIKEY') || Deno.env.get('CINETPAY_API_KEY')) },
+          moneroo: { configured: !!Deno.env.get('MONEROO_SECRET_KEY'), webhookSigned: !!Deno.env.get('MONEROO_WEBHOOK_SECRET') },
         },
       });
     }
