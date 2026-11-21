@@ -22,6 +22,8 @@ export default function AlertsScreen() {
   const alerts = useQuery({ queryKey: ['alerts'], queryFn: api.alerts, enabled: !!user.data });
   const all = useQuery({ queryKey: ['search', '', undefined], queryFn: () => api.search('') });
   const wl = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist, enabled: !!user.data });
+  const emailPref = useQuery({ queryKey: ['email-alerts'], queryFn: api.emailAlerts, enabled: !!user.data });
+  const toggleEmail = async () => { await api.setEmailAlerts(!(emailPref.data ?? true)).catch(() => {}); qc.invalidateQueries({ queryKey: ['email-alerts'] }); };
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<string[]>([]);
   const unread = (events.data ?? []).filter((e) => !e.read_at).length;
@@ -63,7 +65,13 @@ export default function AlertsScreen() {
 
       <Card title={fr ? `Mes alertes (${alerts.data?.length ?? 0})` : `My alerts (${alerts.data?.length ?? 0})`}>
         {alerts.isLoading ? <Loading /> : <AlertList alerts={alerts.data ?? []} />}
-        <Txt size="xs" muted>{fr ? 'Notifications dans l’application (🔔) et sur l’application mobile. Vérification après chaque séance, une notification par titre et par séance.' : 'In-app (🔔) and mobile push notifications, checked after each session.'}</Txt>
+        <Txt size="xs" muted>{fr ? 'Notifications dans l’application (🔔), sur l’application mobile et par e-mail. Vérification après chaque séance, une notification par titre et par séance.' : 'In-app (🔔), mobile push and e-mail notifications, checked after each session.'}</Txt>
+        <Pressable onPress={toggleEmail} accessibilityRole="switch" accessibilityState={{ checked: emailPref.data ?? true }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: 6 }}>
+          <View style={{ width: 40, height: 22, borderRadius: 11, backgroundColor: (emailPref.data ?? true) ? th.accent : th.grid, padding: 2, alignItems: (emailPref.data ?? true) ? 'flex-end' : 'flex-start' }}>
+            <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff' }} />
+          </View>
+          <Txt size="sm">{fr ? 'Recevoir aussi mes alertes par e-mail (un récapitulatif par séance)' : 'Also receive my alerts by e-mail (one digest per session)'}</Txt>
+        </Pressable>
       </Card>
 
       <Card title={fr ? 'Nouvelle alerte sur un ou plusieurs titres' : 'New alert on one or several stocks'}>

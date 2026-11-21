@@ -1,3 +1,4 @@
+import { alertDigestHtml, emailEnabled, sendEmail } from './email.ts';
 import { allRows } from './runtime.ts';
 // Alert evaluation (after each session, and on demand for one user right after an alert is created).
 // Targets: one asset (scope 'asset') or every stock of the user's watchlist (scope 'watchlist', i.e. the "global" alert).
@@ -85,5 +86,22 @@ export async function evaluateAlerts(db: SupabaseClient, opts: { userId?: string
       else await sendPush(tk, `${mine.length} alertes déclenchées`, mine.slice(0, 3).map((m) => m.title).join(' · '), { screen: 'alertes' });
     }
   }
-  return { checked: alerts.length, fired: fresh.length };
+  // E-mail digest (one per user and run) for users who keep e-mail alerts on.
+  let emailed = 0;
+  if (fresh.length && emailEnabled()) {
+    const users = [...new Set(fresh.map((f) => f.user_id))];
+    const { data: prefs } = await db.from('profiles').select('id, email_alerts').in('id', users);
+    const off = new Set((prefs ?? []).filter((p) => p.email_alerts === false).map((p) => p.id));
+    for (const u of users) {
+      if (off.has(u)) continue;
+      const { data: au } = await db.auth.admin.getUserById(u);
+      const email = au?.user?.email;
+      if (!email) continue;
+      const mine = fresh.filter((f) => f.user_id === u);
+      const subject = mine.length === 1 ? `🔔 ${mine[0]!.title}` : `🔔 ${mine.length} alertes déclenchées sur Chart-BoursafrikIA`;
+      const r = await sendEmail({ email }, subject, alertDigestHtml(mine), ['alertes']).catch(() => ({ sent: false }));
+      if (r.sent) emailed++;
+    }
+  }
+  return { checked: alerts.length, fired: fresh.length, emailed };
 }

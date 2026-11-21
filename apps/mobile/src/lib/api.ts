@@ -393,6 +393,16 @@ export const api = {
     else await supabase.from('watchlist_items').delete().eq('watchlist_id', wl.id).eq('asset_id', assetId);
   },
 
+  async emailAlerts(): Promise<boolean> {
+    const u = await currentUser(); if (!supabase || !u) return false;
+    const { data } = await supabase.from('profiles').select('email_alerts').eq('id', u.id).maybeSingle();
+    return data?.email_alerts ?? true;
+  },
+  async setEmailAlerts(on: boolean) {
+    const u = await currentUser(); if (!supabase || !u) return;
+    const { error } = await supabase.from('profiles').update({ email_alerts: on }).eq('id', u.id);
+    if (error) throw new ApiError('SAVE_FAILED', error.message);
+  },
   async plan(): Promise<'free' | 'premium'> {
     if (!supabase) return 'free';
     const u = { user: await currentUser() };
