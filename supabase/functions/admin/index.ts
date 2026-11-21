@@ -2,6 +2,7 @@ import { MVP_MARKETS } from '../_shared/core/index.ts';
 // POST /admin {action, ...} — back-office of Chart-BoursafrikIA.
 // Every call: the caller must be signed in AND listed in `admins`; every write is written to audit_log.
 import { admin, audit, currentUser, handler, json } from '../_shared/runtime.ts';
+import { sendEmail } from '../_shared/email.ts';
 
 type Body = Record<string, unknown> & { action?: string };
 
@@ -20,6 +21,13 @@ Deno.serve(handler(async (req) => {
   const actor = `admin:${user.email ?? user.id}`;
 
   switch (body.action) {
+    // ---------------------------------------------------------------- e-mail check (sent to the signed-in admin only)
+    case 'test_email': {
+      if (!user.email) return json({ error: 'pas d’adresse e-mail' }, 400);
+      const r = await sendEmail({ email: user.email }, 'Test d’envoi Chart-BoursafrikIA',
+        '<p>Cet e-mail confirme que les alertes de Chart-BoursafrikIA peuvent vous être envoyées.</p>', ['test']);
+      return json(r);
+    }
     // ---------------------------------------------------------------- overview
     case 'stats': {
       const count = async (table: string, f?: (q: any) => any) => {
