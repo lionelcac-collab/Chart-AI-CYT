@@ -21,11 +21,13 @@ Deno.serve(handler(async (req) => {
   const productId = `chart_boursafrikia_premium_${plan}`;
 
   if (monerooEnabled()) {
-    if (!Number.isInteger(price)) return json({ error: 'CURRENCY_UNAVAILABLE' }, 400);
+    // Moneroo takes whole amounts. EUR/USD prices (4.99…) are only accepted with sandbox keys (test gateway = USD), rounded up.
+    const sandbox = (Deno.env.get('MONEROO_SECRET_KEY') ?? '').includes('sandbox');
+    if (!Number.isInteger(price) && !sandbox) return json({ error: 'CURRENCY_UNAVAILABLE' }, 400);
     const { data: prof } = await db.from('profiles').select('display_name').eq('id', user.id).maybeSingle();
     const parts = String(prof?.display_name || user.email?.split('@')[0] || 'Client').trim().split(/\s+/);
     const r = await monerooInit({
-      amount: price, currency, description: `Chart-BoursafrikIA Premium ${plan === 'yearly' ? 'annuel' : 'mensuel'}`,
+      amount: Math.ceil(price), currency, description: `Chart-BoursafrikIA Premium ${plan === 'yearly' ? 'annuel' : 'mensuel'}`,
       returnUrl: `${appUrl}/premium`,
       customer: { email: user.email ?? '', first_name: parts[0]!, last_name: parts.slice(1).join(' ') || parts[0]! },
       metadata: { user_id: user.id, plan: String(plan) },
