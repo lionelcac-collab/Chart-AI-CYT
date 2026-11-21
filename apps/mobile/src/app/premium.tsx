@@ -34,7 +34,9 @@ export default function Premium() {
       if (!storePkg) { setMsg(lang === 'fr' ? 'Offre indisponible pour le moment.' : 'Offer unavailable right now.'); return; }
       if (await buy(storePkg)) { setPlan(await api.plan()); router.back(); }
     } catch (e) {
-      setMsg((e as Error).message === 'PAYMENT_INIT_FAILED' ? t.common.error : (lang === 'fr' ? 'Achat annulé ou échoué.' : 'Purchase cancelled or failed.'));
+      setMsg((e as Error).message === 'PAYMENT_INIT_FAILED'
+        ? (lang === 'fr' ? 'Le paiement en ligne est momentanément indisponible. Réessayez plus tard ou contactez-nous : hello@otheon-tech.com.' : 'Online payment is temporarily unavailable. Please try again later.')
+        : (lang === 'fr' ? 'Achat annulé ou échoué.' : 'Purchase cancelled or failed.'));
     } finally { setBusy(false); }
   }
 
@@ -63,7 +65,7 @@ export default function Premium() {
       <Button label={Platform.OS === 'web' ? t.premium.web : t.premium.cta} loading={busy} onPress={subscribe} />
       {supportsInAppPurchases ? <Button label={t.premium.restore} variant="ghost" onPress={async () => { if (await restore()) { setPlan('premium'); router.back(); } }} /> : null}
       {msg ? <Txt size="sm" color={th.warn} style={{ textAlign: 'center' }}>{msg}</Txt> : null}
-      <Txt size="xs" muted style={{ marginTop: space.md }}>{t.premium.legal}</Txt>
+      <Txt size="xs" muted style={{ marginTop: space.md }}>{Platform.OS === 'web' ? (lang === 'fr' ? 'Paiement sécurisé par Mobile Money ou carte bancaire. L’accès Premium est activé dès la confirmation du paiement, pour la durée choisie.' : 'Secure payment by Mobile Money or card. Premium is activated as soon as payment is confirmed, for the chosen period.') : t.premium.legal}</Txt>
       <Row style={{ justifyContent: 'center' }}>
         <Txt size="xs" color={th.info} onPress={() => router.push('/legal/terms')}>{t.more.terms}</Txt>
         <Txt size="xs" muted>·</Txt>
