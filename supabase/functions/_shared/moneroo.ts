@@ -28,16 +28,17 @@ export async function monerooSettle(paymentId: string, expectedUser?: string) {
   const d = v?.data;
   const status: string = d?.status ?? 'unknown';
   if (status === 'pending' || status === 'initiated' || status === 'unknown') return { ok: false, status };
+  // Belt and braces: the underlying gateway must agree (seen in sandbox: status « success » while the gateway is still PENDING).
+  const gw = String(d?.capture?.gateway?.transaction_status ?? '').toUpperCase();
+  if (status === 'success' && /PENDING|PROCESS|INITIA/.test(gw)) return { ok: false, status: 'pending' };
+  if (status === 'success' && /FAIL|CANCEL|REJECT|EXPIRE|DECLIN/.test(gw)) return settleFailed(paymentId, v);
   const plan = sub.product_id.endsWith('yearly') ? 'yearly' : 'monthly';
   const code: string = d?.currency?.code ?? d?.currency;
   const expected = (PRICING as Record<string, Record<string, number>>)[code]?.[plan];
   const paid = status === 'success' && expected != null && Number(d.amount) >= expected;
   const { error: dup } = await db.from('payment_events').insert({ provider: 'moneroo', event_id: `${paymentId}:${status}`, payload: v });
   if (dup) return { ok: paid, status };
-  if (!paid) {
-    await db.from('subscriptions').update({ status: 'failed', raw: v }).eq('provider', 'moneroo').eq('provider_ref', paymentId);
-    return { ok: false, status };
-  }
+  if (!paid) return settleFailed(paymentId, v, status);
   const until = new Date();
   if (plan === 'yearly') until.setUTCFullYear(until.getUTCFullYear() + 1); else until.setUTCMonth(until.getUTCMonth() + 1);
   await setPremium(sub.user_id, until, 'moneroo', paymentId, sub.product_id, 'active', v);
@@ -56,4 +57,9 @@ export async function monerooSignatureOk(raw: string, signature: string | null) 
   if (hex.length !== signature.length) return false;
   let diff = 0; for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ signature.toLowerCase().charCodeAt(i);
   return diff === 0;
+}
+
+async function settleFailed(paymentId: string, raw: unknown, status = 'failed') {
+  await admin().from('subscriptions').update({ status: 'failed', raw }).eq('provider', 'moneroo').eq('provider_ref', paymentId);
+  return { ok: false, status };
 }

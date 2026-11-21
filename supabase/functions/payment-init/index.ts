@@ -33,12 +33,14 @@ Deno.serve(handler(async (req) => {
       metadata: { user_id: user.id, plan: String(plan) },
     });
     if (!r.id || !r.url) return json({ error: 'PAYMENT_INIT_FAILED', detail: r.message }, 502);
-    await db.from('subscriptions').insert({ user_id: user.id, provider: 'moneroo', provider_ref: r.id, product_id: productId, status: 'pending' });
+    const { error: insErr } = await db.from('subscriptions').insert({ user_id: user.id, provider: 'moneroo', provider_ref: r.id, product_id: productId, status: 'pending' });
+    if (insErr) { console.error('subscriptions insert', insErr); return json({ error: 'PAYMENT_INIT_FAILED', detail: 'enregistrement impossible' }, 500); }
     return json({ paymentUrl: r.url, transactionId: r.id, provider: 'moneroo' });
   }
 
   const transactionId = `cbia_${plan}_${crypto.randomUUID()}`;
-  await db.from('subscriptions').insert({ user_id: user.id, provider: 'cinetpay', provider_ref: transactionId, product_id: productId, status: 'pending' });
+  const { error: insErr } = await db.from('subscriptions').insert({ user_id: user.id, provider: 'cinetpay', provider_ref: transactionId, product_id: productId, status: 'pending' });
+  if (insErr) { console.error('subscriptions insert', insErr); return json({ error: 'PAYMENT_INIT_FAILED', detail: 'enregistrement impossible' }, 500); }
   const res = await fetch('https://api-checkout.cinetpay.com/v2/payment', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
