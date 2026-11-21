@@ -63,7 +63,20 @@ export default function AssetScreen() {
   const levels = useMemo(() => s?.technical?.levels.map((l) => ({ price: l.price, kind: l.kind })) ?? [], [s]);
 
   if (q.isLoading) return <Screen><Loading /></Screen>;
-  if (q.error || !s) return <Screen><ErrorBox message={t.common.error} onRetry={() => q.refetch()} /></Screen>;
+  if (q.error || !s) {
+    const notFound = /introuvable|NOT_FOUND|404/i.test(String((q.error as { code?: string } | null)?.code ?? q.error?.message ?? ''));
+    return (
+      <Screen>
+        {notFound ? (
+          <Card>
+            <Txt weight="800">{lang === 'fr' ? 'Titre introuvable' : 'Stock not found'}</Txt>
+            <Txt size="sm" muted>{lang === 'fr' ? `Aucun titre ne correspond à « ${assetId} ». Il a peut-être été radié ou le lien est incorrect.` : `No stock matches “${assetId}”.`}</Txt>
+            <Button label={lang === 'fr' ? 'Rechercher un titre' : 'Search a stock'} onPress={() => router.replace('/screener')} />
+          </Card>
+        ) : <ErrorBox message={t.common.error} onRetry={() => q.refetch()} />}
+      </Screen>
+    );
+  }
 
   // Free plan (or outside the session): no intraday quote → derive the header from the last verified session.
   const lastBar = s.bars[s.bars.length - 1];

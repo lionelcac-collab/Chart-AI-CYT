@@ -7,7 +7,7 @@ import { Rich } from '../../components/Rich';
 import { Button, Card, Disclaimer, Pill, Row, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { ApiError, api } from '../../lib/api';
-import { supabase } from '../../lib/supabase';
+import { supabase, currentUser } from '../../lib/supabase';
 import { useSettings } from '../../settings';
 import { radius, space, useTheme } from '../../theme';
 
@@ -23,7 +23,7 @@ export default function Assistant() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
-  const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
+  const user = useQuery({ queryKey: ['user'], queryFn: currentUser, staleTime: Infinity });
   const signedOut = user.isFetched && !user.data;
   const prof = useQuery({ queryKey: ['investor-profile'], queryFn: api.investorProfile, enabled: !!user.data });
   const profileMissing = !!user.data && prof.isFetched && !prof.data;

@@ -11,6 +11,8 @@ import { HORIZON_SESSIONS, backtest, type ConsensusResult, type Horizon } from '
 const PROMPT_VERSION = 'forecast-reading-v1';
 const HORIZONS: Horizon[] = ['1M', '3M', '6M', '12M'];
 
+type ForecastListRow = { assetId: string; asOf: string; orientation: string; [k: string]: unknown };
+
 const READING_SCHEMA = {
   type: 'object', additionalProperties: false,
   required: ['headline', 'horizons', 'drivers', 'risks', 'watch', 'conclusion'],
@@ -31,8 +33,29 @@ Deno.serve(handler(async (req) => {
   const db = admin();
 
   if (action === 'list') {
-    const { data, error } = await db.from('latest_consensus').select('asset_id, as_of, orientation, confidence, confidence_value, invalidation_level, result, assets(name, ticker, market, currency, sectors(name_fr, name_en))');
-    if (error) throw error;
+    // Same list for every user: shared 30-minute cache (masking for free users is applied after).
+    const { data: hit } = await db.from('api_cache').select('payload').eq('key', 'forecast_list').gt('expires_at', new Date().toISOString()).maybeSingle();
+    let rows = hit?.payload as ForecastListRow[] | undefined;
+    if (!rows) {
+      rows = await buildList();
+      await db.from('api_cache').upsert({ key: 'forecast_list', payload: rows, expires_at: new Date(Date.now() + 30 * 60_000).toISOString() }, { onConflict: 'key' });
+    }
+    if (!premium) {
+      const count = (o: string) => rows!.filter((r) => r.orientation === o).length;
+      return json({ locked: true, total: rows.length, positive: count('positive'), neutral: count('neutral'), negative: count('negative'), asOf: rows.reduce((m, r) => (r.asOf > m ? r.asOf : m), '') });
+    }
+    return json({ locked: false, rows });
+  }
+  async function buildList() {
+    // Paged read (max 1 000 rows per request); stocks only (ETFs / funds excluded).
+    const data: Record<string, any>[] = [];
+    for (let from = 0; ; from += 500) {
+      const { data: page, error } = await db.from('latest_consensus').select('asset_id, as_of, orientation, confidence, confidence_value, invalidation_level, result, assets!inner(name, ticker, market, currency, asset_class, is_active, sectors(name_fr, name_en))')
+        .eq('assets.asset_class', 'equity').eq('assets.is_active', true).order('asset_id').range(from, from + 499);
+      if (error) throw error;
+      data.push(...(page ?? []));
+      if ((page ?? []).length < 500) break;
+    }
     const rows = (data ?? []).map((r) => {
       const c = r.result as ConsensusResult;
       const a = r.assets as unknown as { name: string; ticker: string; market: string; currency: string; sectors: { name_fr: string; name_en: string } | null };
@@ -48,11 +71,7 @@ Deno.serve(handler(async (req) => {
         }])),
       };
     });
-    if (!premium) {
-      const count = (o: string) => rows.filter((r) => r.orientation === o).length;
-      return json({ locked: true, total: rows.length, positive: count('positive'), neutral: count('neutral'), negative: count('negative'), asOf: rows.reduce((m, r) => (r.asOf > m ? r.asOf : m), '') });
-    }
-    return json({ locked: false, rows });
+    return rows;
   }
 
   if (!premium) return json({ error: 'PREMIUM_REQUIRED' }, 402);

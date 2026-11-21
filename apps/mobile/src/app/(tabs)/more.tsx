@@ -7,7 +7,7 @@ import { APP_NAME } from '@chart-boursafrikia/core';
 import { Card, Pill, Row, Screen, Txt } from '../../components/ui';
 import { useT } from '../../i18n';
 import { SNAPSHOT } from '../../lib/snapshot';
-import { DEMO_MODE, supabase } from '../../lib/supabase';
+import { DEMO_MODE, supabase, currentUser } from '../../lib/supabase';
 import { useSettings } from '../../settings';
 import { space, useTheme } from '../../theme';
 
@@ -26,7 +26,7 @@ export default function More() {
   const { t, lang } = useT();
   const s = useSettings();
   const qc = useQueryClient();
-  const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
+  const user = useQuery({ queryKey: ['user'], queryFn: currentUser, staleTime: Infinity });
   const isAdmin = useQuery({
     queryKey: ['is-admin', user.data?.id], enabled: !!user.data,
     queryFn: async () => (supabase && user.data ? ((await supabase.rpc('is_admin', { uid: user.data.id })).data === true) : false),

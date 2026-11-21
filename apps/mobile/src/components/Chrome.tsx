@@ -11,7 +11,7 @@ import { APP_NAME, ACTIVE_MARKETS, MARKET_LABEL } from '@chart-boursafrikia/core
 import { useT } from '../i18n';
 import { useSettings } from '../settings';
 import { api } from '../lib/api';
-import { supabase } from '../lib/supabase';
+import { supabase, currentUser } from '../lib/supabase';
 import { font, radius, space, useTheme } from '../theme';
 
 export const DESKTOP_MIN = 900;
@@ -115,7 +115,7 @@ export function TopNav() {
 /** Bell with the number of unread alert notifications (signed-in users). */
 export function AlertBell({ size = 16 }: { size?: number }) {
   const th = useTheme();
-  const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
+  const user = useQuery({ queryKey: ['user'], queryFn: currentUser, staleTime: Infinity });
   const ev = useQuery({ queryKey: ['alert-events'], queryFn: () => api.alertEvents(100), enabled: !!user.data, refetchInterval: 10 * 60_000 });
   if (!user.data) return null;
   const n = (ev.data ?? []).filter((e) => !e.read_at).length;
@@ -150,30 +150,24 @@ export function BrandStrip() {
 export function Hero() {
   const th = useTheme();
   const c = useChromeCopy();
+  const { lang } = useT();
   const desktop = useIsDesktop();
+  // Compact on phones: title, one short line, two actions (the exchange buttons are right below).
   return (
-    <View style={{ backgroundColor: '#161B1E', borderWidth: th.mode === 'dark' ? 1 : 0, borderColor: '#2A3438', borderRadius: radius.lg, padding: desktop ? 40 : space.xl, gap: space.md, overflow: 'hidden' }}>
-      <Image source={require('../../assets/splash-icon.png')} accessibilityIgnoresInvertColors style={{ position: 'absolute', right: desktop ? 30 : -60, top: desktop ? 10 : 10, width: desktop ? 380 : 220, height: desktop ? 380 : 220, opacity: desktop ? 0.9 : 0.22 }} />
-      <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(110,236,242,0.16)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5 }}>
-        <Text style={{ color: '#6EECF2', fontWeight: '800', fontSize: 12, letterSpacing: 0.4 }}>{c.badge.toUpperCase()}</Text>
+    <View style={{ backgroundColor: '#161B1E', borderWidth: th.mode === 'dark' ? 1 : 0, borderColor: '#2A3438', borderRadius: radius.lg, padding: desktop ? 40 : space.lg, gap: desktop ? space.md : space.sm, overflow: 'hidden' }}>
+      <Image source={require('../../assets/splash-icon.png')} accessibilityIgnoresInvertColors style={{ position: 'absolute', right: desktop ? 30 : -50, top: desktop ? 10 : -10, width: desktop ? 380 : 170, height: desktop ? 380 : 170, opacity: desktop ? 0.9 : 0.18 }} />
+      <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(110,236,242,0.16)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 }}>
+        <Text style={{ color: '#6EECF2', fontWeight: '800', fontSize: 11, letterSpacing: 0.4 }}>{c.badge.toUpperCase()} · {lang === 'fr' ? '11 BOURSES AFRICAINES' : '11 AFRICAN EXCHANGES'}</Text>
       </View>
-      {!desktop ? <Text style={{ color: '#EEF1FA', fontSize: 15, fontWeight: '800' }}>{APP_NAME}</Text> : null}
-      <Text accessibilityRole="header" style={{ color: '#FFFFFF', fontSize: desktop ? 40 : 24, lineHeight: desktop ? 46 : 30, fontWeight: '800', maxWidth: desktop ? 680 : undefined, letterSpacing: -0.5 }}>{c.heroTitle}</Text>
-      <Text style={{ color: '#B5C6C9', fontSize: desktop ? 17 : 14, lineHeight: desktop ? 25 : 20, maxWidth: desktop ? 660 : undefined }}>{c.heroSub}</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-        {c.markets.map(([code, zone]) => (
-          <View key={code} style={{ flexDirection: 'row', gap: 6, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 }}>
-            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>{code}</Text>
-            <Text style={{ color: '#B5C6C9', fontSize: 12 }}>{zone}</Text>
-          </View>
-        ))}
-      </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md, marginTop: space.sm }}>
-        <Pressable accessibilityRole="button" onPress={() => router.navigate('/assistant')} style={{ backgroundColor: '#6EECF2', paddingHorizontal: 20, paddingVertical: 12, borderRadius: radius.md }}>
-          <Text style={{ color: '#04191B', fontWeight: '800', fontSize: 15 }}>✦ {c.askAi}</Text>
+      <Text accessibilityRole="header" style={{ color: '#FFFFFF', fontSize: desktop ? 40 : 21, lineHeight: desktop ? 46 : 27, fontWeight: '800', maxWidth: desktop ? 680 : undefined, letterSpacing: -0.4 }}>{c.heroTitle}</Text>
+      {desktop ? <Text style={{ color: '#B5C6C9', fontSize: 17, lineHeight: 25, maxWidth: 660 }}>{c.heroSub}</Text>
+        : <Text style={{ color: '#B5C6C9', fontSize: 13, lineHeight: 18 }}>{lang === 'fr' ? 'Cours officiels, analyses IA, prévisions et consensus.' : 'Official prices, AI analysis, forecasts and consensus.'}</Text>}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: desktop ? space.sm : 2 }}>
+        <Pressable accessibilityRole="button" onPress={() => router.navigate('/assistant')} style={{ backgroundColor: '#6EECF2', paddingHorizontal: desktop ? 20 : 14, paddingVertical: desktop ? 12 : 9, borderRadius: radius.md }}>
+          <Text style={{ color: '#04191B', fontWeight: '800', fontSize: desktop ? 15 : 14 }}>✦ {c.askAi}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.navigate('/screener')} style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', paddingHorizontal: 20, paddingVertical: 12, borderRadius: radius.md }}>
-          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 15 }}>{c.explore} →</Text>
+        <Pressable accessibilityRole="button" onPress={() => router.navigate('/screener')} style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', paddingHorizontal: desktop ? 20 : 14, paddingVertical: desktop ? 12 : 9, borderRadius: radius.md }}>
+          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: desktop ? 15 : 14 }}>{c.explore} →</Text>
         </Pressable>
       </View>
     </View>

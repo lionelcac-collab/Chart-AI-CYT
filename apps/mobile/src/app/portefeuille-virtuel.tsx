@@ -7,7 +7,7 @@ import { convert, formatMoney, type CurrencyCode, marketLabel } from '@chart-bou
 import { Button, Card, ErrorBox, KV, Loading, Row, Screen, Txt } from '../components/ui';
 import { useT } from '../i18n';
 import { api } from '../lib/api';
-import { supabase } from '../lib/supabase';
+import { supabase, currentUser } from '../lib/supabase';
 import { fmtDate, fmtNum, fmtPct } from '../lib/format';
 import { changeColor, radius, space, useTheme } from '../theme';
 
@@ -16,7 +16,7 @@ export default function VirtualPortfolioScreen() {
   const { lang } = useT();
   const fr = lang === 'fr';
   const qc = useQueryClient();
-  const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
+  const user = useQuery({ queryKey: ['user'], queryFn: currentUser, staleTime: Infinity });
   const pf = useQuery({ queryKey: ['vportfolio'], queryFn: api.virtualPortfolio, enabled: !!user.data });
   const all = useQuery({ queryKey: ['search', '', undefined], queryFn: () => api.search('') });
   const fx = useQuery({ queryKey: ['fx'], queryFn: api.fxRates, staleTime: 3600_000 });

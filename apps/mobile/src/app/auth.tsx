@@ -31,7 +31,8 @@ export default function Auth() {
   // First sign-in (or profile never filled in): go through the investor profile questionnaire.
   async function afterSignIn() {
     const p = await api.investorProfile().catch(() => null);
-    if (p) router.back(); else router.replace({ pathname: '/profil', params: { first: '1' } });
+    // Direct visit to /auth (link, bookmark, new tab): nothing to go back to → home.
+    if (p) { if (router.canGoBack()) router.back(); else router.replace('/'); } else router.replace({ pathname: '/profil', params: { first: '1' } });
   }
 
   async function signInPassword() {

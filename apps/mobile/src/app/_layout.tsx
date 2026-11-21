@@ -8,12 +8,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { api } from '../lib/api';
 import { registerPush } from '../lib/notifications';
 import { initPurchases, identify } from '../lib/purchases';
-import { supabase } from '../lib/supabase';
+import { supabase, currentUser } from '../lib/supabase';
 import { SettingsProvider, useSettings } from '../settings';
 import { useTheme } from '../theme';
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 5 * 60_000, gcTime: 24 * 3600_000, retry: 2, refetchOnWindowFocus: false } },
+  defaultOptions: { queries: { staleTime: 5 * 60_000, gcTime: 24 * 3600_000, refetchOnWindowFocus: false,
+    // Definitive errors (not found, auth, premium, quota) are not retried.
+    retry: (n, e) => n < 2 && !/introuvable|NOT_FOUND|AUTH|PREMIUM|QUOTA|402|404/i.test(String((e as { code?: string })?.code ?? (e as Error)?.message ?? '')) } },
 });
 
 function Shell() {
@@ -23,14 +25,16 @@ function Shell() {
   useEffect(() => {
     let unsub: (() => void) | undefined;
     (async () => {
-      const user = supabase ? (await supabase.auth.getUser()).data.user : null;
+      const user = await currentUser();
       await initPurchases(user?.id);
       setPlan(await api.plan());
       if (supabase) {
-        const { data } = supabase.auth.onAuthStateChange(async (_e, session) => {
+        const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+          // Sign-out / account change: drop every cached personal query (watchlist, alerts, basket…).
+          if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== 'dashboard' && q.queryKey[0] !== 'search' });
           queryClient.invalidateQueries({ queryKey: ['user'] });
           if (session?.user) { await identify(session.user.id); registerPush(session.user.id).catch(() => {}); }
-          setPlan(await api.plan());
+          if (event !== 'INITIAL_SESSION') setPlan(await api.plan());
         });
         unsub = () => data.subscription.unsubscribe();
       }

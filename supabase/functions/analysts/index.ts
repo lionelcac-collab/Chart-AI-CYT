@@ -63,10 +63,15 @@ Deno.serve(handler(async (req) => {
     });
   }
   // Chart-BoursafrikIA model consensus (latest computation per stock) for the same exchange.
-  let mq = db.from('latest_consensus').select('asset_id, as_of, orientation, confidence, confidence_value, result, assets!inner(ticker, name, market)');
-  if (market) mq = mq.eq('assets.market', market);
-  const { data: mrows } = await mq;
-  const model = (mrows ?? []).map((m) => {
+  const mrows: Record<string, any>[] = [];
+  for (let from = 0; ; from += 500) {
+    let mq = db.from('latest_consensus').select('asset_id, as_of, orientation, confidence, confidence_value, result, assets!inner(ticker, name, market, asset_class)').eq('assets.asset_class', 'equity');
+    if (market) mq = mq.eq('assets.market', market);
+    const { data: page } = await mq.order('asset_id').range(from, from + 499);
+    mrows.push(...(page ?? []));
+    if ((page ?? []).length < 500) break;
+  }
+  const model = mrows.map((m) => {
     const a = m.assets as unknown as { ticker: string; name: string; market: string };
     const f12 = (m.result as { forecasts: { horizon: string; expectedReturnPct: number; bull: { probability: number }; bear: { probability: number } }[] }).forecasts.find((f) => f.horizon === '12M');
     return { assetId: m.asset_id, ticker: a.ticker, name: a.name, market: a.market, asOf: m.as_of, orientation: m.orientation as 'positive' | 'neutral' | 'negative',

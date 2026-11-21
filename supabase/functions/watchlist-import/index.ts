@@ -2,7 +2,7 @@
 // (broker app, portfolio, newspaper, list…) with Claude vision, then matches them against our listed assets.
 // Returns candidates for the user to confirm; nothing is added server-side.
 import { MODELS, generateJson } from '../_shared/ai.ts';
-import { admin, asUser, audit, currentUser, handler, isPremium, json } from '../_shared/runtime.ts';
+import { admin, allRows, asUser, audit, currentUser, handler, isPremium, json } from '../_shared/runtime.ts';
 import { ENTITLEMENTS } from '../_shared/core/index.ts';
 
 const ALLOWED = ['image/png', 'image/jpeg', 'image/webp'];
@@ -115,9 +115,9 @@ Deno.serve(handler(async (req) => {
     ],
   });
 
-  const { data: assets } = await admin().from('assets').select('id, ticker, name, market, isin, currency').eq('is_active', true);
+  const assets = await allRows((f, t) => admin().from('assets').select('id, ticker, name, market, isin, currency').eq('is_active', true).order('id').range(f, t));
   // Last verified close in the stock's own currency (used with a gain/loss % when the capture gives no usable value).
-  const { data: closes } = await admin().from('market_latest').select('asset_id, close');
+  const closes = await allRows((f, t) => admin().from('market_latest').select('asset_id, close').order('asset_id').range(f, t));
   const lastClose = new Map((closes ?? []).map((c) => [c.asset_id as string, Number(c.close)]));
   const seen = new Set<string>();
   type Out = { qtySource: string | null; assetId: string; ticker: string; name: string; market: string; currency: string; confidence: number; read: string;

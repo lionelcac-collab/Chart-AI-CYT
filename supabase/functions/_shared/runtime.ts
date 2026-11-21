@@ -71,3 +71,14 @@ export function handler(fn: (req: Request) => Promise<Response>) {
     }
   };
 }
+
+/** Reads every row of a query, 1 000 at a time (the API caps each response at 1 000 rows). */
+export async function allRows<T>(make: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await make(from, from + 999);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if ((data ?? []).length < 1000) return out;
+  }
+}

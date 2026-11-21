@@ -16,3 +16,13 @@ export const supabase: SupabaseClient | null = DEMO_MODE ? null : createClient(u
     detectSessionInUrl: Platform.OS === 'web',
   },
 });
+
+/**
+ * Signed-in user from the local session (no network round-trip; the token is refreshed automatically).
+ * Server-side, every request is still authorised by RLS / the edge functions with the access token.
+ */
+export async function currentUser() {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user ?? null;
+}

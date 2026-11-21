@@ -1,3 +1,4 @@
+import { allRows } from './runtime.ts';
 // Alert evaluation (after each session, and on demand for one user right after an alert is created).
 // Targets: one asset (scope 'asset') or every stock of the user's watchlist (scope 'watchlist', i.e. the "global" alert).
 // Data: verified closes (market_latest), supports/resistances (market_scans 3M), calendar (corporate_events, next 7 days).
@@ -27,9 +28,10 @@ export async function evaluateAlerts(db: SupabaseClient, opts: { userId?: string
   const { data: alerts } = await aq;
   if (!alerts?.length) return { checked: 0, fired: 0 };
 
-  const [{ data: latest }, { data: scans }, { data: events }, { data: wl }] = await Promise.all([
-    db.from('market_latest').select('asset_id, ticker, name, market, currency, session_date, close, change_pct'),
-    db.from('market_scans').select('market, session_date, rows').eq('period', '3M').order('session_date', { ascending: false }).limit(10),
+  const [latest, { data: scans }, { data: events }, { data: wl }] = await Promise.all([
+    allRows((f, t) => db.from('market_latest').select('asset_id, ticker, name, market, currency, session_date, close, change_pct').order('asset_id').range(f, t)),
+    // Latest 3M scan of every market (11 markets × a few sessions).
+    db.from('market_scans').select('market, session_date, rows').eq('period', '3M').order('session_date', { ascending: false }).limit(60),
     db.from('corporate_events').select('asset_id, kind, event_date, title_fr, details').gte('event_date', new Date().toISOString().slice(0, 10))
       .lte('event_date', new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10)),
     db.from('watchlist_items').select('asset_id, watchlists!inner(user_id)').in('watchlists.user_id', [...new Set(alerts.map((a) => a.user_id))]),

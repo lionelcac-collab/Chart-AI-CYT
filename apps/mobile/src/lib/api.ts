@@ -6,7 +6,7 @@ import { ACTIVE_MARKETS, type CurrencyCode, type MarketCode, type ScanPeriod, ty
 import { DEMO_ASSETS, demoDashboard, demoNews, demoScan, demoSheet, demoSummary, demoTrackRecord } from './demo';
 import { SNAPSHOT } from './snapshot';
 import { IS_DB, dbDashboard, dbScan, dbSearch, dbSheet, snapDashboard, snapScan, snapSearch, snapSheet } from './snapshotApi';
-import { DEMO_MODE, supabase } from './supabase';
+import { DEMO_MODE, supabase, currentUser } from './supabase';
 import type { AiAnalysis, AssetSheet, AssetSummary, Dashboard, NewsItem, TrackRecordRow } from './types';
 
 export class ApiError extends Error {
@@ -132,12 +132,18 @@ export const api = {
     if (!supabase) {
       return DEMO_ASSETS.filter((a) => (!market || a.market === market) && (!ql || a.name.toLowerCase().includes(ql) || a.ticker.toLowerCase().includes(ql))).map(demoSummary);
     }
-    let req = supabase.from('market_latest').select('*').order('ticker').limit(3000);
-    if (market) req = req.eq('market', market);
-    if (ql) req = req.or(`name.ilike.%${ql}%,ticker.ilike.%${ql}%`);
-    const { data, error } = await req;
-    if (error) throw new ApiError('NETWORK', error.message);
-    return (data ?? []).map(mapLatestRow);
+    // The API returns at most 1 000 rows per request: read page by page (≈1 100 stocks across 11 exchanges).
+    const data: Record<string, any>[] = [];
+    for (let from = 0; ; from += 1000) {
+      let req = supabase.from('market_latest').select('*').order('ticker').range(from, from + 999);
+      if (market) req = req.eq('market', market);
+      if (ql) req = req.or(`name.ilike.%${ql}%,ticker.ilike.%${ql}%`);
+      const { data: page, error } = await req;
+      if (error) throw new ApiError('NETWORK', error.message);
+      data.push(...(page ?? []));
+      if ((page ?? []).length < 1000) break;
+    }
+    return data.map(mapLatestRow);
   },
 
   async analyze(assetId: string, lang: 'fr' | 'en'): Promise<{ content: AiAnalysis; cached: boolean }> {
@@ -203,7 +209,7 @@ export const api = {
 
   async isAdmin(): Promise<boolean> {
     if (!supabase) return false;
-    const { data: u } = await supabase.auth.getUser();
+    const u = { user: await currentUser() };
     if (!u.user) return false;
     const { data } = await supabase.rpc('is_admin', { uid: u.user.id });
     return data === true;
@@ -274,7 +280,7 @@ export const api = {
   /** Investor profile (suitability questionnaire). null when not filled in yet or signed out. */
   async investorProfile(): Promise<{ answers: Record<string, string | string[]>; risk_profile: string; knowledge_level: string; updated_at: string } | null> {
     if (!supabase) return null;
-    const { data: u } = await supabase.auth.getUser();
+    const u = { user: await currentUser() };
     if (!u.user) return null;
     const { data } = await supabase.from('investor_profiles').select('answers, risk_profile, knowledge_level, updated_at').eq('user_id', u.user.id).maybeSingle();
     return data ?? null;
@@ -282,7 +288,7 @@ export const api = {
 
   async saveInvestorProfile(answers: Record<string, string | string[]>, risk: string, knowledge: string, riskScore: number, knowledgeScore: number) {
     if (!supabase) throw new ApiError('NO_BACKEND');
-    const { data: u } = await supabase.auth.getUser();
+    const u = { user: await currentUser() };
     if (!u.user) throw new ApiError('AUTH_REQUIRED');
     const { error } = await supabase.from('investor_profiles').upsert({ user_id: u.user.id, answers, risk_profile: risk, knowledge_level: knowledge, risk_score: riskScore, knowledge_score: knowledgeScore, updated_at: new Date().toISOString() });
     if (error) throw new ApiError('SAVE_FAILED', error.message);
@@ -305,7 +311,7 @@ export const api = {
   /** Virtual portfolio (simulation): the user's first portfolio and its transactions. */
   async virtualPortfolio(): Promise<{ id: string; startingCash: number; currency: string; tx: VirtualTx[] } | null> {
     if (!supabase) return null;
-    const { data: u } = await supabase.auth.getUser();
+    const u = { user: await currentUser() };
     if (!u.user) return null;
     let { data: pf } = await supabase.from('portfolios').select('id, starting_cash, base_currency').order('created_at').limit(1).maybeSingle();
     if (!pf) {
@@ -337,7 +343,7 @@ export const api = {
   },
   async createAlerts(rows: { asset_id: string | null; kind: AlertKind; threshold: number | null; direction?: 'up' | 'down' | 'both'; scope?: 'asset' | 'watchlist' }[]) {
     if (!supabase) throw new ApiError('NO_BACKEND');
-    const { data: u } = await supabase.auth.getUser();
+    const u = { user: await currentUser() };
     if (!u.user) throw new ApiError('AUTH_REQUIRED');
     const { error } = await supabase.from('alerts').insert(rows.map((r) => ({ user_id: u.user!.id, scope: 'asset', direction: 'both', ...r })));
     if (error) throw new ApiError(/FREE_PLAN_ALERT_LIMIT/.test(error.message) ? 'ALERT_LIMIT' : 'SAVE_FAILED', error.message);
@@ -354,7 +360,7 @@ export const api = {
   },
   async alertEvents(limit = 100): Promise<AlertEvent[]> {
     if (!supabase) return [];
-    const { data: u } = await supabase.auth.getUser();
+    const u = { user: await currentUser() };
     if (!u.user) return [];
     const { data } = await supabase.from('alert_events').select('id, alert_id, asset_id, kind, session_date, title, body, value, read_at, created_at').order('created_at', { ascending: false }).limit(limit);
     return (data ?? []) as AlertEvent[];
@@ -389,7 +395,7 @@ export const api = {
 
   async plan(): Promise<'free' | 'premium'> {
     if (!supabase) return 'free';
-    const { data: u } = await supabase.auth.getUser();
+    const u = { user: await currentUser() };
     if (!u.user) return 'free';
     const { data } = await supabase.from('profiles').select('plan, premium_until').eq('id', u.user.id).maybeSingle();
     return data?.plan === 'premium' && (!data.premium_until || new Date(data.premium_until) > new Date()) ? 'premium' : 'free';

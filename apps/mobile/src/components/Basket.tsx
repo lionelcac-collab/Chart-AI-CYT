@@ -7,7 +7,7 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import { useT } from '../i18n';
 import { api, type BasketItem } from '../lib/api';
 import { formatMoney } from '@chart-boursafrikia/core';
-import { supabase } from '../lib/supabase';
+import { supabase, currentUser } from '../lib/supabase';
 import { radius, space, useTheme } from '../theme';
 import { Button, Row, Txt } from './ui';
 
@@ -19,7 +19,7 @@ export const parseNum = (v: string): number | null => {
 };
 
 export function useBasket() {
-  const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
+  const user = useQuery({ queryKey: ['user'], queryFn: currentUser, staleTime: Infinity });
   const q = useQuery({ queryKey: ['basket'], queryFn: api.basket, enabled: !!user.data });
   return { user: user.data, ...q };
 }

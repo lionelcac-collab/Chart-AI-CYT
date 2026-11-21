@@ -220,6 +220,12 @@ export class MansaConnector implements MarketDataConnector {
     });
   }
 
+  /** Raw payload of any API path (diagnostics). */
+  async raw(path: string, params: Record<string, string> = {}): Promise<unknown> {
+    if (!path.startsWith('/api/v1/markets/')) throw new ConnectorError(this.id, 'chemin non autorisé');
+    return this.get(path, params);
+  }
+
   /** Raw history payload (diagnostics). */
   async rawHistory(market: MarketCode, ticker: string, params: Record<string, string>): Promise<unknown> {
     return this.get(this.path(this.paths.history, market, ticker), params);
@@ -254,6 +260,37 @@ export class MansaConnector implements MarketDataConnector {
       if (!m || value === null || !name || (market && m !== market)) return [];
       return [{ code: name, name, market: m, value, changePct: num(r, 'index_change_pct', 'change_pct'), provenance: this.provenance(m, pick<string>(r, 'scraped_at', 'as_of')) }];
     });
+  }
+
+  /** Indices of one exchange (stable code, trade date). */
+  async getExchangeIndices(market: MarketCode): Promise<IndexQuote[]> {
+    const data = rows(await this.get(`/api/v1/markets/exchanges/${encodeURIComponent(this.exch(market))}/indices`));
+    return data.flatMap((r) => {
+      const code = String(pick(r, 'code', 'index_code') ?? '');
+      const value = num(r, 'value', 'index_value');
+      const date = String(pick(r, 'trade_date', 'date') ?? '').slice(0, 10);
+      if (!code || value === null || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return [];
+      return [{ code, name: String(pick(r, 'name', 'index_name') ?? code), market, value, changePct: num(r, 'change_pct', 'index_change_pct'),
+        provenance: { source: 'mansa', fetchedAt: new Date().toISOString(), asOf: date, status: { kind: 'close' as const, sessionDate: date }, url: 'https://mansamarkets.com' } }];
+    });
+  }
+
+  /** Daily history of an index (range 1Y…5Y). */
+  async getIndexHistory(market: MarketCode, code: string, range = '5Y'): Promise<{ date: string; value: number }[]> {
+    const payload = await this.get(`/api/v1/markets/exchanges/${encodeURIComponent(this.exch(market))}/indices/${encodeURIComponent(code)}/history`, { range });
+    let data = rows(payload);
+    if (!data.length && payload && typeof payload === 'object') { const inner = (payload as Row).data; if (inner && typeof inner === 'object' && !Array.isArray(inner)) data = rows(inner); }
+    // Several snapshots per day: keep the latest one of each day (= the close).
+    const best = new Map<string, { ts: string; value: number }>();
+    for (const r of data) {
+      const ts = String(pick(r, 'timestamp', 'scraped_at', 'updated_at', 'date', 'trade_date') ?? '');
+      const date = String(pick(r, 'trade_date', 'date') ?? ts).slice(0, 10);
+      const value = num(r, 'close', 'value', 'index_value');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || value === null) continue;
+      const cur = best.get(date);
+      if (!cur || ts > cur.ts) best.set(date, { ts, value });
+    }
+    return [...best.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, value: v.value }));
   }
 
   async getForex(): Promise<FxRate[]> {

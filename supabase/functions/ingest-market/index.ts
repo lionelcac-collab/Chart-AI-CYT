@@ -124,9 +124,6 @@ async function ingest(market: MarketCode, job: 'eod' | 'delayed', force = false)
       source: q.provenance.source, verified: verifiedIds.has(q.assetId),
     }));
     await db.from('price_bars').upsert(bars, { onConflict: 'asset_id,session_date' });
-    // Same rule as prices: only closing index levels go into the history.
-    const indices = (await mansa.getIndices(market).catch(() => [])).filter((i) => i.provenance.status.kind === 'close');
-    if (indices.length) await db.from('index_values').upsert(indices.map((i) => ({ index_code: i.code, market, name: i.name, session_date: i.provenance.asOf.slice(0, 10), value: i.value, change_pct: i.changePct, source: i.provenance.source })), { onConflict: 'index_code,session_date' });
   }
   if (anomalies.length) await db.from('data_anomalies').insert(anomalies.map((a) => ({ asset_id: a.assetId, kind: a.kind, severity: a.severity, message: a.message, details: a.details ?? null, run_id: run!.id })));
   if (blocked.size) await alertAdmin(`${blocked.size} cours bloqués sur ${market} (contrôle d'anomalies)`, anomalies.filter((a) => a.severity === 'block'));
@@ -172,6 +169,39 @@ Deno.serve(handler(async (req) => {
   if (job === 'backfill') {
     if (!body.market || !body.from || !body.to) return json({ error: 'market, from, to requis' }, 400);
     return json(await backfill(body.market, body.from, body.to));
+  }
+  // Index history: {"job":"index_history","markets":[...]} (3 years).
+  if (job === 'index_history') {
+    const db = admin();
+    const since = new Date(Date.now() - 3 * 365 * 86400_000).toISOString().slice(0, 10);
+    const out: Record<string, unknown>[] = [];
+    for (const m of (body.markets ?? MVP_MARKETS) as MarketCode[]) {
+      const idx = await mansa.getExchangeIndices(m).catch((e) => { out.push({ market: m, error: (e as Error).message.slice(0, 120) }); return []; });
+      for (const i of idx) {
+        const hist = (await mansa.getIndexHistory(m, i.code).catch(() => [])).filter((h) => h.date >= since);
+        // One close per day; change vs the previous day; today's close comes from the daily collection (not overwritten).
+        const pts = hist.filter((h) => h.date < i.provenance.asOf);
+        const rowsIdx = pts.map((h, k) => ({ index_code: i.code, market: m, name: i.name, session_date: h.date, value: h.value,
+          change_pct: k > 0 && pts[k - 1]!.value > 0 ? Math.round((h.value / pts[k - 1]!.value - 1) * 1e6) / 1e4 : null, source: 'mansa' }));
+        // Today's close from the exchange endpoint.
+        rowsIdx.push({ index_code: i.code, market: m, name: i.name, session_date: i.provenance.asOf, value: i.value, change_pct: i.changePct, source: 'mansa' });
+        let err: string | null = null;
+        for (let k = 0; k < rowsIdx.length; k += 500) {
+          const { error } = await db.from('index_values').upsert(rowsIdx.slice(k, k + 500), { onConflict: 'index_code,session_date' });
+          if (error) err = error.message;
+        }
+        out.push({ market: m, index: i.code, points: rowsIdx.length, error: err });
+      }
+    }
+    await db.from('ingestion_runs').insert({ job: 'index_history', status: 'ok', attempts: out, rows_written: out.reduce((a, o) => a + Number(o.points ?? 0), 0), finished_at: new Date().toISOString(), source_used: 'mansa' });
+    return json({ out });
+  }
+  // Diagnostics: raw provider payload for a path (admin use).
+  if (job === 'raw_debug') {
+    const raw = await mansa.raw(body.path, body.params ?? {}).catch((e) => ({ error: (e as Error).message }));
+    const txt = JSON.stringify(raw);
+    await admin().from('ingestion_runs').insert({ job: 'raw_debug', market: body.market ?? null, status: 'ok', attempts: [{ path: body.path, sample: txt.slice(0, 2500), length: txt.length }], finished_at: new Date().toISOString() });
+    return json({ sample: txt.slice(0, 2500) });
   }
   // Diagnostics: sector coverage of the provider's stock list for a market.
   if (job === 'assets_debug') {
@@ -224,6 +254,18 @@ Deno.serve(handler(async (req) => {
   const results = [];
   // force: manual run outside the post-close window (admin / first run).
   for (const m of markets as MarketCode[]) results.push(await ingest(m, job, body.force === true).catch((e) => ({ market: m, error: (e as Error).message })));
+  // Index levels of every exchange (independent of the price source used above).
+  let indicesWritten = 0;
+  if (job === 'eod' && mansa.isEnabled()) {
+    for (const m of markets as MarketCode[]) {
+      const info = MARKETS[m as 'BRVM'];
+      if (!info || (!body.force && !isIngestionWindow(info))) continue;
+      const idx = await mansa.getExchangeIndices(m).catch(() => []);
+      if (!idx.length) continue;
+      const { error } = await admin().from('index_values').upsert(idx.map((i) => ({ index_code: i.code, market: m, name: i.name, session_date: i.provenance.asOf, value: i.value, change_pct: i.changePct, source: 'mansa' })), { onConflict: 'index_code,session_date' });
+      if (!error) indicesWritten += idx.length; else console.warn('indices', m, error.message);
+    }
+  }
   // Latest closes are materialized: refresh once new closes were written.
   if (job === 'eod' && results.some((r) => (r as { written?: number }).written)) await admin().rpc('refresh_market_latest');
   // FX once per EOD run
@@ -236,5 +278,5 @@ Deno.serve(handler(async (req) => {
   if (job === 'eod' && (markets as string[]).includes('BRVM')) {
     events = await bulletin.latestSession('BRVM').then((s) => (s.text ? saveBrvmEvents(admin(), s.text, s.url, s.date) : null)).catch((e) => ({ error: (e as Error).message }));
   }
-  return json({ results, events });
+  return json({ results, events, indicesWritten });
 }));

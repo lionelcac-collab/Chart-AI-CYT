@@ -1,3 +1,4 @@
+import { MVP_MARKETS } from '../_shared/core/index.ts';
 // POST /admin {action, ...} — back-office of Chart-BoursafrikIA.
 // Every call: the caller must be signed in AND listed in `admins`; every write is written to audit_log.
 import { admin, audit, currentUser, handler, json } from '../_shared/runtime.ts';
@@ -32,9 +33,11 @@ Deno.serve(handler(async (req) => {
         count('fundamentals', (q) => q.eq('review_status', 'pending')), count('consensus_results'),
       ]);
       const { data: lastRuns } = await db.from('ingestion_runs').select('job, market, status, source_used, rows_written, error, started_at, finished_at').order('id', { ascending: false }).limit(12);
-      const { data: latest } = await db.from('market_latest').select('market, session_date').order('session_date', { ascending: false });
       const lastSession: Record<string, string> = {};
-      for (const r of latest ?? []) if (!lastSession[r.market]) lastSession[r.market] = r.session_date;
+      await Promise.all(MVP_MARKETS.map(async (m) => {
+        const { data } = await db.from('market_latest').select('session_date').eq('market', m).order('session_date', { ascending: false }).limit(1).maybeSingle();
+        if (data) lastSession[m] = data.session_date;
+      }));
       return json({ users, premium, admins, assets, bars, anomalies, pendingActions, pendingFundamentals, consensus, lastRuns, lastSession });
     }
 

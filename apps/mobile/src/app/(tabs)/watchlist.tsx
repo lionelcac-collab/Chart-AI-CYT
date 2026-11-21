@@ -14,7 +14,7 @@ import { prepImage } from '../../lib/imagePrep';
 import { exportCsv, exportPdf, type ExportInput } from '../../lib/exportPortfolio';
 import { sectorLabel } from '../../lib/demo';
 import { fmtDate, fmtNum, fmtPct, fmtPrice } from '../../lib/format';
-import { DEMO_MODE, supabase } from '../../lib/supabase';
+import { DEMO_MODE, supabase, currentUser } from '../../lib/supabase';
 import { useSettings } from '../../settings';
 import { changeColor, radius, space, useTheme } from '../../theme';
 
@@ -32,7 +32,7 @@ export default function Watchlist() {
   const qc = useQueryClient();
   const ids = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist });
   const all = useQuery({ queryKey: ['search', '', undefined], queryFn: () => api.search(''), enabled: !!ids.data?.length });
-  const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
+  const user = useQuery({ queryKey: ['user'], queryFn: currentUser, staleTime: Infinity });
   const rows = (all.data ?? []).filter((a) => ids.data?.includes(a.id));
   const pos = useQuery({ queryKey: ['positions', ids.data?.length ?? 0], queryFn: api.positions, enabled: !!ids.data?.length });
   const [editing, setEditing] = useState<string | null>(null);
@@ -193,6 +193,13 @@ export default function Watchlist() {
   return (
     <Screen refreshing={ids.isRefetching} onRefresh={() => ids.refetch()}>
       <Txt size="xl" weight="800">{t.watchlist.title}</Txt>
+      {user.isFetched && !user.data && !DEMO_MODE ? (
+        <Card>
+          <Txt weight="800">{fr ? 'Connectez-vous pour suivre vos titres' : 'Sign in to follow your stocks'}</Txt>
+          <Txt size="sm" muted>{fr ? 'Votre liste, votre portefeuille, vos alertes et votre panier sont enregistrés dans votre compte et disponibles sur tous vos appareils.' : 'Your list, portfolio, alerts and basket are saved to your account.'}</Txt>
+          <Button label={fr ? 'Se connecter / créer un compte' : 'Sign in / create an account'} onPress={() => router.push('/auth')} />
+        </Card>
+      ) : null}
       <View style={{ gap: 4 }}>
         <Txt size="xs" muted>{fr ? 'Devise d’affichage' : 'Display currency'}</Txt>
         <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: space.sm }}>

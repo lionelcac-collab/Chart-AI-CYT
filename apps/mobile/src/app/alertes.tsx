@@ -8,7 +8,7 @@ import { AlertForm, AlertList } from '../components/Alerts';
 import { Button, Card, Loading, Pill, Row, Screen, Txt } from '../components/ui';
 import { useT } from '../i18n';
 import { api } from '../lib/api';
-import { supabase } from '../lib/supabase';
+import { supabase, currentUser } from '../lib/supabase';
 import { fmtDate } from '../lib/format';
 import { radius, space, useTheme } from '../theme';
 
@@ -17,7 +17,7 @@ export default function AlertsScreen() {
   const { lang } = useT();
   const fr = lang === 'fr';
   const qc = useQueryClient();
-  const user = useQuery({ queryKey: ['user'], queryFn: async () => (supabase ? (await supabase.auth.getUser()).data.user : null) });
+  const user = useQuery({ queryKey: ['user'], queryFn: currentUser, staleTime: Infinity });
   const events = useQuery({ queryKey: ['alert-events'], queryFn: () => api.alertEvents(100), enabled: !!user.data });
   const alerts = useQuery({ queryKey: ['alerts'], queryFn: api.alerts, enabled: !!user.data });
   const all = useQuery({ queryKey: ['search', '', undefined], queryFn: () => api.search('') });
